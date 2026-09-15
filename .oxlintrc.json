@@ -11,11 +11,22 @@
   "rules": {
     "react/rules-of-hooks": "error",
     "react/react-in-jsx-scope": "off",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowConstantExport": true
+      }
+    ]
   },
   "overrides": [
     {
       "files": ["src/routes/**/*.tsx"],
+      "rules": {
+        "react/only-export-components": "off"
+      }
+    },
+    {
+      "files": ["src/components/ui/**/*.tsx"],
       "rules": {
         "react/only-export-components": "off"
       }

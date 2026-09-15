@@ -3,5 +3,5 @@
   "semi": false,
   "singleQuote": true,
   "printWidth": 100,
-  "ignorePatterns": ["dist", "src/routeTree.gen.ts"]
+  "ignorePatterns": ["AGENTS.md", "CLAUDE.md", "dist", "src/routeTree.gen.ts"]
 }

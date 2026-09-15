@@ -1,27 +1,32 @@
-import { Link, Outlet, createRootRoute } from '@tanstack/react-router'
+import { Outlet, createRootRoute } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
+
+import { AppBar } from '@/components/app-bar'
+import { ThemeProvider } from '@/theme/theme-provider'
 
 export const Route = createRootRoute({
   component: RootLayout,
+  notFoundComponent: NotFound,
 })
 
 function RootLayout() {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-800">
-        <nav className="mx-auto flex max-w-5xl items-center gap-6 px-4 py-3">
-          <Link to="/" className="font-semibold tracking-tight">
-            Explorer
-          </Link>
-          <Link to="/about" className="text-slate-400 hover:text-slate-100 [&.active]:text-sky-400">
-            About
-          </Link>
-        </nav>
-      </header>
-      <main className="mx-auto max-w-5xl px-4 py-8">
-        <Outlet />
-      </main>
+    <ThemeProvider>
+      <div className="flex min-h-screen flex-col">
+        <AppBar />
+        <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-8">
+          <Outlet />
+        </main>
+      </div>
       <TanStackRouterDevtools position="bottom-right" />
+    </ThemeProvider>
+  )
+}
+
+function NotFound() {
+  return (
+    <div className="flex flex-1 items-center justify-center">
+      <p className="text-muted-foreground">Unknown network.</p>
     </div>
   )
 }
