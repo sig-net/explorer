@@ -49,7 +49,7 @@ tokens, so classes such as `bg-clamshell-100` or `text-dark-neutral-400` work an
 semantic variables (`--background`, `--primary`, `--muted` and so on) are mapped onto those scales
 for light mode under `:root` and for dark mode under `.dark`.
 
-Dark mode is a class on the root element. `ThemeProvider` in `src/theme` reads the stored choice,
+Dark mode is a class on the root element. `ThemeProvider` in `src/components/contexts/ThemeContext.tsx` reads the stored choice,
 falls back to the system preference, and the toggle in the app bar flips it and persists it in
 local storage.
 
@@ -61,17 +61,34 @@ yarn dlx shadcn@latest add dropdown-menu
 
 ## Networks
 
-Supported networks are declared once in `src/networks.ts`, which owns the id set, display labels
+Supported networks are declared once in `src/lib/networks.ts`, which owns the id set, display labels
 and icon paths. Icons live in `public/icons`. Midnight and sig.network ship black and white
 variants, swapped by the dark class, and Solana uses one icon for both modes.
 
+## Midnight configuration
+
+`src/lib/midnight/network.ts` owns the closed set of Midnight networks (undeployed, stagenet,
+preview, preprod, mainnet), the default indexer, indexer websocket and node URLs for each, and
+the parser that turns a raw query value into a network. `MidnightProvider` in
+`src/components/contexts/MidnightContext.tsx` is mounted at the root and exposes the selected network, the effective
+configuration (defaults plus any edits), and actions to edit or reset it. Read it with the
+`useMidnight` hook from the same file. Edits live in memory only and are kept per network until the page reloads.
+
+The selected network is owned by the URL: every `/midnight` page carries `?networkId=<network>`.
+A missing or unknown value is rewritten to `stagenet` before the page loads, and the route
+layout copies the validated value into the context. The cog at the right of the Midnight bar
+opens the configuration popover, where changing the network rewrites the query string of the
+current page.
+
 ## Routing
 
-Files under `src/routes` map to URLs by name: `index.tsx` is `/`, `$network.tsx` is
-`/midnight` or `/solana`, and `__root.tsx` is the layout every route renders inside. The network
-route validates its parameter against the declared network ids and renders the not-found view for
-anything else. The switcher in the app bar navigates between network routes, so loading a network
-URL directly selects that network. The Vite plugin regenerates
+Files under `src/routes` map to URLs by name: `index.tsx` is `/`, `solana.tsx` is `/solana`,
+and `__root.tsx` is the layout every route renders inside. `midnight.tsx` is the layout for every
+`/midnight` page: it renders the Midnight bar with the Explorer and Contract Analyser tabs, and
+the files under `src/routes/midnight` are the tab pages. Bare `/midnight` redirects to
+`/midnight/explorer`. The switcher in the top app bar navigates between network roots, and the
+current network is derived from the first path segment, so loading a network URL directly selects
+that network. The Vite plugin regenerates
 `src/routeTree.gen.ts` whenever a route file changes. That file is committed so a fresh
 checkout type-checks before the first dev server run, and it is excluded from lint and
 format.

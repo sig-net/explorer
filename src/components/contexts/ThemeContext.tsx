@@ -1,6 +1,13 @@
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, createContext, useContext, useEffect, useState } from 'react'
 
-import { type Theme, ThemeContext, type ThemeContextValue } from './theme-context'
+export type Theme = 'light' | 'dark'
+
+export interface ThemeContextValue {
+  theme: Theme
+  setTheme: (theme: Theme) => void
+}
+
+const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 const STORAGE_KEY = 'explorer-theme'
 
@@ -39,4 +46,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }
 
   return <ThemeContext value={value}>{children}</ThemeContext>
+}
+
+export function useTheme(): ThemeContextValue {
+  const context = useContext(ThemeContext)
+  if (context === null) {
+    throw new Error('useTheme must be used within a ThemeProvider')
+  }
+  return context
 }

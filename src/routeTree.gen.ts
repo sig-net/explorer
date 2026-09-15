@@ -10,43 +10,98 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as NetworkRouteImport } from './routes/$network'
+import { Route as MidnightRouteImport } from './routes/midnight'
+import { Route as SolanaRouteImport } from './routes/solana'
+import { Route as MidnightIndexRouteImport } from './routes/midnight/index'
+import { Route as MidnightContractAnalyserRouteImport } from './routes/midnight/contract-analyser'
+import { Route as MidnightExplorerRouteImport } from './routes/midnight/explorer'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NetworkRoute = NetworkRouteImport.update({
-  id: '/$network',
-  path: '/$network',
+const MidnightRoute = MidnightRouteImport.update({
+  id: '/midnight',
+  path: '/midnight',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SolanaRoute = SolanaRouteImport.update({
+  id: '/solana',
+  path: '/solana',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MidnightIndexRoute = MidnightIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => MidnightRoute,
+} as any)
+const MidnightContractAnalyserRoute =
+  MidnightContractAnalyserRouteImport.update({
+    id: '/contract-analyser',
+    path: '/contract-analyser',
+    getParentRoute: () => MidnightRoute,
+  } as any)
+const MidnightExplorerRoute = MidnightExplorerRouteImport.update({
+  id: '/explorer',
+  path: '/explorer',
+  getParentRoute: () => MidnightRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/$network': typeof NetworkRoute
+  '/midnight': typeof MidnightRouteWithChildren
+  '/solana': typeof SolanaRoute
+  '/midnight/contract-analyser': typeof MidnightContractAnalyserRoute
+  '/midnight/explorer': typeof MidnightExplorerRoute
+  '/midnight/': typeof MidnightIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/$network': typeof NetworkRoute
+  '/solana': typeof SolanaRoute
+  '/midnight/contract-analyser': typeof MidnightContractAnalyserRoute
+  '/midnight/explorer': typeof MidnightExplorerRoute
+  '/midnight': typeof MidnightIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/$network': typeof NetworkRoute
+  '/midnight': typeof MidnightRouteWithChildren
+  '/solana': typeof SolanaRoute
+  '/midnight/contract-analyser': typeof MidnightContractAnalyserRoute
+  '/midnight/explorer': typeof MidnightExplorerRoute
+  '/midnight/': typeof MidnightIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/$network'
+  fullPaths:
+    | '/'
+    | '/midnight'
+    | '/solana'
+    | '/midnight/contract-analyser'
+    | '/midnight/explorer'
+    | '/midnight/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/$network'
-  id: '__root__' | '/' | '/$network'
+  to:
+    | '/'
+    | '/solana'
+    | '/midnight/contract-analyser'
+    | '/midnight/explorer'
+    | '/midnight'
+  id:
+    | '__root__'
+    | '/'
+    | '/midnight'
+    | '/solana'
+    | '/midnight/contract-analyser'
+    | '/midnight/explorer'
+    | '/midnight/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  NetworkRoute: typeof NetworkRoute
+  MidnightRoute: typeof MidnightRouteWithChildren
+  SolanaRoute: typeof SolanaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,19 +113,64 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$network': {
-      id: '/$network'
-      path: '/$network'
-      fullPath: '/$network'
-      preLoaderRoute: typeof NetworkRouteImport
+    '/midnight': {
+      id: '/midnight'
+      path: '/midnight'
+      fullPath: '/midnight'
+      preLoaderRoute: typeof MidnightRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/solana': {
+      id: '/solana'
+      path: '/solana'
+      fullPath: '/solana'
+      preLoaderRoute: typeof SolanaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/midnight/': {
+      id: '/midnight/'
+      path: '/'
+      fullPath: '/midnight/'
+      preLoaderRoute: typeof MidnightIndexRouteImport
+      parentRoute: typeof MidnightRoute
+    }
+    '/midnight/contract-analyser': {
+      id: '/midnight/contract-analyser'
+      path: '/contract-analyser'
+      fullPath: '/midnight/contract-analyser'
+      preLoaderRoute: typeof MidnightContractAnalyserRouteImport
+      parentRoute: typeof MidnightRoute
+    }
+    '/midnight/explorer': {
+      id: '/midnight/explorer'
+      path: '/explorer'
+      fullPath: '/midnight/explorer'
+      preLoaderRoute: typeof MidnightExplorerRouteImport
+      parentRoute: typeof MidnightRoute
     }
   }
 }
 
+interface MidnightRouteChildren {
+  MidnightContractAnalyserRoute: typeof MidnightContractAnalyserRoute
+  MidnightExplorerRoute: typeof MidnightExplorerRoute
+  MidnightIndexRoute: typeof MidnightIndexRoute
+}
+
+const MidnightRouteChildren: MidnightRouteChildren = {
+  MidnightContractAnalyserRoute: MidnightContractAnalyserRoute,
+  MidnightExplorerRoute: MidnightExplorerRoute,
+  MidnightIndexRoute: MidnightIndexRoute,
+}
+
+const MidnightRouteWithChildren = MidnightRoute._addFileChildren(
+  MidnightRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  NetworkRoute: NetworkRoute,
+  MidnightRoute: MidnightRouteWithChildren,
+  SolanaRoute: SolanaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -30,6 +30,12 @@
       "rules": {
         "react/only-export-components": "off"
       }
+    },
+    {
+      "files": ["src/components/contexts/**/*.tsx"],
+      "rules": {
+        "react/only-export-components": "off"
+      }
     }
   ],
   "ignorePatterns": ["dist", "src/routeTree.gen.ts"]

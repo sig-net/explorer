@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from '@tanstack/react-router'
+import { useLocation, useNavigate } from '@tanstack/react-router'
 import { ChevronDown } from 'lucide-react'
 
 import { NetworkIcon } from '@/components/network-icon'
@@ -9,16 +9,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { NETWORK_IDS, NETWORKS, type NetworkId, isNetworkId } from '@/networks'
+import { NETWORK_IDS, NETWORKS, type Network, networkFromPathname } from '@/lib/networks'
 
 export function NetworkSwitcher() {
   const navigate = useNavigate()
-  // The param is typed as a network id, but on a not-found URL it carries the raw path segment.
-  const { network: currentId } = useParams({ strict: false })
-  const current = currentId !== undefined && isNetworkId(currentId) ? NETWORKS[currentId] : null
+  const { pathname } = useLocation()
+  const current = networkFromPathname(pathname)
 
-  const select = (id: NetworkId) => {
-    void navigate({ to: '/$network', params: { network: id } })
+  const select = (network: Network) => {
+    void navigate({ to: network.route })
   }
 
   return (
@@ -42,7 +41,7 @@ export function NetworkSwitcher() {
         {NETWORK_IDS.map((id) => {
           const network = NETWORKS[id]
           return (
-            <DropdownMenuItem key={id} onClick={() => select(id)}>
+            <DropdownMenuItem key={id} onClick={() => select(network)}>
               <NetworkIcon network={network} className="size-4" />
               {network.label}
             </DropdownMenuItem>

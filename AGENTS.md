@@ -44,3 +44,27 @@ Keep setup instructions and application reference material in README.md and docs
   Qualify both members when introducing a qualified twin. Moves, deletions and renames require a
   whole-repository search for invalidated names and updates to imports, configuration, manifests,
   tests and documentation in the same change.
+
+## UI components
+
+- Every UI element is built from shadcn/ui components. Before building anything, check
+  `src/components/ui` for the component it needs. If it is not there, install it with the shadcn
+  CLI (`yarn dlx shadcn@latest add <component>`) rather than writing it by hand.
+- If shadcn has no component for what is asked, stop and say so. Do not invent a substitute,
+  hand-roll a primitive, or pull in another component library.
+
+## File layout
+
+- File code by what it is and who owns it, never by feature name. `src/lib` holds every
+  non-React module: domain sets, defaults, parsers, formatters. A domain with several modules
+  gets a folder under it (`src/lib/midnight/`). `src/components` holds React components,
+  `src/components/ui` only what the shadcn CLI writes, `src/components/contexts` React
+  contexts, and `src/routes` route files only. Do not create new top-level folders under `src`
+  for a feature; the folder name is decided by the kind of code, then the domain.
+- Split files by ownership, not by export type. A React context, its provider and its accessor
+  hook are one unit with one owner and always change together, so they live in one file:
+  `src/components/contexts/<Name>Context.tsx` exporting the value type, the provider and the
+  `use<Name>` hook. The same holds for any cluster that only ever changes as a whole. Split a
+  file only when a piece gains a consumer that must not import the rest (a non-React runtime, a
+  test that must avoid JSX). The Fast Refresh lint warning about mixed exports is not a reason
+  to split; it is switched off for `src/components/contexts`.

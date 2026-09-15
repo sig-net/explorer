@@ -1,4 +1,4 @@
-import type { Network } from '@/networks'
+import type { Network } from '@/lib/networks'
 
 export function NetworkIcon({ network, className }: { network: Network; className?: string }) {
   return (
