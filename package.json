@@ -18,6 +18,8 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@fontsource-variable/geist": "^5.3.0",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "5.0.0-beta.6",
+    "@sig-net/midnight": "v0.22.0-rc.5",
     "@tanstack/react-router": "^1.170.36",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
@@ -47,6 +49,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",
+    "vite-plugin-wasm": "^3.6.0",
     "vitest": "^5.0.0",
     "vitest-browser-react": "^2.3.0"
   },

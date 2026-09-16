@@ -20,16 +20,20 @@ import {
 } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useMidnight } from '@/components/contexts/MidnightContext'
-import {
-  MIDNIGHT_NETWORKS,
-  type MidnightNetwork,
-  type MidnightNetworkConfig,
-} from '@/lib/midnight/network'
+import { MidnightNetwork } from '@sig-net/midnight'
+import { MIDNIGHT_NETWORKS, type MidnightNetworkConfig } from '@/lib/midnight/network'
 
-const URL_FIELDS: ReadonlyArray<keyof MidnightNetworkConfig> = [
-  'indexerUrl',
-  'indexerWsUrl',
-  'nodeUrl',
+interface ConfigField {
+  key: keyof MidnightNetworkConfig
+  label: string
+}
+
+const CONFIG_FIELDS: readonly ConfigField[] = [
+  { key: 'indexerUrl', label: 'Indexer URL' },
+  { key: 'indexerWsUrl', label: 'Indexer WebSocket URL' },
+  { key: 'nodeUrl', label: 'Node URL' },
+  { key: 'mpcRootPublicKey', label: 'MPC Root Public Key' },
+  { key: 'signetContractAddress', label: 'Signet Contract Address' },
 ]
 
 export function MidnightConfiguration() {
@@ -81,13 +85,13 @@ export function MidnightConfiguration() {
               </SelectContent>
             </Select>
           </div>
-          {URL_FIELDS.map((field) => (
-            <div key={field} className="flex flex-col gap-2">
-              <Label htmlFor={`midnight-${field}`}>{field}</Label>
+          {CONFIG_FIELDS.map(({ key, label }) => (
+            <div key={key} className="flex flex-col gap-2">
+              <Label htmlFor={`midnight-${key}`}>{label}</Label>
               <Input
-                id={`midnight-${field}`}
-                value={config[field]}
-                onChange={(event) => setConfig({ [field]: event.target.value })}
+                id={`midnight-${key}`}
+                value={config[key]}
+                onChange={(event) => setConfig({ [key]: event.target.value })}
               />
             </div>
           ))}

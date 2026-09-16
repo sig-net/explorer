@@ -5,6 +5,7 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import tailwindcss from '@tailwindcss/vite'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import { playwright } from '@vitest/browser-playwright'
+import wasm from 'vite-plugin-wasm'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
@@ -14,7 +15,15 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
+    // @sig-net/midnight reaches the Midnight ledger and onchain-runtime WebAssembly modules.
+    wasm(),
   ],
+  optimizeDeps: {
+    // The dependency optimizer cannot inline wasm-bindgen imports. Keeping these two out of the
+    // prebundle lets the wasm plugin serve their .wasm imports, while the rest of the SDK tree
+    // (which includes CommonJS packages) is still optimized.
+    exclude: ['@midnightntwrk/onchain-runtime-v4', '@midnightntwrk/ledger-v9'],
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

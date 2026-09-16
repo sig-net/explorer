@@ -1,12 +1,11 @@
-export const MidnightNetwork = {
-  Undeployed: 'undeployed',
-  Stagenet: 'stagenet',
-  Preview: 'preview',
-  Preprod: 'preprod',
-  Mainnet: 'mainnet',
-} as const
-
-export type MidnightNetwork = (typeof MidnightNetwork)[keyof typeof MidnightNetwork]
+import {
+  bytesToHex,
+  contractAddressFromHex,
+  getMpcRootPublicKey,
+  getSignetContractAddress,
+  MidnightNetwork,
+  normaliseSecp256k1PublicKey,
+} from '@sig-net/midnight'
 
 export const MIDNIGHT_NETWORKS: readonly MidnightNetwork[] = [
   MidnightNetwork.Undeployed,
@@ -22,6 +21,53 @@ export interface MidnightNetworkConfig {
   indexerUrl: string
   indexerWsUrl: string
   nodeUrl: string
+  mpcRootPublicKey: string
+  signetContractAddress: string
+}
+
+export type MidnightUndeployedEnv = Pick<
+  ImportMetaEnv,
+  | 'VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY'
+  | 'VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS'
+>
+
+function readMidnightUndeployedEnv(
+  env: MidnightUndeployedEnv,
+  name: keyof MidnightUndeployedEnv,
+  normalise: (value: string) => string,
+): string {
+  const value = env[name]?.trim() ?? ''
+  if (value === '') {
+    return ''
+  }
+  try {
+    return normalise(value)
+  } catch (error) {
+    throw new Error(`Invalid ${name}`, { cause: error })
+  }
+}
+
+/**
+ * Reads the undeployed network's MPC root public key and Signet contract address, which every local
+ * stack generates afresh. Unset or empty variables yield empty strings.
+ *
+ * @throws {Error} When a set variable is not a valid key or address.
+ */
+export function parseMidnightUndeployedEnv(
+  env: MidnightUndeployedEnv,
+): Pick<MidnightNetworkConfig, 'mpcRootPublicKey' | 'signetContractAddress'> {
+  return {
+    mpcRootPublicKey: readMidnightUndeployedEnv(
+      env,
+      'VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY',
+      normaliseSecp256k1PublicKey,
+    ),
+    signetContractAddress: readMidnightUndeployedEnv(
+      env,
+      'VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS',
+      (value) => bytesToHex(contractAddressFromHex(value).bytes),
+    ),
+  }
 }
 
 export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkConfig> = {
@@ -29,6 +75,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     indexerUrl: 'http://127.0.0.1:8088/api/v3/graphql',
     indexerWsUrl: 'ws://127.0.0.1:8088/api/v3/graphql/ws',
     nodeUrl: 'http://127.0.0.1:9944',
+    ...parseMidnightUndeployedEnv(import.meta.env),
   },
   // Stagenet serves the v4 indexer API, so its paths differ from the v3 paths of the
   // *.midnight.network networks below.
@@ -36,26 +83,40 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     indexerUrl: 'https://indexer.stagenet.shielded.tools/api/v4/graphql',
     indexerWsUrl: 'wss://indexer.stagenet.shielded.tools/api/v4/graphql/ws',
     nodeUrl: 'https://rpc.stagenet.shielded.tools',
+    mpcRootPublicKey: getMpcRootPublicKey(MidnightNetwork.Stagenet),
+    signetContractAddress: getSignetContractAddress(MidnightNetwork.Stagenet),
   },
+  // TODO: populate for this network once released to these networks
   [MidnightNetwork.Preview]: {
     indexerUrl: 'https://indexer.preview.midnight.network/api/v3/graphql',
     indexerWsUrl: 'wss://indexer.preview.midnight.network/api/v3/graphql/ws',
     nodeUrl: 'https://rpc.preview.midnight.network',
+    mpcRootPublicKey: '',
+    signetContractAddress: '',
   },
+  // TODO: populate for this network once released to these networks
   [MidnightNetwork.Preprod]: {
     indexerUrl: 'https://indexer.preprod.midnight.network/api/v3/graphql',
     indexerWsUrl: 'wss://indexer.preprod.midnight.network/api/v3/graphql/ws',
     nodeUrl: 'https://rpc.preprod.midnight.network',
+    mpcRootPublicKey: '',
+    signetContractAddress: '',
   },
+  // TODO: populate for this network once released to these networks
   [MidnightNetwork.Mainnet]: {
     indexerUrl: 'https://indexer.mainnet.midnight.network/api/v3/graphql',
     indexerWsUrl: 'wss://indexer.mainnet.midnight.network/api/v3/graphql/ws',
     nodeUrl: 'https://rpc.mainnet.midnight.network',
+    mpcRootPublicKey: '',
+    signetContractAddress: '',
   },
 }
 
+// Widened to plain strings so a raw value can be tested without comparing across enum types.
+const MIDNIGHT_NETWORK_VALUES: readonly string[] = MIDNIGHT_NETWORKS
+
 export function isMidnightNetwork(value: unknown): value is MidnightNetwork {
-  return typeof value === 'string' && MIDNIGHT_NETWORKS.some((network) => network === value)
+  return typeof value === 'string' && MIDNIGHT_NETWORK_VALUES.includes(value)
 }
 
 /** Narrows a raw search-param value to a network, falling back to the default. */

@@ -1,19 +1,31 @@
-import { type ReactNode, createContext, useContext, useState } from 'react'
+import {
+  type ReactNode,
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from 'react'
+import type { MidnightNetwork } from '@sig-net/midnight'
 
+import {
+  type MidnightIndexerServices,
+  MidnightIndexerServicesStore,
+} from '@/lib/midnight/indexer-services'
 import {
   DEFAULT_MIDNIGHT_NETWORK,
   MIDNIGHT_NETWORK_DEFAULTS,
-  type MidnightNetwork,
   type MidnightNetworkConfig,
 } from '@/lib/midnight/network'
 
 export interface MidnightContextValue {
-  /** The selected Midnight network. */
   network: MidnightNetwork
-  /** Effective configuration: the network defaults with any in-memory overrides applied. */
+  /** The network defaults with any in-memory overrides applied. */
   config: MidnightNetworkConfig
   /** True when no field of the selected network has been overridden. */
   isDefaultConfig: boolean
+  /** Null until services for the configured indexer URLs are built. */
+  indexerServices: MidnightIndexerServices | null
   setNetwork: (network: MidnightNetwork) => void
   /** Overrides one or more fields of the selected network's configuration. */
   setConfig: (patch: Partial<MidnightNetworkConfig>) => void
@@ -21,24 +33,38 @@ export interface MidnightContextValue {
   resetDefaults: () => void
 }
 
-const MidnightContext = createContext<MidnightContextValue | null>(null)
-
 type ConfigOverrides = Partial<Record<MidnightNetwork, Partial<MidnightNetworkConfig>>>
+
+const MidnightContext = createContext<MidnightContextValue | null>(null)
 
 export function MidnightProvider({ children }: { children: ReactNode }) {
   const [network, setNetwork] = useState<MidnightNetwork>(DEFAULT_MIDNIGHT_NETWORK)
   const [overrides, setOverrides] = useState<ConfigOverrides>({})
+  const [indexerServicesStore] = useState(() => new MidnightIndexerServicesStore())
 
-  const currentOverrides = overrides[network] ?? {}
+  const networkOverrides = overrides[network] ?? {}
   const config: MidnightNetworkConfig = {
     ...MIDNIGHT_NETWORK_DEFAULTS[network],
-    ...currentOverrides,
+    ...networkOverrides,
   }
+  const { indexerUrl, indexerWsUrl } = config
+
+  useEffect(() => {
+    indexerServicesStore.connect({ indexerUrl, indexerWsUrl })
+  }, [indexerServicesStore, indexerUrl, indexerWsUrl])
+
+  useEffect(() => () => indexerServicesStore.disconnect(), [indexerServicesStore])
+
+  const indexerServices = useSyncExternalStore(
+    indexerServicesStore.subscribe,
+    indexerServicesStore.getSnapshot,
+  )
 
   const value: MidnightContextValue = {
     network,
     config,
-    isDefaultConfig: Object.keys(currentOverrides).length === 0,
+    isDefaultConfig: Object.keys(networkOverrides).length === 0,
+    indexerServices,
     setNetwork,
     setConfig: (patch) => {
       setOverrides((previous) => ({

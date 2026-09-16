@@ -3,7 +3,9 @@ import { useEffect } from 'react'
 
 import { MidnightAppBar } from '@/components/midnight/midnight-app-bar'
 import { useMidnight } from '@/components/contexts/MidnightContext'
-import { type MidnightNetwork, parseMidnightNetwork } from '@/lib/midnight/network'
+import { MidnightNetwork } from '@sig-net/midnight'
+
+import { parseMidnightNetwork } from '@/lib/midnight/network'
 
 interface MidnightSearch {
   networkId: MidnightNetwork

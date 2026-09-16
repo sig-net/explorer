@@ -67,12 +67,39 @@ variants, swapped by the dark class, and Solana uses one icon for both modes.
 
 ## Midnight configuration
 
-`src/lib/midnight/network.ts` owns the closed set of Midnight networks (undeployed, stagenet,
-preview, preprod, mainnet), the default indexer, indexer websocket and node URLs for each, and
-the parser that turns a raw query value into a network. `MidnightProvider` in
+`src/lib/midnight/network.ts` owns the list of Midnight networks (the `MidnightNetwork` enum
+from `@sig-net/midnight`), the default indexer, indexer websocket and node URLs for each, the MPC
+root public key and Signet contract address where the SDK publishes them, and the
+parser that turns a raw query value into a network.
+
+A local `undeployed` stack generates its own MPC root public key and Signet contract address, so
+the SDK publishes neither. To avoid re-entering them after every reload, put them in `.env.local`
+(ignored by git) and restart `yarn dev`, which also restarts on its own when the file changes:
+
+```dotenv
+VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY=0x04...
+VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS=380b...
+```
+
+They become the `undeployed` defaults, so Reset Defaults returns to them. Unset variables leave the
+fields empty. A value that is not a valid secp256k1 public key or 32-byte hex contract address
+stops the app from loading, and the error names the variable. Only variables prefixed `VITE_` reach
+the browser, and each one read is declared in `src/vite-env.d.ts`.
+
+`@sig-net/midnight` loads the Midnight ledger and onchain-runtime WebAssembly modules. Vite's
+dependency optimizer cannot inline those, so `vite.config.ts` adds `vite-plugin-wasm` and keeps
+the two wasm packages out of the prebundle. The rest of the SDK tree is still optimized, which
+matters because it includes CommonJS packages. `MidnightProvider` in
 `src/components/contexts/MidnightContext.tsx` is mounted at the root and exposes the selected network, the effective
-configuration (defaults plus any edits), and actions to edit or reset it. Read it with the
-`useMidnight` hook from the same file. Edits live in memory only and are kept per network until the page reloads.
+configuration (defaults plus any edits), the indexer services, and actions to edit or reset the
+configuration. Read it with the `useMidnight` hook from the same file. Edits live in memory only
+and are kept per network until the page reloads.
+
+The indexer services are the indexer public data provider and the Signet event source built on
+it. `src/lib/midnight/indexer-services.ts` owns them: they are rebuilt only when the effective
+indexer or indexer websocket URL changes, and the replaced provider is disposed to close its
+WebSocket connection. They are `null` until the first build completes, just after the provider
+mounts.
 
 The selected network is owned by the URL: every `/midnight` page carries `?networkId=<network>`.
 A missing or unknown value is rewritten to `stagenet` before the page loads, and the route

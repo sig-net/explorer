@@ -5,18 +5,17 @@
     "lib": ["ES2023"],
     "types": ["node"],
     "skipLibCheck": true,
-
-    "module": "nodenext",
+    "module": "esnext",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
-
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "moduleResolution": "bundler"
   },
   "include": ["vite.config.ts"]
 }
