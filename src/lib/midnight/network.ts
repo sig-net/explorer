@@ -72,13 +72,11 @@ export function parseMidnightUndeployedEnv(
 
 export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkConfig> = {
   [MidnightNetwork.Undeployed]: {
-    indexerUrl: 'http://127.0.0.1:8088/api/v3/graphql',
-    indexerWsUrl: 'ws://127.0.0.1:8088/api/v3/graphql/ws',
+    indexerUrl: 'http://127.0.0.1:8088/api/v4/graphql',
+    indexerWsUrl: 'ws://127.0.0.1:8088/api/v4/graphql/ws',
     nodeUrl: 'http://127.0.0.1:9944',
     ...parseMidnightUndeployedEnv(import.meta.env),
   },
-  // Stagenet serves the v4 indexer API, so its paths differ from the v3 paths of the
-  // *.midnight.network networks below.
   [MidnightNetwork.Stagenet]: {
     indexerUrl: 'https://indexer.stagenet.shielded.tools/api/v4/graphql',
     indexerWsUrl: 'wss://indexer.stagenet.shielded.tools/api/v4/graphql/ws',
@@ -88,24 +86,24 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
   },
   // TODO: populate for this network once released to these networks
   [MidnightNetwork.Preview]: {
-    indexerUrl: 'https://indexer.preview.midnight.network/api/v3/graphql',
-    indexerWsUrl: 'wss://indexer.preview.midnight.network/api/v3/graphql/ws',
+    indexerUrl: 'https://indexer.preview.midnight.network/api/v4/graphql',
+    indexerWsUrl: 'wss://indexer.preview.midnight.network/api/v4/graphql/ws',
     nodeUrl: 'https://rpc.preview.midnight.network',
     mpcRootPublicKey: '',
     signetContractAddress: '',
   },
   // TODO: populate for this network once released to these networks
   [MidnightNetwork.Preprod]: {
-    indexerUrl: 'https://indexer.preprod.midnight.network/api/v3/graphql',
-    indexerWsUrl: 'wss://indexer.preprod.midnight.network/api/v3/graphql/ws',
+    indexerUrl: 'https://indexer.preprod.midnight.network/api/v4/graphql',
+    indexerWsUrl: 'wss://indexer.preprod.midnight.network/api/v4/graphql/ws',
     nodeUrl: 'https://rpc.preprod.midnight.network',
     mpcRootPublicKey: '',
     signetContractAddress: '',
   },
   // TODO: populate for this network once released to these networks
   [MidnightNetwork.Mainnet]: {
-    indexerUrl: 'https://indexer.mainnet.midnight.network/api/v3/graphql',
-    indexerWsUrl: 'wss://indexer.mainnet.midnight.network/api/v3/graphql/ws',
+    indexerUrl: 'https://indexer.mainnet.midnight.network/api/v4/graphql',
+    indexerWsUrl: 'wss://indexer.mainnet.midnight.network/api/v4/graphql/ws',
     nodeUrl: 'https://rpc.mainnet.midnight.network',
     mpcRootPublicKey: '',
     signetContractAddress: '',
