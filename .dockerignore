@@ -1,0 +1,34 @@
+# Vite inlines VITE_* values at build time, so a developer's .env.local would be baked into the
+# image. Nothing matching an env file or a *.local override reaches the build context.
+.env
+.env.*
+*.local
+
+.git
+.gitignore
+node_modules
+dist
+.yarn
+.pnp.*
+.tanstack
+coverage
+__screenshots__
+.vitest
+scratch
+*scratch*
+logs
+*.log
+.DS_Store
+**/.DS_Store
+.vscode
+.idea
+.claude
+.editorconfig
+.oxlintrc.json
+.oxfmtrc.json
+AGENTS.md
+CLAUDE.md
+LICENSE
+README.md
+ci/Dockerfile
+.dockerignore

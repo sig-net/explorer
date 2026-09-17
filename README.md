@@ -41,6 +41,39 @@ yarn playwright install chromium
 | `yarn test:watch`   | Run the test suite in watch mode                               |
 | `yarn check`        | Typecheck, lint, format check and test in sequence             |
 
+## Container image
+
+`ci/Dockerfile` builds the app with Node 24 on Debian slim and serves `dist` from
+`nginxinc/nginx-unprivileged`, configured by the server config in `ci/nginx`. The build context is
+the repository root, so build from there:
+
+```bash
+docker build -f ci/Dockerfile -t explorer:local .
+```
+
+Run it on <http://localhost:8080>:
+
+```bash
+docker run --rm -d --name explorer -p 8080:8080 explorer:local
+```
+
+A Kubernetes manifest needs this much of the runtime contract:
+
+| Property                    | Value                                  |
+| --------------------------- | -------------------------------------- |
+| Container port              | 8080                                   |
+| User                        | non-root, uid 101                      |
+| Liveness and readiness path | `/healthz`, 200 with a plain text body |
+| Logs                        | access on stdout, errors on stderr     |
+
+Under `readOnlyRootFilesystem: true` the pod also needs a writable `emptyDir` mounted at `/tmp`,
+where nginx keeps its pid file and its temp directories. Without one the container exits during
+start up with `mkdir() "/tmp/proxy_temp" failed (30: Read-only file system)`.
+
+Vite inlines `VITE_*` values at build time, and `.dockerignore` keeps every `.env*` file out of
+the build context, so an image serves the SDK's published network defaults and never a
+developer's `.env.local`.
+
 ## Canonical Tailwind classes
 
 `yarn lint` also checks that every Tailwind class is written in its canonical form, the check the
