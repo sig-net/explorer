@@ -17,6 +17,7 @@ dist
 # Test output
 coverage
 __screenshots__
+.vitest
 
 # Logs
 logs

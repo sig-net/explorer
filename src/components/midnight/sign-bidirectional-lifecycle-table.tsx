@@ -1,6 +1,9 @@
-import { Check, Clock, Copy, X } from 'lucide-react'
-import { type ReactNode, useEffect, useState } from 'react'
+import { ChevronDown, ChevronUp, X } from 'lucide-react'
+import { type ReactNode, useId, useState } from 'react'
 
+import { CopyableHex } from '@/components/copyable-hex'
+import { SignetEventSourcesSection } from '@/components/midnight/signet-event-sources-section'
+import { PendingIcon } from '@/components/pending-icon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -11,8 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { formatDuration, formatUtcTimestamp, truncateMiddle } from '@/lib/format'
+import { formatDuration, formatUtcTimestamp } from '@/lib/format'
 import {
   type SignBidirectionalLifecycle,
   signBidirectionalLifecycleDurationMs,
@@ -22,10 +24,6 @@ import {
 /** Entries shown in one cell before the rest collapse into an ellipsis. */
 const MAX_STACKED = 3
 
-function Pending() {
-  return <Clock role="img" aria-label="Pending" className="text-muted-foreground size-4" />
-}
-
 function Stacked({ children }: { children: readonly ReactNode[] }) {
   return (
     <div className="flex flex-col gap-1">
@@ -34,50 +32,6 @@ function Stacked({ children }: { children: readonly ReactNode[] }) {
         <span aria-label={`${String(children.length - MAX_STACKED)} more`}>...</span>
       )}
     </div>
-  )
-}
-
-/** How long the copy button shows its confirmation. */
-const COPIED_FEEDBACK_MS = 1500
-
-/** A long hex value, truncated, with its full form on hover and a button that copies it. */
-function CopyableHex({ value, label }: { value: string; label: string }) {
-  const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    const timer = copied ? setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS) : null
-    return () => {
-      if (timer !== null) {
-        clearTimeout(timer)
-      }
-    }
-  }, [copied])
-
-  const copy = () => {
-    void navigator.clipboard.writeText(value).then(
-      () => setCopied(true),
-      () => setCopied(false),
-    )
-  }
-
-  return (
-    <span className="inline-flex items-center gap-1">
-      <Tooltip>
-        <TooltipTrigger render={<span className="font-mono" />}>
-          {truncateMiddle(value)}
-        </TooltipTrigger>
-        {/* The popup's default width cap is narrower than a 32-byte hex value, which cannot wrap. */}
-        <TooltipContent className="max-w-none! font-mono">{value}</TooltipContent>
-      </Tooltip>
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        aria-label={copied ? `Copied ${label}` : `Copy ${label}`}
-        onClick={copy}
-      >
-        {copied ? <Check /> : <Copy />}
-      </Button>
-    </span>
   )
 }
 
@@ -97,46 +51,82 @@ function LifecycleRow({ lifecycle }: { lifecycle: SignBidirectionalLifecycle }) 
   const { signBidirectionalEvents, signatureRespondedEvents, respondBidirectionalEvents } =
     lifecycle
   const durationMs = signBidirectionalLifecycleDurationMs(lifecycle)
+  const [expanded, setExpanded] = useState(false)
+  const detailsId = useId()
   return (
-    <TableRow className="[&>td]:align-top">
-      <TableCell>
-        <Timestamps dates={signBidirectionalEvents.map((event) => event.source.blockTimestamp)} />
-      </TableCell>
-      <TableCell>
-        <CopyableHex value={lifecycle.requestId} label="request id" />
-      </TableCell>
-      <TableCell>
-        <Stacked>
-          {signBidirectionalEvents.map((event) => (
-            <CopyableHex
-              key={event.source.id}
-              value={event.record.callerAddress}
-              label="caller address"
+    <>
+      <TableRow className="[&>td]:align-top">
+        <TableCell>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={expanded ? 'Collapse event details' : 'Expand event details'}
+            aria-expanded={expanded}
+            aria-controls={detailsId}
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? <ChevronUp /> : <ChevronDown />}
+          </Button>
+        </TableCell>
+        <TableCell>
+          <Timestamps dates={signBidirectionalEvents.map((event) => event.source.blockTimestamp)} />
+        </TableCell>
+        <TableCell>
+          <CopyableHex value={lifecycle.requestId} label="request id" />
+        </TableCell>
+        <TableCell>
+          <Stacked>
+            {signBidirectionalEvents.map((event) => (
+              <CopyableHex
+                key={event.source.id}
+                value={event.record.callerAddress}
+                label="caller address"
+              />
+            ))}
+          </Stacked>
+        </TableCell>
+        <TableCell>Bidirectional</TableCell>
+        <TableCell>
+          {signatureRespondedEvents.length === 0 ? (
+            <PendingIcon />
+          ) : (
+            <Timestamps
+              dates={signatureRespondedEvents.map((event) => event.source.blockTimestamp)}
             />
-          ))}
-        </Stacked>
-      </TableCell>
-      <TableCell>Bidirectional</TableCell>
-      <TableCell>
-        {signatureRespondedEvents.length === 0 ? (
-          <Pending />
-        ) : (
-          <Timestamps
-            dates={signatureRespondedEvents.map((event) => event.source.blockTimestamp)}
-          />
-        )}
-      </TableCell>
-      <TableCell>
-        {respondBidirectionalEvents.length === 0 ? (
-          <Pending />
-        ) : (
-          <Timestamps
-            dates={respondBidirectionalEvents.map((event) => event.source.blockTimestamp)}
-          />
-        )}
-      </TableCell>
-      <TableCell>{durationMs === null ? <Pending /> : formatDuration(durationMs)}</TableCell>
-    </TableRow>
+          )}
+        </TableCell>
+        <TableCell>
+          {respondBidirectionalEvents.length === 0 ? (
+            <PendingIcon />
+          ) : (
+            <Timestamps
+              dates={respondBidirectionalEvents.map((event) => event.source.blockTimestamp)}
+            />
+          )}
+        </TableCell>
+        <TableCell>{durationMs === null ? <PendingIcon /> : formatDuration(durationMs)}</TableCell>
+      </TableRow>
+      {expanded && (
+        <TableRow id={detailsId} className="hover:bg-transparent">
+          <TableCell colSpan={COLUMN_COUNT} className="p-0 whitespace-normal">
+            <div className="grid grid-cols-3 divide-x">
+              <SignetEventSourcesSection
+                heading="Sign Bidirectional Notification"
+                sources={signBidirectionalEvents.map((event) => event.source)}
+              />
+              <SignetEventSourcesSection
+                heading="Signature Responded Event"
+                sources={signatureRespondedEvents.map((event) => event.source)}
+              />
+              <SignetEventSourcesSection
+                heading="Respond Bidirectional Event"
+                sources={respondBidirectionalEvents.map((event) => event.source)}
+              />
+            </div>
+          </TableCell>
+        </TableRow>
+      )}
+    </>
   )
 }
 
@@ -149,6 +139,9 @@ const COLUMNS = [
   'Response',
   'Duration',
 ] as const
+
+/** The named columns and the leading expand control's column. */
+const COLUMN_COUNT = COLUMNS.length + 1
 
 export function SignBidirectionalLifecycleTable({
   lifecycles,
@@ -190,6 +183,9 @@ export function SignBidirectionalLifecycleTable({
               the header's own box, which follows the sticky offset. */}
           <TableHeader className="bg-muted sticky top-0 z-10 shadow-[inset_0_-1px_0_var(--border)] [&_tr]:border-b-0">
             <TableRow>
+              <TableHead className="w-10">
+                <span className="sr-only">Event details</span>
+              </TableHead>
               {COLUMNS.map((column) => (
                 <TableHead key={column}>{column}</TableHead>
               ))}
@@ -198,7 +194,7 @@ export function SignBidirectionalLifecycleTable({
           <TableBody>
             {matching.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={COLUMNS.length} className="text-muted-foreground text-center">
+                <TableCell colSpan={COLUMN_COUNT} className="text-muted-foreground text-center">
                   {lifecycles.length === 0 ? 'No requests yet' : 'No requests match the search'}
                 </TableCell>
               </TableRow>
