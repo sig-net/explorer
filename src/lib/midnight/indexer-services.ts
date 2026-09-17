@@ -1,8 +1,4 @@
 import {
-  indexerPublicDataProvider,
-  type IndexerPublicDataProvider,
-} from '@midnight-ntwrk/midnight-js-indexer-public-data-provider'
-import {
   type IndexedSignetMiscEvent,
   type SignetEventSource,
   signetEventSourceFromIndexer,
@@ -10,10 +6,9 @@ import {
 
 import type { MidnightNetworkConfig } from '@/lib/midnight/network'
 
-export type MidnightIndexerUrls = Pick<MidnightNetworkConfig, 'indexerUrl' | 'indexerWsUrl'>
+export type MidnightIndexerUrls = Pick<MidnightNetworkConfig, 'indexerUrl'>
 
 export interface MidnightIndexerServices {
-  publicDataProvider: IndexerPublicDataProvider
   /** Streams the Signet contract's events from the indexer's query URL, one page at a time. */
   signetEventSource: SignetEventSource<IndexedSignetMiscEvent>
 }
@@ -24,8 +19,8 @@ interface BuiltIndexerServices {
 }
 
 /**
- * Owns the indexer-backed services for one set of URLs. The provider holds a WebSocket connection,
- * so replacing or releasing the services disposes it.
+ * Owns the indexer-backed services for one indexer URL. Consumers key their work on the identity
+ * of a service, so the same URL always yields the same objects.
  */
 export class MidnightIndexerServicesStore {
   #built: BuiltIndexerServices | null = null
@@ -40,40 +35,22 @@ export class MidnightIndexerServicesStore {
 
   getSnapshot = (): MidnightIndexerServices | null => this.#built?.services ?? null
 
-  /** Builds services for `urls`, replacing the current ones only when either URL differs. */
+  /** Builds services for `urls`, replacing the current ones only when the URL differs. */
   connect(urls: MidnightIndexerUrls): void {
-    if (
-      this.#built?.urls.indexerUrl === urls.indexerUrl &&
-      this.#built.urls.indexerWsUrl === urls.indexerWsUrl
-    ) {
+    if (this.#built?.urls.indexerUrl === urls.indexerUrl) {
       return
     }
-    this.#release()
-    const publicDataProvider = indexerPublicDataProvider({
-      queryURL: urls.indexerUrl,
-      subscriptionURL: urls.indexerWsUrl,
-    })
     this.#built = {
       urls,
-      services: {
-        publicDataProvider,
-        signetEventSource: signetEventSourceFromIndexer({ queryUrl: urls.indexerUrl }),
-      },
+      services: { signetEventSource: signetEventSourceFromIndexer({ queryUrl: urls.indexerUrl }) },
     }
     this.#notify()
   }
 
   disconnect(): void {
     if (this.#built !== null) {
-      this.#release()
-      this.#notify()
-    }
-  }
-
-  #release(): void {
-    if (this.#built !== null) {
-      void this.#built.services.publicDataProvider.dispose()
       this.#built = null
+      this.#notify()
     }
   }
 

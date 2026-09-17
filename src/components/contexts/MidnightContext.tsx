@@ -47,11 +47,11 @@ export function MidnightProvider({ children }: { children: ReactNode }) {
     ...MIDNIGHT_NETWORK_DEFAULTS[network],
     ...networkOverrides,
   }
-  const { indexerUrl, indexerWsUrl } = config
+  const { indexerUrl } = config
 
   useEffect(() => {
-    indexerServicesStore.connect({ indexerUrl, indexerWsUrl })
-  }, [indexerServicesStore, indexerUrl, indexerWsUrl])
+    indexerServicesStore.connect({ indexerUrl })
+  }, [indexerServicesStore, indexerUrl])
 
   useEffect(() => () => indexerServicesStore.disconnect(), [indexerServicesStore])
 

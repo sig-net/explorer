@@ -10,37 +10,36 @@ function connectedServices(store: MidnightIndexerServicesStore): MidnightIndexer
   return services
 }
 
-const INDEXER_URLS = {
-  indexerUrl: 'https://indexer.example/api/v4/graphql',
-  indexerWsUrl: 'wss://indexer.example/api/v4/graphql/ws',
-}
+const INDEXER_URLS = { indexerUrl: 'https://indexer.example/api/v4/graphql' }
 
-test('services rebuild only when an indexer URL changes', () => {
+test('services rebuild only when the indexer URL changes', () => {
   const store = new MidnightIndexerServicesStore()
   const listener = vi.fn<() => void>()
   store.subscribe(listener)
 
   store.connect(INDEXER_URLS)
   const first = connectedServices(store)
-  const disposeFirst = vi.spyOn(first.publicDataProvider, 'dispose')
 
   store.connect({ ...INDEXER_URLS })
   expect(store.getSnapshot()).toBe(first)
   expect(listener).toHaveBeenCalledTimes(1)
-  expect(disposeFirst).not.toHaveBeenCalled()
 
-  store.connect({ ...INDEXER_URLS, indexerWsUrl: 'wss://other.example/graphql/ws' })
+  store.connect({ indexerUrl: 'https://other.example/api/v4/graphql' })
   expect(connectedServices(store)).not.toBe(first)
+  expect(connectedServices(store).signetEventSource).not.toBe(first.signetEventSource)
   expect(listener).toHaveBeenCalledTimes(2)
-  expect(disposeFirst).toHaveBeenCalledTimes(1)
 })
 
-test('disconnect disposes the services and clears the snapshot', () => {
+test('disconnect clears the snapshot', () => {
   const store = new MidnightIndexerServicesStore()
+  const listener = vi.fn<() => void>()
   store.connect(INDEXER_URLS)
-  const dispose = vi.spyOn(connectedServices(store).publicDataProvider, 'dispose')
+  store.subscribe(listener)
 
   store.disconnect()
   expect(store.getSnapshot()).toBeNull()
-  expect(dispose).toHaveBeenCalledTimes(1)
+  expect(listener).toHaveBeenCalledTimes(1)
+
+  store.disconnect()
+  expect(listener).toHaveBeenCalledTimes(1)
 })

@@ -134,20 +134,31 @@ fields empty. A value that is not a valid secp256k1 public key or 32-byte hex co
 stops the app from loading, and the error names the variable. Only variables prefixed `VITE_` reach
 the browser, and each one read is declared in `src/vite-env.d.ts`.
 
-`@sig-net/midnight` loads the Midnight ledger and onchain-runtime WebAssembly modules. Vite's
-dependency optimizer cannot inline those, so `vite.config.ts` adds `vite-plugin-wasm` and keeps
-the two wasm packages out of the prebundle. The rest of the SDK tree is still optimized, which
+`@sig-net/midnight` loads the Midnight onchain-runtime WebAssembly module through the Compact
+runtime. Vite's dependency optimizer cannot inline it, so `vite.config.ts` adds `vite-plugin-wasm`
+and keeps that package out of the prebundle. The rest of the SDK tree is still optimized, which
 matters because it includes CommonJS packages. `MidnightProvider` in
 `src/components/contexts/MidnightContext.tsx` is mounted at the root and exposes the selected network, the effective
 configuration (defaults plus any edits), the indexer services, and actions to edit or reset the
 configuration. Read it with the `useMidnight` hook from the same file. Edits live in memory only
 and are kept per network until the page reloads.
 
-The indexer services are the indexer public data provider and the Signet event source, which reads
-the indexer's query URL directly. `src/lib/midnight/indexer-services.ts` owns them: they are
-rebuilt only when the effective indexer or indexer websocket URL changes, and the replaced provider
-is disposed to close its WebSocket connection. They are `null` until the first build completes,
-just after the provider mounts.
+The indexer services hold the Signet event source, which reads the indexer's query URL directly.
+`src/lib/midnight/indexer-services.ts` owns them: they are rebuilt only when the effective indexer
+URL changes, so the same URL always yields the same event source, which is what the event store
+keys its loads on. They are `null` until the first build completes, just after the provider mounts.
+
+### WebAssembly and bundle weight
+
+The production build carries one WebAssembly module, the 1.4MB onchain runtime, and the whole
+output is about 2.2MB. Keep it that way when adding Midnight features.
+`@midnight-ntwrk/midnight-js-indexer-public-data-provider` is the package to watch. A static import
+of it pulls in `@midnight-ntwrk/midnight-js-types`, which imports the Midnight ledger as runtime
+values. Measured at 5.0.0-beta.6, that added two builds of the ledger WebAssembly (20.8MB, one of
+them never fetched) plus Apollo Client, taking the output to 22.4MB. A feature that needs that
+provider, for example to read contract state, loads it with a dynamic `import()` inside the route
+that needs it, so the weight stays off the first page load. Check the `.wasm` files listed by
+`yarn build` after adding any Midnight dependency.
 
 The selected network is owned by the URL: every `/midnight` page carries `?networkId=<network>`.
 A missing or unknown value is rewritten to `stagenet` before the page loads, and the route
