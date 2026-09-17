@@ -21,19 +21,38 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useMidnight } from '@/components/contexts/MidnightContext'
 import { MidnightNetwork } from '@sig-net/midnight'
-import { MIDNIGHT_NETWORKS, type MidnightNetworkConfig } from '@/lib/midnight/network'
+import {
+  MIDNIGHT_NETWORKS,
+  type MidnightNetworkConfig,
+  parseMpcRootPublicKey,
+  parseSignetContractAddress,
+} from '@/lib/midnight/network'
 
 interface ConfigField {
   key: keyof MidnightNetworkConfig
   label: string
+  /** Names what is wrong with a non-empty value, or null when it is acceptable. */
+  problem?: (value: string) => string | null
 }
 
 const CONFIG_FIELDS: readonly ConfigField[] = [
   { key: 'indexerUrl', label: 'Indexer URL' },
   { key: 'indexerWsUrl', label: 'Indexer WebSocket URL' },
   { key: 'nodeUrl', label: 'Node URL' },
-  { key: 'mpcRootPublicKey', label: 'MPC Root Public Key' },
-  { key: 'signetContractAddress', label: 'Signet Contract Address' },
+  {
+    key: 'mpcRootPublicKey',
+    label: 'MPC Root Public Key',
+    problem: (value) =>
+      parseMpcRootPublicKey(value) === null
+        ? 'Expected a secp256k1 public key: SEC1 hex or secp256k1:<base58>.'
+        : null,
+  },
+  {
+    key: 'signetContractAddress',
+    label: 'Signet Contract Address',
+    problem: (value) =>
+      parseSignetContractAddress(value) === null ? 'Expected 32 bytes of hex (64 digits).' : null,
+  },
 ]
 
 export function MidnightConfiguration() {
@@ -85,16 +104,26 @@ export function MidnightConfiguration() {
               </SelectContent>
             </Select>
           </div>
-          {CONFIG_FIELDS.map(({ key, label }) => (
-            <div key={key} className="flex flex-col gap-2">
-              <Label htmlFor={`midnight-${key}`}>{label}</Label>
-              <Input
-                id={`midnight-${key}`}
-                value={config[key]}
-                onChange={(event) => setConfig({ [key]: event.target.value })}
-              />
-            </div>
-          ))}
+          {CONFIG_FIELDS.map(({ key, label, problem }) => {
+            const message = config[key] === '' ? null : (problem?.(config[key]) ?? null)
+            return (
+              <div key={key} className="flex flex-col gap-2">
+                <Label htmlFor={`midnight-${key}`}>{label}</Label>
+                <Input
+                  id={`midnight-${key}`}
+                  value={config[key]}
+                  aria-invalid={message !== null}
+                  aria-describedby={message === null ? undefined : `midnight-${key}-problem`}
+                  onChange={(event) => setConfig({ [key]: event.target.value })}
+                />
+                {message !== null && (
+                  <p id={`midnight-${key}-problem`} className="text-destructive text-xs">
+                    {message}
+                  </p>
+                )}
+              </div>
+            )
+          })}
           <Button variant="outline" disabled={isDefaultConfig} onClick={resetDefaults}>
             Reset Defaults
           </Button>

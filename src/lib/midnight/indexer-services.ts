@@ -2,7 +2,11 @@ import {
   indexerPublicDataProvider,
   type IndexerPublicDataProvider,
 } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider'
-import { signetEventSourceFromPublicDataProvider, type SignetEventSource } from '@sig-net/midnight'
+import {
+  type IndexedSignetMiscEvent,
+  type SignetEventSource,
+  signetEventSourceFromIndexer,
+} from '@sig-net/midnight'
 
 import type { MidnightNetworkConfig } from '@/lib/midnight/network'
 
@@ -10,7 +14,8 @@ export type MidnightIndexerUrls = Pick<MidnightNetworkConfig, 'indexerUrl' | 'in
 
 export interface MidnightIndexerServices {
   publicDataProvider: IndexerPublicDataProvider
-  signetEventSource: SignetEventSource
+  /** Streams the Signet contract's events from the indexer's query URL, one page at a time. */
+  signetEventSource: SignetEventSource<IndexedSignetMiscEvent>
 }
 
 interface BuiltIndexerServices {
@@ -52,7 +57,7 @@ export class MidnightIndexerServicesStore {
       urls,
       services: {
         publicDataProvider,
-        signetEventSource: signetEventSourceFromPublicDataProvider(publicDataProvider),
+        signetEventSource: signetEventSourceFromIndexer({ queryUrl: urls.indexerUrl }),
       },
     }
     this.#notify()

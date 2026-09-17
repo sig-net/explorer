@@ -95,17 +95,82 @@ configuration (defaults plus any edits), the indexer services, and actions to ed
 configuration. Read it with the `useMidnight` hook from the same file. Edits live in memory only
 and are kept per network until the page reloads.
 
-The indexer services are the indexer public data provider and the Signet event source built on
-it. `src/lib/midnight/indexer-services.ts` owns them: they are rebuilt only when the effective
-indexer or indexer websocket URL changes, and the replaced provider is disposed to close its
-WebSocket connection. They are `null` until the first build completes, just after the provider
-mounts.
+The indexer services are the indexer public data provider and the Signet event source, which reads
+the indexer's query URL directly. `src/lib/midnight/indexer-services.ts` owns them: they are
+rebuilt only when the effective indexer or indexer websocket URL changes, and the replaced provider
+is disposed to close its WebSocket connection. They are `null` until the first build completes,
+just after the provider mounts.
 
 The selected network is owned by the URL: every `/midnight` page carries `?networkId=<network>`.
 A missing or unknown value is rewritten to `stagenet` before the page loads, and the route
 layout copies the validated value into the context. The cog at the right of the Midnight bar
 opens the configuration popover, where changing the network rewrites the query string of the
 current page.
+
+## Signet contract events
+
+Once the indexer services exist and the selected network names a Signet contract address,
+`MidnightSignetEventsProvider` in `src/components/contexts/MidnightSignetEventsContext.tsx`,
+mounted at the root inside `MidnightProvider`, loads every event the contract has emitted. It
+consumes the SDK's `streamSignetEvents`, an async generator that requests one indexer page of 100
+events at a time, yields that page's events before requesting the next, and pins the indexer tip at
+the first page so a page-boundary insert can neither duplicate nor skip an event. The SDK queries
+the indexer's GraphQL endpoint itself and selects each event's transaction, so every event arrives
+with its transaction hash and the height, hash and time of its block. Each event goes
+through the SDK's `tryDecodeSignetEvent`, which yields a union over the three Signet event names
+(SignBidirectionalEvent, SignatureRespondedEvent, RespondBidirectionalEvent) carrying the declared
+request id and the decoded record. `src/lib/midnight/signet-events.ts` adds the explorer's own
+policy on top: the explorer shows everything the contract emitted, so a name that is not a Signet
+event becomes an unrecognised entry and a payload that fails to decode becomes an undecodable
+entry that keeps the error. Every entry carries `source`, the event as the indexer served it: the
+event id, the transaction hash, and the block height, hash and timestamp.
+
+The events live in memory in `src/lib/midnight/signet-event-store.ts`, so switching tabs or moving
+between the Midnight and Solana pages does not reload them. Each page is published as it arrives,
+together with the id of the last loaded event and the indexer tip id (both are the indexer's global
+event cursor, not counts). Loads are cached per indexer URL and contract address pair: switching
+networks and back reuses the completed set, while changing either value starts a fresh load and
+abandons any load that no longer matches. Only completed loads are kept. The address typed into
+the configuration popover reaches the store only once it is 32 bytes of hex, in canonical form
+(lowercase, `0x` prefix dropped), so a half-typed address starts no load and the popover marks the
+field invalid. The popover checks the MPC root public key the same way: any spelling the SDK
+accepts (SEC1 hex, compressed or uncompressed, or NEAR's `secp256k1:<base58>`) is valid, and
+anything else is marked. Networks without a published address (preview, preprod, mainnet, and undeployed
+without the environment variable) stay unconfigured. Nothing is written to local storage.
+
+Read the state with the `useMidnightSignetEvents` hook from the same file as the provider. It
+returns the status (`unconfigured`, `loading`, `loaded` or `error`), the events, the last and tip
+ids, the error message, and a `refresh` action that re-runs the backfill.
+
+## Local SDK link
+
+The Signet event code needs an `@sig-net/midnight` that exports `signetEventSourceFromIndexer` and
+`tryDecodeSignetEvent`. Where the published package lacks them, link a local checkout of the
+`sig-net/midnight-integration` repository that has them. The link is a local arrangement and is
+never committed.
+
+Add `portal:` resolutions to `package.json` for the SDK and for its sibling
+`@sig-net/midnight-serde`, which the SDK depends on as a workspace package. Paths are relative to
+this repository, here for a checkout sitting beside it:
+
+```json
+"resolutions": {
+  "@sig-net/midnight": "portal:../midnight-integration-decoded-signet-events/packages/signet-midnight",
+  "@sig-net/midnight-serde": "portal:../midnight-integration-decoded-signet-events/packages/midnight-serde"
+}
+```
+
+Then install:
+
+```bash
+yarn install
+```
+
+A portal consumes the SDK as TypeScript source, and the SDK declares enums, so set
+`erasableSyntaxOnly` to `false` in `tsconfig.app.json` while the link is in place. Vite erases the
+enums, and the published package is unaffected since it ships compiled JavaScript. To return to the
+published package, remove the two resolutions, restore `erasableSyntaxOnly`, and run `yarn install`
+again.
 
 ## Routing
 

@@ -7,6 +7,8 @@ import {
   isMidnightNetwork,
   parseMidnightNetwork,
   parseMidnightUndeployedEnv,
+  parseMpcRootPublicKey,
+  parseSignetContractAddress,
 } from './network'
 
 test('every network has defaults and round-trips through the parser', () => {
@@ -58,4 +60,28 @@ test('an invalid undeployed env value names its variable', () => {
   expect(() =>
     parseMidnightUndeployedEnv({ VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS: '380b' }),
   ).toThrow('Invalid VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS')
+})
+
+test('a typed contract address parses to its canonical form or to null', () => {
+  expect(parseSignetContractAddress(LOCAL_SIGNET_CONTRACT_ADDRESS)).toBe(
+    LOCAL_SIGNET_CONTRACT_ADDRESS,
+  )
+  expect(parseSignetContractAddress(` 0x${LOCAL_SIGNET_CONTRACT_ADDRESS.toUpperCase()} `)).toBe(
+    LOCAL_SIGNET_CONTRACT_ADDRESS,
+  )
+  expect(parseSignetContractAddress('')).toBeNull()
+  expect(parseSignetContractAddress('garbage')).toBeNull()
+  expect(parseSignetContractAddress(LOCAL_SIGNET_CONTRACT_ADDRESS.slice(2))).toBeNull()
+})
+
+test('a typed MPC root public key parses to its canonical form or to null', () => {
+  expect(parseMpcRootPublicKey(LOCAL_MPC_ROOT_PUBLIC_KEY)).toBe(LOCAL_MPC_ROOT_PUBLIC_KEY)
+  expect(
+    parseMpcRootPublicKey(` ${LOCAL_MPC_ROOT_PUBLIC_KEY.toUpperCase().replace('0X', '0x')} `),
+  ).toBe(LOCAL_MPC_ROOT_PUBLIC_KEY)
+  expect(parseMpcRootPublicKey(LOCAL_MPC_ROOT_PUBLIC_KEY.slice(2))).toBe(LOCAL_MPC_ROOT_PUBLIC_KEY)
+  expect(parseMpcRootPublicKey('')).toBeNull()
+  expect(parseMpcRootPublicKey('0x04abc')).toBeNull()
+  // 65 bytes with the uncompressed tag, but the point is not on the curve.
+  expect(parseMpcRootPublicKey(`0x04${'11'.repeat(64)}`)).toBeNull()
 })

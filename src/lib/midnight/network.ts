@@ -25,6 +25,34 @@ export interface MidnightNetworkConfig {
   signetContractAddress: string
 }
 
+/**
+ * Renders a contract address in the form the indexer takes: 64 lowercase hex digits with the `0x`
+ * prefix dropped.
+ *
+ * @throws {Error} When the value is not 32 bytes of hex.
+ */
+function normaliseSignetContractAddress(value: string): string {
+  return bytesToHex(contractAddressFromHex(value.trim()).bytes)
+}
+
+/** The canonical form of a typed contract address, or null while it is not a valid address. */
+export function parseSignetContractAddress(value: string): string | null {
+  try {
+    return normaliseSignetContractAddress(value)
+  } catch {
+    return null
+  }
+}
+
+/** The canonical form of a typed MPC root public key, or null while it is not a valid key. */
+export function parseMpcRootPublicKey(value: string): string | null {
+  try {
+    return normaliseSecp256k1PublicKey(value.trim())
+  } catch {
+    return null
+  }
+}
+
 export type MidnightUndeployedEnv = Pick<
   ImportMetaEnv,
   | 'VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY'
@@ -65,7 +93,7 @@ export function parseMidnightUndeployedEnv(
     signetContractAddress: readMidnightUndeployedEnv(
       env,
       'VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS',
-      (value) => bytesToHex(contractAddressFromHex(value).bytes),
+      normaliseSignetContractAddress,
     ),
   }
 }

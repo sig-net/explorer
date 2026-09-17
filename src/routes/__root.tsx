@@ -3,6 +3,7 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 
 import { AppBar } from '@/components/app-bar'
 import { MidnightProvider } from '@/components/contexts/MidnightContext'
+import { MidnightSignetEventsProvider } from '@/components/contexts/MidnightSignetEventsContext'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ThemeProvider } from '@/components/contexts/ThemeContext'
 
@@ -16,10 +17,12 @@ function RootLayout() {
     <ThemeProvider>
       <TooltipProvider>
         <MidnightProvider>
-          <div className="flex min-h-screen flex-col">
-            <AppBar />
-            <Outlet />
-          </div>
+          <MidnightSignetEventsProvider>
+            <div className="flex min-h-screen flex-col">
+              <AppBar />
+              <Outlet />
+            </div>
+          </MidnightSignetEventsProvider>
         </MidnightProvider>
       </TooltipProvider>
       <TanStackRouterDevtools position="bottom-right" />
