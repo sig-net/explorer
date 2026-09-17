@@ -103,7 +103,12 @@ test('a location loads page by page and completes when the stream ends', async (
 
   expect(store.getSnapshot()).toEqual({ status: 'unconfigured' })
   store.select(LOCATION, held.source)
-  expect(loadOf(store)).toMatchObject({ status: 'loading', location: LOCATION, events: [] })
+  expect(loadOf(store)).toMatchObject({
+    status: 'loading',
+    location: LOCATION,
+    events: [],
+    lifecycles: [],
+  })
   await vi.waitFor(() => {
     expect(held.pages).toHaveLength(1)
   })
@@ -251,4 +256,23 @@ test('deselect returns to unconfigured and drops an unfinished load', async () =
   await vi.waitFor(() => {
     expect(held.streams).toHaveLength(2)
   })
+})
+
+test('each published snapshot carries the lifecycles of its events', async () => {
+  const requestId = new Uint8Array(32).fill(0xaa)
+  const payload = new Uint8Array(256)
+  payload.set([...requestId, ...new Uint8Array(96).fill(0x33), 1])
+  const source: IndexedSignetEventSource = {
+    async *streamSignetEvents() {
+      yield* eventsFrom(1, 1)
+      yield { ...signetEvent(2), name: 'SignatureRespondedEvent', payload }
+    },
+  }
+  const store = new SignetEventStore()
+  store.select(LOCATION, source)
+  await waitForStatus(store, 'loaded')
+
+  expect(loadOf(store).events).toHaveLength(2)
+  expect(loadOf(store).lifecycles).toHaveLength(1)
+  expect(loadOf(store).lifecycles[0]?.signatureRespondedEvents[0]?.source.id).toBe(2)
 })

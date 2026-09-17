@@ -1,5 +1,9 @@
 import type { IndexedSignetMiscEvent, SignetEventSource } from '@sig-net/midnight'
 
+import {
+  aggregateSignBidirectionalLifecycles,
+  type SignBidirectionalLifecycle,
+} from '@/lib/midnight/sign-bidirectional-lifecycle'
 import { decodeSignetContractEvent, type SignetContractEvent } from '@/lib/midnight/signet-events'
 
 export type IndexedSignetEventSource = SignetEventSource<IndexedSignetMiscEvent>
@@ -17,6 +21,8 @@ export interface SignetEventLoad {
   readonly location: SignetContractLocation
   /** Ascending by id. Complete when status is 'loaded'. */
   readonly events: readonly SignetContractEvent[]
+  /** A view of `events`: the decoded ones grouped by declared request id, newest first. */
+  readonly lifecycles: readonly SignBidirectionalLifecycle[]
   /** The indexer tip pinned by the first page, null until it arrives. */
   readonly tipId: number | null
   /** Id of the last loaded event, null before the first. */
@@ -114,7 +120,15 @@ export class SignetEventStore {
   ): void {
     const generation = ++this.#generation
     this.#entries.set(key, {
-      load: { status: 'loading', location, events: [], tipId: null, lastId: null, error: null },
+      load: {
+        status: 'loading',
+        location,
+        events: [],
+        lifecycles: [],
+        tipId: null,
+        lastId: null,
+        error: null,
+      },
       generation,
       eventSource,
     })
@@ -145,7 +159,15 @@ export class SignetEventStore {
     const progress = (
       status: SignetEventLoadStatus,
       error: string | null = null,
-    ): SignetEventLoad => ({ status, location, events: events.slice(), tipId, lastId, error })
+    ): SignetEventLoad => ({
+      status,
+      location,
+      events: events.slice(),
+      lifecycles: aggregateSignBidirectionalLifecycles(events),
+      tipId,
+      lastId,
+      error,
+    })
     // The stream yields a whole page without touching the network, so a flush deferred to the
     // next macrotask publishes once per page rather than once per event.
     let flush: ReturnType<typeof setTimeout> | null = null

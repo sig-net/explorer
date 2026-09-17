@@ -36,7 +36,20 @@
       "rules": {
         "react/only-export-components": "off"
       }
+    },
+    {
+      "files": ["src/**/*.{ts,tsx}"],
+      "excludeFiles": ["src/components/ui/**"],
+      "jsPlugins": ["eslint-plugin-better-tailwindcss"],
+      "rules": {
+        "better-tailwindcss/enforce-canonical-classes": "error"
+      }
     }
   ],
+  "settings": {
+    "better-tailwindcss": {
+      "entryPoint": "src/index.css"
+    }
+  },
   "ignorePatterns": ["dist", "src/routeTree.gen.ts"]
 }

@@ -1,15 +1,13 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
+
+import { DEFAULT_MIDNIGHT_NETWORK } from '@/lib/midnight/network'
 
 export const Route = createFileRoute('/')({
-  component: HomePage,
+  beforeLoad: () => {
+    throw redirect({
+      to: '/midnight',
+      search: { networkId: DEFAULT_MIDNIGHT_NETWORK },
+      replace: true,
+    })
+  },
 })
-
-function HomePage() {
-  return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-8">
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-muted-foreground">Choose a network to begin exploring</p>
-      </div>
-    </main>
-  )
-}

@@ -41,7 +41,7 @@ function MidnightLayout() {
   return (
     <>
       <MidnightAppBar />
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-8">
+      <main className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col px-4 pt-4 pb-8">
         <Outlet />
       </main>
     </>

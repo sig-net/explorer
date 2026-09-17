@@ -41,6 +41,21 @@ yarn playwright install chromium
 | `yarn test:watch`   | Run the test suite in watch mode                               |
 | `yarn check`        | Typecheck, lint, format check and test in sequence             |
 
+## Canonical Tailwind classes
+
+`yarn lint` also checks that every Tailwind class is written in its canonical form, the check the
+Tailwind CSS IntelliSense extension surfaces as `suggestCanonicalClasses`. It comes from
+`eslint-plugin-better-tailwindcss`, which Oxlint loads as a JS plugin, and only that plugin's
+`enforce-canonical-classes` rule is switched on. A non-canonical class fails the run, and
+`yarn lint --fix` rewrites it: `[&>[data-slot=table-container]]:h-full` becomes
+`*:data-[slot=table-container]:h-full`.
+
+The rule reads the theme from `src/index.css`, so an arbitrary value that names a theme token is
+reported as well: `bg-[var(--color-clamshell-100)]` is flagged in favour of `bg-clamshell-100`.
+
+`src/components/ui` is exempt, since the shadcn CLI writes those files and they are not hand
+edited here.
+
 ## Theme and palette
 
 `src/index.css` declares every sig.network colour scale (brand, clamshell, dark-neutral, the
@@ -139,15 +154,39 @@ anything else is marked. Networks without a published address (preview, preprod,
 without the environment variable) stay unconfigured. Nothing is written to local storage.
 
 Read the state with the `useMidnightSignetEvents` hook from the same file as the provider. It
-returns the status (`unconfigured`, `loading`, `loaded` or `error`), the events, the last and tip
-ids, the error message, and a `refresh` action that re-runs the backfill.
+returns the status (`unconfigured`, `loading`, `loaded` or `error`), the events, the lifecycles
+described below, the last and tip ids, the error message, and a `refresh` action that re-runs the
+backfill.
+
+### Sign bidirectional lifecycles
+
+Every published snapshot also carries `lifecycles`, a view of the events built by
+`src/lib/midnight/sign-bidirectional-lifecycle.ts`. It groups the decoded events by the request id
+they declare into one `SignBidirectionalLifecycle` each, with a list per event kind:
+`signBidirectionalEvents`, `signatureRespondedEvents` and `respondBidirectionalEvents`. Each is a
+list since the contract is unauthenticated: nothing stops a kind being emitted twice under one
+request id, or a response being emitted for a request that never was, and the view keeps all of it
+so such cases can be seen. The grouping is by declared id only and verifies nothing. Events that
+did not decode declare no request id and are left out. Lifecycles are ordered newest first, by the
+indexer id of their earliest event.
+
+The Explorer tab renders them with `SignBidirectionalLifecycleTable` in
+`src/components/midnight/sign-bidirectional-lifecycle-table.tsx`, one row per lifecycle. The table
+fills the height the page has left, down to the status line, with a sticky header, and scrolls
+inside its body. The app shell in `src/routes/__root.tsx` is exactly one viewport tall, which is
+what gives the table a height to fill. Times are block times as
+`DD-MM-YY HH:MM:SS` in UTC, a cell lists at most three entries before an ellipsis, a clock marks a
+signature or response that has not arrived, and Duration runs from the first request to the first
+response. Hovering a truncated request id or caller shows the full value, and the copy button
+beside it puts the full value on the clipboard. The search box filters
+rows as you type by a fragment of the request id or of a caller contract address. The display
+formatters live in `src/lib/format.ts`.
 
 ## Local SDK link
 
-The Signet event code needs an `@sig-net/midnight` that exports `signetEventSourceFromIndexer` and
-`tryDecodeSignetEvent`. Where the published package lacks them, link a local checkout of the
-`sig-net/midnight-integration` repository that has them. The link is a local arrangement and is
-never committed.
+The explorer depends on the published `@sig-net/midnight`. To try SDK changes that are not
+released yet, link a local checkout of the `sig-net/midnight-integration` repository. The link is a
+local arrangement and is never committed.
 
 Add `portal:` resolutions to `package.json` for the SDK and for its sibling
 `@sig-net/midnight-serde`, which the SDK depends on as a workspace package. Paths are relative to
@@ -172,13 +211,21 @@ enums, and the published package is unaffected since it ships compiled JavaScrip
 published package, remove the two resolutions, restore `erasableSyntaxOnly`, and run `yarn install`
 again.
 
+Yarn holds back any package published within the last 24 hours. `.yarnrc.yml` pre-approves the
+`@sig-net` scope, so a fresh SDK release installs at once while every other package keeps that
+protection.
+
 ## Routing
 
 Files under `src/routes` map to URLs by name: `index.tsx` is `/`, `solana.tsx` is `/solana`,
-and `__root.tsx` is the layout every route renders inside. `midnight.tsx` is the layout for every
+and `__root.tsx` is the layout every route renders inside. `index.tsx` renders nothing: it
+redirects `/` to `/midnight` with the default network, and bare `/midnight` redirects on to
+`/midnight/explorer`, so a visitor landing on the site arrives at the Midnight explorer.
+`midnight.tsx` is the layout for every
 `/midnight` page: it renders the Midnight bar with the Explorer and Contract Analyser tabs, and
-the files under `src/routes/midnight` are the tab pages. Bare `/midnight` redirects to
-`/midnight/explorer`. The switcher in the top app bar navigates between network roots, and the
+the files under `src/routes/midnight` are the tab pages. The Solana page carries a coming soon
+banner while its explorer is being built. The switcher in the top app bar navigates between
+network roots, and the
 current network is derived from the first path segment, so loading a network URL directly selects
 that network. The Vite plugin regenerates
 `src/routeTree.gen.ts` whenever a route file changes. That file is committed so a fresh
