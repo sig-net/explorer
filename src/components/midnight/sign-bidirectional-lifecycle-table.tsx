@@ -2,7 +2,12 @@ import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
 
 import { CopyableHex } from '@/components/copyable-hex'
-import { SignetEventSourcesSection } from '@/components/midnight/signet-event-sources-section'
+import {
+  RespondBidirectionalEventDetails,
+  SignatureRespondedEventDetails,
+  SignBidirectionalNotificationDetails,
+} from '@/components/midnight/signet-event-record-details'
+import { SignetEventsSection } from '@/components/midnight/signet-events-section'
 import { PendingIcon } from '@/components/pending-icon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -110,17 +115,22 @@ function LifecycleRow({ lifecycle }: { lifecycle: SignBidirectionalLifecycle }) 
         <TableRow id={detailsId} className="hover:bg-transparent">
           <TableCell colSpan={COLUMN_COUNT} className="p-0 whitespace-normal">
             <div className="grid grid-cols-3 divide-x">
-              <SignetEventSourcesSection
+              <SignetEventsSection
                 heading="Sign Bidirectional Notification"
-                sources={signBidirectionalEvents.map((event) => event.source)}
+                events={signBidirectionalEvents}
+                renderRecord={(event) => (
+                  <SignBidirectionalNotificationDetails record={event.record} />
+                )}
               />
-              <SignetEventSourcesSection
+              <SignetEventsSection
                 heading="Signature Responded Event"
-                sources={signatureRespondedEvents.map((event) => event.source)}
+                events={signatureRespondedEvents}
+                renderRecord={(event) => <SignatureRespondedEventDetails record={event.record} />}
               />
-              <SignetEventSourcesSection
+              <SignetEventsSection
                 heading="Respond Bidirectional Event"
-                sources={respondBidirectionalEvents.map((event) => event.source)}
+                events={respondBidirectionalEvents}
+                renderRecord={(event) => <RespondBidirectionalEventDetails record={event.record} />}
               />
             </div>
           </TableCell>

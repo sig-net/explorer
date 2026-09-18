@@ -1,10 +1,11 @@
 import type { IndexedSignetMiscEvent } from '@sig-net/midnight'
 import { DateTime } from 'luxon'
+import type { ReactNode } from 'react'
 import { expect, test } from 'vitest'
 import { render } from 'vitest-browser-react'
 
 import '@/index.css'
-import { SignetEventSourcesSection } from './signet-event-sources-section'
+import { SignetEventsSection } from './signet-events-section'
 
 // Rendered in Asia/Kolkata (UTC+05:30), the test browser's zone set in vite.config.ts.
 const START = DateTime.fromISO('2026-09-07T12:00:00Z')
@@ -23,21 +24,36 @@ function source(id: number): IndexedSignetMiscEvent {
   }
 }
 
-function sources(count: number): IndexedSignetMiscEvent[] {
-  return Array.from({ length: count }, (_, index) => source(index + 1))
+interface SourcedEvent {
+  readonly source: IndexedSignetMiscEvent
+}
+
+function events(count: number): SourcedEvent[] {
+  return Array.from({ length: count }, (_, index) => ({ source: source(index + 1) }))
+}
+
+function renderRecord(event: SourcedEvent): ReactNode {
+  return <p>record of event {event.source.id}</p>
 }
 
 test('a kind with no events shows as pending, without tabs', async () => {
-  const screen = await render(<SignetEventSourcesSection heading="Kind" sources={[]} />)
+  const screen = await render(
+    <SignetEventsSection heading="Kind" events={[]} renderRecord={renderRecord} />,
+  )
   await expect.element(screen.getByRole('heading', { name: 'Kind' })).toBeVisible()
   await expect.element(screen.getByRole('img', { name: 'Pending' })).toBeVisible()
   expect(screen.getByRole('tablist').elements()).toHaveLength(0)
 })
 
-test('each event gets a numbered tab showing where it was emitted', async () => {
-  const screen = await render(<SignetEventSourcesSection heading="Kind" sources={sources(2)} />)
+test('each event gets a numbered tab showing where it was emitted and its record', async () => {
+  const screen = await render(
+    <SignetEventsSection heading="Kind" events={events(2)} renderRecord={renderRecord} />,
+  )
   await expect.element(screen.getByRole('tab', { name: '1' })).toHaveAttribute('aria-selected')
   await expect.element(screen.getByText('07-09-26 17:30:01')).toBeVisible()
+  await expect.element(screen.getByText('1001', { exact: true })).toBeVisible()
+  await expect.element(screen.getByText('record of event 1')).toBeVisible()
+  await expect.element(screen.getByRole('button', { name: 'Copy block height' })).toBeVisible()
   await screen.getByRole('tab', { name: '2' }).click()
   await expect.element(screen.getByText('07-09-26 17:30:02')).toBeVisible()
   expect(screen.getByText('07-09-26 17:30:01').elements()).toHaveLength(0)
@@ -46,7 +62,7 @@ test('each event gets a numbered tab showing where it was emitted', async () => 
 test('tabs that fit have no scroll buttons', async () => {
   const screen = await render(
     <div style={{ width: 400 }}>
-      <SignetEventSourcesSection heading="Kind" sources={sources(3)} />
+      <SignetEventsSection heading="Kind" events={events(3)} renderRecord={renderRecord} />
     </div>,
   )
   await expect.element(screen.getByRole('tab', { name: '3' })).toBeVisible()
@@ -56,7 +72,7 @@ test('tabs that fit have no scroll buttons', async () => {
 test('overflowing tabs scroll with a button at each end', async () => {
   const screen = await render(
     <div style={{ width: 400 }}>
-      <SignetEventSourcesSection heading="Kind" sources={sources(30)} />
+      <SignetEventsSection heading="Kind" events={events(30)} renderRecord={renderRecord} />
     </div>,
   )
   const back = screen.getByRole('button', { name: 'Scroll tabs back' })
