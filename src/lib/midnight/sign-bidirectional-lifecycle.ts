@@ -109,6 +109,17 @@ export function signBidirectionalLifecycleDurationMs(
   return elapsed.isValid ? elapsed.toMillis() : null
 }
 
+/** How many events of every kind the lifecycle groups. */
+export function signBidirectionalLifecycleEventCount(
+  lifecycle: SignBidirectionalLifecycle,
+): number {
+  return (
+    lifecycle.signBidirectionalEvents.length +
+    lifecycle.signatureRespondedEvents.length +
+    lifecycle.respondBidirectionalEvents.length
+  )
+}
+
 /**
  * Whether a lifecycle matches a typed search: a case-insensitive fragment of its request id or of
  * any caller contract address it names, with an optional `0x` prefix. An empty search matches all.

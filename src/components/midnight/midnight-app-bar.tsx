@@ -21,7 +21,7 @@ export function MidnightAppBar() {
 
   return (
     <div className="border-b bg-card">
-      <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-4">
+      <div className="flex h-12 items-center justify-between px-4">
         <Tabs value={tabFromPathname(pathname)}>
           <TabsList>
             {TABS.map((tab) => (

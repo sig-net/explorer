@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, X } from 'lucide-react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
 
 import { CopyableHex } from '@/components/copyable-hex'
@@ -7,10 +7,11 @@ import {
   SignatureRespondedEventDetails,
   SignBidirectionalNotificationDetails,
 } from '@/components/midnight/signet-event-record-details'
+import { SignBidirectionalTransactionDetails } from '@/components/midnight/sign-bidirectional-transaction-details'
 import { SignetEventsSection } from '@/components/midnight/signet-events-section'
 import { PendingIcon } from '@/components/pending-icon'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
 import {
   Table,
   TableBody,
@@ -23,7 +24,6 @@ import { formatDuration, formatLocalTimestamp } from '@/lib/format'
 import {
   type SignBidirectionalLifecycle,
   signBidirectionalLifecycleDurationMs,
-  signBidirectionalLifecycleMatches,
 } from '@/lib/midnight/sign-bidirectional-lifecycle'
 
 /** Entries shown in one cell before the rest collapse into an ellipsis. */
@@ -119,7 +119,11 @@ function LifecycleRow({ lifecycle }: { lifecycle: SignBidirectionalLifecycle }) 
                 heading="Sign Bidirectional Notification"
                 events={signBidirectionalEvents}
                 renderRecord={(event) => (
-                  <SignBidirectionalNotificationDetails record={event.record} />
+                  <>
+                    <SignBidirectionalNotificationDetails record={event.record} />
+                    <Separator />
+                    <SignBidirectionalTransactionDetails event={event} />
+                  </>
                 )}
               />
               <SignetEventsSection
@@ -153,69 +157,46 @@ const COLUMNS = [
 /** The named columns and the leading expand control's column. */
 const COLUMN_COUNT = COLUMNS.length + 1
 
+/** The given lifecycles, one expandable row each. `emptyText` fills the body when there are none. */
 export function SignBidirectionalLifecycleTable({
   lifecycles,
+  emptyText,
 }: {
   lifecycles: readonly SignBidirectionalLifecycle[]
+  emptyText: string
 }) {
-  const [search, setSearch] = useState('')
-  const matching = lifecycles.filter((lifecycle) =>
-    signBidirectionalLifecycleMatches(lifecycle, search),
-  )
-
+  // This wrapper fills the height the page has left. The table component scrolls inside its own
+  // container, so that container takes the wrapper's height and the header sticks to it.
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <Input
-          // The dark variant is spelled out so it beats the input's own `dark:bg-input/30`.
-          className="bg-card dark:bg-card"
-          aria-label="Search by request id or caller contract"
-          placeholder="Search by request id or caller contract"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Clear search"
-          disabled={search === ''}
-          onClick={() => setSearch('')}
-        >
-          <X />
-        </Button>
-      </div>
-      {/* This wrapper fills the height the page has left. The table component scrolls inside its own
-          container, so that container takes the wrapper's height and the header sticks to it. */}
-      <div className="bg-card min-h-64 flex-1 overflow-hidden rounded-lg border *:data-[slot=table-container]:h-full *:data-[slot=table-container]:overflow-y-auto">
-        <Table>
-          {/* The table collapses its borders, so a border on the header's row belongs to the
+    <div className="bg-card min-h-64 flex-1 overflow-hidden rounded-lg border *:data-[slot=table-container]:h-full *:data-[slot=table-container]:overflow-y-auto">
+      <Table>
+        {/* The table collapses its borders, so a border on the header's row belongs to the
               table's border grid and scrolls away with the body. An inset shadow is painted by
               the header's own box, which follows the sticky offset. */}
-          <TableHeader className="bg-muted sticky top-0 z-10 shadow-[inset_0_-1px_0_var(--border)] [&_tr]:border-b-0">
+        <TableHeader className="bg-muted sticky top-0 z-10 shadow-[inset_0_-1px_0_var(--border)] [&_tr]:border-b-0">
+          <TableRow>
+            <TableHead className="w-10">
+              <span className="sr-only">Event details</span>
+            </TableHead>
+            {COLUMNS.map((column) => (
+              <TableHead key={column}>{column}</TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody className="[&_tr:last-child]:border-b">
+          {lifecycles.length === 0 ? (
             <TableRow>
-              <TableHead className="w-10">
-                <span className="sr-only">Event details</span>
-              </TableHead>
-              {COLUMNS.map((column) => (
-                <TableHead key={column}>{column}</TableHead>
-              ))}
+              <TableCell colSpan={COLUMN_COUNT} className="text-muted-foreground text-center">
+                {emptyText}
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {matching.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={COLUMN_COUNT} className="text-muted-foreground text-center">
-                  {lifecycles.length === 0 ? 'No requests yet' : 'No requests match the search'}
-                </TableCell>
-              </TableRow>
-            ) : (
-              matching.map((lifecycle) => (
-                <LifecycleRow key={lifecycle.requestId} lifecycle={lifecycle} />
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+          ) : (
+            lifecycles.map((lifecycle) => (
+              <LifecycleRow key={lifecycle.requestId} lifecycle={lifecycle} />
+            ))
+          )}
+        </TableBody>
+      </Table>
     </div>
   )
 }

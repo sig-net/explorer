@@ -9,7 +9,7 @@ export const Route = createFileRoute('/solana')({
 
 function SolanaPage() {
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-8">
+    <main className="flex w-full flex-1 flex-col p-4">
       <Alert>
         <Construction />
         <AlertTitle>Coming soon</AlertTitle>

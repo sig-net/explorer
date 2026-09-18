@@ -5,6 +5,7 @@ import { expect, test } from 'vitest'
 import {
   aggregateSignBidirectionalLifecycles,
   signBidirectionalLifecycleDurationMs,
+  signBidirectionalLifecycleEventCount,
   signBidirectionalLifecycleMatches,
 } from './sign-bidirectional-lifecycle'
 import { decodeSignetContractEvent, type SignetContractEvent } from './signet-events'
@@ -78,6 +79,7 @@ test('repeated emissions under one request id are all kept, in emission order', 
     bytesToHex(CALLER_TWO),
   ])
   expect(lifecycle?.signatureRespondedEvents.map((event) => event.source.id)).toEqual([3, 4])
+  expect(lifecycle && signBidirectionalLifecycleEventCount(lifecycle)).toBe(4)
 })
 
 test('a response with no request still forms a lifecycle', () => {
