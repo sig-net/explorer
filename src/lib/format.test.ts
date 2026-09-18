@@ -1,10 +1,20 @@
+import { DateTime, Duration, type DurationLikeObject } from 'luxon'
 import { expect, test } from 'vitest'
 
-import { formatDuration, formatUtcTimestamp, truncateMiddle } from './format'
+import { formatDuration, formatLocalTimestamp, truncateMiddle } from './format'
 
-test('a timestamp renders as DD-MM-YY HH:MM:SS in UTC', () => {
-  expect(formatUtcTimestamp(new Date(Date.UTC(2026, 8, 7, 3, 4, 5)))).toBe('07-09-26 03:04:05')
-  expect(formatUtcTimestamp(new Date('2026-12-31T23:59:59+02:00'))).toBe('31-12-26 21:59:59')
+// The test browser runs in Asia/Kolkata (UTC+05:30, no daylight saving), set in vite.config.ts.
+test('a timestamp renders as DD-MM-YY HH:MM:SS in the local time zone', () => {
+  expect(formatLocalTimestamp(DateTime.fromISO('2026-09-07T03:04:05Z').toJSDate())).toBe(
+    '07-09-26 08:34:05',
+  )
+  expect(formatLocalTimestamp(DateTime.fromISO('2026-12-31T23:59:59+02:00').toJSDate())).toBe(
+    '01-01-27 03:29:59',
+  )
+})
+
+test('a timestamp that does not parse renders as a placeholder', () => {
+  expect(formatLocalTimestamp(DateTime.invalid('unparsed fixture').toJSDate())).toBe('--')
 })
 
 test('a long value keeps four characters from each end', () => {
@@ -14,12 +24,21 @@ test('a long value keeps four characters from each end', () => {
   expect(truncateMiddle('abcdefghijkl')).toBe('abcd...ijkl')
 })
 
-test('a duration renders in its largest whole unit', () => {
-  expect(formatDuration(0)).toBe('0 seconds')
-  expect(formatDuration(1000)).toBe('1 second')
-  expect(formatDuration(59_999)).toBe('59 seconds')
-  expect(formatDuration(60_000)).toBe('1 minute')
-  expect(formatDuration(7_260_000)).toBe('2 hours')
-  expect(formatDuration(3 * 86_400_000)).toBe('3 days')
-  expect(formatDuration(-120_000)).toBe('-2 minutes')
+function millis(duration: DurationLikeObject): number {
+  return Duration.fromObject(duration).toMillis()
+}
+
+test('a duration renders in its largest whole unit, rounded down', () => {
+  expect(formatDuration(millis({ seconds: 0 }))).toBe('0 seconds')
+  expect(formatDuration(millis({ seconds: 1 }))).toBe('1 second')
+  expect(formatDuration(millis({ seconds: 59, milliseconds: 999 }))).toBe('59 seconds')
+  expect(formatDuration(millis({ minutes: 1 }))).toBe('1 minute')
+  expect(formatDuration(millis({ hours: 2, minutes: 1 }))).toBe('2 hours')
+  expect(formatDuration(millis({ days: 3 }))).toBe('3 days')
+  expect(formatDuration(millis({ minutes: -2 }))).toBe('-2 minutes')
+})
+
+test('a duration that is not a finite count renders as a placeholder', () => {
+  expect(formatDuration(Number.NaN)).toBe('--')
+  expect(formatDuration(Number.POSITIVE_INFINITY)).toBe('--')
 })

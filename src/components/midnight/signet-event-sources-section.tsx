@@ -5,7 +5,7 @@ import { CopyableHex } from '@/components/copyable-hex'
 import { PendingIcon } from '@/components/pending-icon'
 import { ScrollableTabsList } from '@/components/scrollable-tabs-list'
 import { Tabs, TabsContent, TabsTrigger } from '@/components/ui/tabs'
-import { formatUtcTimestamp } from '@/lib/format'
+import { formatLocalTimestamp } from '@/lib/format'
 
 function DetailLine({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -51,7 +51,9 @@ export function SignetEventSourcesSection({
                   <CopyableHex value={source.blockHash} label="block hash" />
                 </DetailLine>
                 <DetailLine label="Timestamp">
-                  <span className="tabular-nums">{formatUtcTimestamp(source.blockTimestamp)}</span>
+                  <span className="tabular-nums">
+                    {formatLocalTimestamp(source.blockTimestamp)}
+                  </span>
                 </DetailLine>
               </dl>
             </TabsContent>

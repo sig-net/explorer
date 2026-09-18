@@ -1,4 +1,5 @@
 import type { IndexedSignetMiscEvent } from '@sig-net/midnight'
+import { DateTime } from 'luxon'
 import { expect, test, vi } from 'vitest'
 
 import {
@@ -17,6 +18,7 @@ const OTHER_LOCATION: SignetContractLocation = {
   signetContractAddress: 'ab0b1348271af7dc5a18e199aa90483830342f16267025699b940ee4bfd35193',
 }
 const TIP_ID = 500
+const BLOCK_START = DateTime.fromISO('2026-09-09T05:46:00Z')
 
 function signetEvent(id: number): IndexedSignetMiscEvent {
   return {
@@ -28,7 +30,7 @@ function signetEvent(id: number): IndexedSignetMiscEvent {
     transactionHash: 'e5'.repeat(32),
     blockHeight: 1000 + id,
     blockHash: 'c0'.repeat(32),
-    blockTimestamp: new Date(1788932760000 + id),
+    blockTimestamp: BLOCK_START.plus({ milliseconds: id }).toJSDate(),
   }
 }
 

@@ -4,6 +4,7 @@ import {
   type RequestIdHex,
   SignetEventName,
 } from '@sig-net/midnight'
+import { DateTime } from 'luxon'
 
 import type { SignetContractEvent } from '@/lib/midnight/signet-events'
 
@@ -93,7 +94,8 @@ export function aggregateSignBidirectionalLifecycles(
 
 /**
  * Milliseconds from the first request to the first attestation of its foreign execution, or null
- * while either is missing.
+ * while either is missing or carries a timestamp that does not parse. A response the indexer
+ * stamps before its request yields a negative count, which callers render with its sign.
  */
 export function signBidirectionalLifecycleDurationMs(
   lifecycle: SignBidirectionalLifecycle,
@@ -103,7 +105,8 @@ export function signBidirectionalLifecycleDurationMs(
   if (requested === undefined || responded === undefined) {
     return null
   }
-  return responded.getTime() - requested.getTime()
+  const elapsed = DateTime.fromJSDate(responded).diff(DateTime.fromJSDate(requested))
+  return elapsed.isValid ? elapsed.toMillis() : null
 }
 
 /**

@@ -4,6 +4,7 @@ import {
   SIGNET_EVENT_PAYLOAD_LENGTH,
   SignetEventName,
 } from '@sig-net/midnight'
+import { DateTime } from 'luxon'
 import { expect, test } from 'vitest'
 
 import { decodeSignetContractEvent } from './signet-events'
@@ -28,7 +29,7 @@ function signetEvent(name: string, payload: readonly number[]): IndexedSignetMis
     transactionHash: 'e5'.repeat(32),
     blockHeight: 382086,
     blockHash: 'c0'.repeat(32),
-    blockTimestamp: new Date(1788932760000),
+    blockTimestamp: DateTime.fromISO('2026-09-09T05:46:00Z').toJSDate(),
   }
 }
 

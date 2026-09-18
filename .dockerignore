@@ -23,6 +23,7 @@ logs
 .vscode
 .idea
 .claude
+.github
 .editorconfig
 .oxlintrc.json
 .oxfmtrc.json

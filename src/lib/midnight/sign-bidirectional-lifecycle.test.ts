@@ -1,4 +1,5 @@
 import { bytesToHex, type IndexedSignetMiscEvent, SignetEventName } from '@sig-net/midnight'
+import { DateTime } from 'luxon'
 import { expect, test } from 'vitest'
 
 import {
@@ -8,7 +9,7 @@ import {
 } from './sign-bidirectional-lifecycle'
 import { decodeSignetContractEvent, type SignetContractEvent } from './signet-events'
 
-const START = Date.UTC(2026, 8, 7, 12, 0, 0)
+const START = DateTime.fromISO('2026-09-07T12:00:00Z')
 const REQUEST_A = new Uint8Array(32).fill(0xaa)
 const REQUEST_B = new Uint8Array(32).fill(0xbb)
 const CALLER_ONE = new Uint8Array(32).fill(0x11)
@@ -31,7 +32,7 @@ function indexed(
     transactionHash: id.toString(16).padStart(64, '0'),
     blockHeight: 1000 + id,
     blockHash: 'c0'.repeat(32),
-    blockTimestamp: new Date(START + secondsAfterStart * 1000),
+    blockTimestamp: START.plus({ seconds: secondsAfterStart }).toJSDate(),
   }
   return decodeSignetContractEvent(source)
 }

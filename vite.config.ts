@@ -35,7 +35,9 @@ export default defineConfig({
     browser: {
       enabled: true,
       headless: true,
-      provider: playwright(),
+      // A fixed zone with a half-hour offset and no daylight saving, so tests of local-time
+      // rendering pass on every machine and cannot pass by rendering UTC.
+      provider: playwright({ contextOptions: { timezoneId: 'Asia/Kolkata' } }),
       instances: [{ browser: 'chromium' }],
     },
   },

@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { formatDuration, formatUtcTimestamp } from '@/lib/format'
+import { formatDuration, formatLocalTimestamp } from '@/lib/format'
 import {
   type SignBidirectionalLifecycle,
   signBidirectionalLifecycleDurationMs,
@@ -40,7 +40,7 @@ function Timestamps({ dates }: { dates: readonly Date[] }) {
     <Stacked>
       {dates.map((date, index) => (
         <span key={index} className="tabular-nums">
-          {formatUtcTimestamp(date)}
+          {formatLocalTimestamp(date)}
         </span>
       ))}
     </Stacked>

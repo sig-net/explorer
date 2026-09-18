@@ -74,6 +74,22 @@ Vite inlines `VITE_*` values at build time, and `.dockerignore` keeps every `.en
 the build context, so an image serves the SDK's published network defaults and never a
 developer's `.env.local`.
 
+### Publishing
+
+The `docker-publish` workflow publishes the image to Google Artifact Registry as
+`europe-west1-docker.pkg.dev/near-cs-dev/explorer/ui`. It runs when a release tag is pushed:
+`vX.Y.Z` for a stable release, which must point at a commit on `main`, or `vX.Y.Z-rc.N` for a
+release candidate, which may come from any branch. Any other ref fails the run before anything is
+built.
+
+The push happens in the `deploy` environment, so a run waits there for a reviewer's approval. That
+environment holds the `GOOGLE_CREDENTIALS` secret, the service-account key the push authenticates
+with.
+
+A run publishes one multi-architecture manifest covering `linux/amd64` and `linux/arm64` under
+three tags: the release tag, the tagged commit's full hash and `latest`. Each architecture is also
+published on its own as `<tag>-linux-amd64` and `<tag>-linux-arm64`.
+
 ## Canonical Tailwind classes
 
 `yarn lint` also checks that every Tailwind class is written in its canonical form, the check the
@@ -219,7 +235,7 @@ The Explorer tab renders them with `SignBidirectionalLifecycleTable` in
 fills the height the page has left, down to the status line, with a sticky header, and scrolls
 inside its body. The app shell in `src/routes/__root.tsx` is exactly one viewport tall, which is
 what gives the table a height to fill. Times are block times as
-`DD-MM-YY HH:MM:SS` in UTC, a cell lists at most three entries before an ellipsis, a clock marks a
+`DD-MM-YY HH:MM:SS` in the browser's time zone, a cell lists at most three entries before an ellipsis, a clock marks a
 signature or response that has not arrived, and Duration runs from the first request to the first
 response. Hovering a truncated request id or caller shows the full value, and the copy button
 beside it puts the full value on the clipboard. The search box filters

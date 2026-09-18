@@ -1,11 +1,13 @@
 import type { IndexedSignetMiscEvent } from '@sig-net/midnight'
+import { DateTime } from 'luxon'
 import { expect, test } from 'vitest'
 import { render } from 'vitest-browser-react'
 
 import '@/index.css'
 import { SignetEventSourcesSection } from './signet-event-sources-section'
 
-const START = Date.UTC(2026, 8, 7, 12, 0, 0)
+// Rendered in Asia/Kolkata (UTC+05:30), the test browser's zone set in vite.config.ts.
+const START = DateTime.fromISO('2026-09-07T12:00:00Z')
 
 function source(id: number): IndexedSignetMiscEvent {
   return {
@@ -17,7 +19,7 @@ function source(id: number): IndexedSignetMiscEvent {
     transactionHash: id.toString(16).padStart(64, '0'),
     blockHeight: 1000 + id,
     blockHash: 'c0'.repeat(32),
-    blockTimestamp: new Date(START + id * 1000),
+    blockTimestamp: START.plus({ seconds: id }).toJSDate(),
   }
 }
 
@@ -35,10 +37,10 @@ test('a kind with no events shows as pending, without tabs', async () => {
 test('each event gets a numbered tab showing where it was emitted', async () => {
   const screen = await render(<SignetEventSourcesSection heading="Kind" sources={sources(2)} />)
   await expect.element(screen.getByRole('tab', { name: '1' })).toHaveAttribute('aria-selected')
-  await expect.element(screen.getByText('07-09-26 12:00:01')).toBeVisible()
+  await expect.element(screen.getByText('07-09-26 17:30:01')).toBeVisible()
   await screen.getByRole('tab', { name: '2' }).click()
-  await expect.element(screen.getByText('07-09-26 12:00:02')).toBeVisible()
-  expect(screen.getByText('07-09-26 12:00:01').elements()).toHaveLength(0)
+  await expect.element(screen.getByText('07-09-26 17:30:02')).toBeVisible()
+  expect(screen.getByText('07-09-26 17:30:01').elements()).toHaveLength(0)
 })
 
 test('tabs that fit have no scroll buttons', async () => {
