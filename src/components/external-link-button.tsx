@@ -1,10 +1,22 @@
 import { ExternalLink } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
-/** Opens `href` in a new tab. `label` is the tooltip and names the link for assistive technology. */
-export function ExternalLinkButton({ href, label }: { href: string; label: string }) {
+/**
+ * Opens `href` in a new tab. `label` is the tooltip and names the link for assistive technology.
+ * `icon` defaults to the external-link arrow.
+ */
+export function ExternalLinkButton({
+  href,
+  label,
+  icon = <ExternalLink />,
+}: {
+  href: string
+  label: string
+  icon?: ReactNode
+}) {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -18,7 +30,7 @@ export function ExternalLinkButton({ href, label }: { href: string; label: strin
           />
         }
       >
-        <ExternalLink />
+        {icon}
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>

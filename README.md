@@ -70,6 +70,11 @@ Two things make a single-page app work there:
 The deployment runs in the `github-pages` environment, whose deployment rules must allow release
 tags (a tag rule `v[0-9]*.[0-9]*.[0-9]*`). Under Settings, Pages, the source is "GitHub Actions".
 
+The footer shows the build's version. The workflow passes the release tag to the build as
+`EXPLORER_VERSION`. A build without that variable describes its checkout instead, as the latest
+release tag and the short commit (`v1.2.0-bc90655`), with `vX.X.X` standing in while the checkout
+has no release tag.
+
 Vite inlines `VITE_*` values at build time. The workflow builds from a clean checkout, where no
 `.env.local` exists, so the site serves the SDK's published network defaults.
 

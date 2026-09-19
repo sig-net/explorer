@@ -74,6 +74,8 @@ jobs:
         env:
           # base_path carries no trailing slash, and is empty at a domain root.
           EXPLORER_BASE_PATH: ${{ steps.pages.outputs.base_path }}/
+          # The release tag, which verify-tag has checked is vX.Y.Z. The footer shows it.
+          EXPLORER_VERSION: ${{ github.ref_name }}
         run: yarn build
       - name: Serve the app for every path that is not a file
         run: cp dist/index.html dist/404.html
