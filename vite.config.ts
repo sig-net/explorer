@@ -8,7 +8,20 @@ import { playwright } from '@vitest/browser-playwright'
 import wasm from 'vite-plugin-wasm'
 import { defineConfig } from 'vitest/config'
 
+/**
+ * The path the app is served under, from `EXPLORER_BASE_PATH`: `/` at a domain root, `/explorer/`
+ * on GitHub Pages. It starts and ends with a slash.
+ */
+function basePath(): string {
+  const value = process.env.EXPLORER_BASE_PATH ?? '/'
+  if (!value.startsWith('/') || !value.endsWith('/')) {
+    throw new Error(`EXPLORER_BASE_PATH must start and end with "/", got "${value}"`)
+  }
+  return value
+}
+
 export default defineConfig({
+  base: basePath(),
   plugins: [
     // The router plugin must run before the React plugin.
     tanstackRouter({ target: 'react', autoCodeSplitting: true }),

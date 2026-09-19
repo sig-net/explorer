@@ -41,54 +41,37 @@ yarn playwright install chromium
 | `yarn test:watch`   | Run the test suite in watch mode                               |
 | `yarn check`        | Typecheck, lint, format check and test in sequence             |
 
-## Container image
+## GitHub Pages
 
-`ci/Dockerfile` builds the app with Node 24 on Debian slim and serves `dist` from
-`nginxinc/nginx-unprivileged`, configured by the server config in `ci/nginx`. The build context is
-the repository root, so build from there:
+The `pages-deploy` workflow builds the app and deploys it to GitHub Pages, at
+<https://sig-net.github.io/explorer/>. It runs when a release tag is pushed: `vX.Y.Z` for a stable
+release, which must point at a commit on `main`, or `vX.Y.Z-rc.N` for a release candidate, which may
+come from any branch. Any other ref fails the run before anything is built. Pages holds one site, so
+each deploy replaces the one before it, a release candidate included.
 
-```bash
-docker build -f ci/Dockerfile -t explorer:local .
-```
+Two things make a single-page app work there:
 
-Run it on <http://localhost:8080>:
+- The base path. The site lives under `/explorer/`, not at a domain root. The build reads the path
+  it is served under from `EXPLORER_BASE_PATH` (default `/`, and it must start and end with a
+  slash): Vite prefixes every emitted asset with it, the router takes it as its base path, and
+  `publicAssetUrl` in `src/lib/public-asset-url.ts` prefixes files from `public`. The workflow asks
+  GitHub for the site's base path, so a custom domain needs no change here. To try a sub-path build
+  locally:
 
-```bash
-docker run --rm -d --name explorer -p 8080:8080 explorer:local
-```
+  ```bash
+  EXPLORER_BASE_PATH=/explorer/ yarn build && EXPLORER_BASE_PATH=/explorer/ yarn preview
+  ```
 
-A Kubernetes manifest needs this much of the runtime contract:
+- Deep links. Pages serves `404.html` for any path that is not a file, so the workflow copies
+  `index.html` to `404.html`. A link such as `/explorer/midnight/explorer?requestId=...` then loads
+  the app, which routes it. The response carries the status 404, which browsers show as one console
+  error and otherwise ignore.
 
-| Property                    | Value                                  |
-| --------------------------- | -------------------------------------- |
-| Container port              | 8080                                   |
-| User                        | non-root, uid 101                      |
-| Liveness and readiness path | `/healthz`, 200 with a plain text body |
-| Logs                        | access on stdout, errors on stderr     |
+The deployment runs in the `github-pages` environment, whose deployment rules must allow release
+tags (a tag rule `v[0-9]*.[0-9]*.[0-9]*`). Under Settings, Pages, the source is "GitHub Actions".
 
-Under `readOnlyRootFilesystem: true` the pod also needs a writable `emptyDir` mounted at `/tmp`,
-where nginx keeps its pid file and its temp directories. Without one the container exits during
-start up with `mkdir() "/tmp/proxy_temp" failed (30: Read-only file system)`.
-
-Vite inlines `VITE_*` values at build time, and `.dockerignore` keeps every `.env*` file out of
-the build context, so an image serves the SDK's published network defaults and never a
-developer's `.env.local`.
-
-### Publishing
-
-The `docker-publish` workflow publishes the image to Google Artifact Registry as
-`europe-west1-docker.pkg.dev/near-cs-dev/explorer/ui`. It runs when a release tag is pushed:
-`vX.Y.Z` for a stable release, which must point at a commit on `main`, or `vX.Y.Z-rc.N` for a
-release candidate, which may come from any branch. Any other ref fails the run before anything is
-built.
-
-The push happens in the `deploy` environment, so a run waits there for a reviewer's approval. That
-environment holds the `GOOGLE_CREDENTIALS` secret, the service-account key the push authenticates
-with.
-
-A run publishes one multi-architecture manifest covering `linux/amd64` and `linux/arm64` under
-three tags: the release tag, the tagged commit's full hash and `latest`. Each architecture is also
-published on its own as `<tag>-linux-amd64` and `<tag>-linux-arm64`.
+Vite inlines `VITE_*` values at build time. The workflow builds from a clean checkout, where no
+`.env.local` exists, so the site serves the SDK's published network defaults.
 
 ## Canonical Tailwind classes
 

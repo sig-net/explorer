@@ -50,6 +50,12 @@ Keep setup instructions and application reference material in README.md and docs
   values, and that module is reached by dynamic `import()` alone. After adding any Midnight
   dependency, run `yarn build` and check the emitted `.wasm` files: the expected set is the
   onchain runtime, plus one ledger build referenced only by the lazy inspection chunk.
+- The app is served under a base path: `/` by the dev server, `/explorer/` on GitHub Pages. Never write
+  a root-absolute URL to the app's own files or routes. A file in `public` goes through
+  `publicAssetUrl` (`src/lib/public-asset-url.ts`), a route through the router (`Link`, `navigate`,
+  `redirect`), which applies the base path itself. After touching either, build with
+  `EXPLORER_BASE_PATH=/explorer/` and load the preview: a root-absolute path works at `/` and
+  breaks only there.
 - Match names to actual responsibilities. Adding a variant reopens sibling and container names.
   Qualify both members when introducing a qualified twin. Moves, deletions and renames require a
   whole-repository search for invalidated names and updates to imports, configuration, manifests,

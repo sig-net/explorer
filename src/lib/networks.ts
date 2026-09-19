@@ -1,3 +1,5 @@
+import { publicAssetUrl } from '@/lib/public-asset-url'
+
 export const NETWORK_IDS = ['midnight', 'solana'] as const
 
 export type NetworkId = (typeof NETWORK_IDS)[number]
@@ -18,15 +20,15 @@ export const NETWORKS: Record<NetworkId, Network> = {
     id: 'midnight',
     label: 'Midnight',
     route: '/midnight',
-    lightIcon: '/icons/Midnight-black.svg',
-    darkIcon: '/icons/Midnight-white.svg',
+    lightIcon: publicAssetUrl('icons/Midnight-black.svg'),
+    darkIcon: publicAssetUrl('icons/Midnight-white.svg'),
   },
   solana: {
     id: 'solana',
     label: 'Solana',
     route: '/solana',
-    lightIcon: '/icons/Solana.svg',
-    darkIcon: '/icons/Solana.svg',
+    lightIcon: publicAssetUrl('icons/Solana.svg'),
+    darkIcon: publicAssetUrl('icons/Solana.svg'),
   },
 }
 
