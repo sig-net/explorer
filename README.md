@@ -44,10 +44,10 @@ yarn playwright install chromium
 ## GitHub Pages
 
 The `pages-deploy` workflow builds the app and deploys it to GitHub Pages, at
-<https://sig-net.github.io/explorer/>. It runs when a release tag is pushed: `vX.Y.Z` for a stable
-release, which must point at a commit on `main`, or `vX.Y.Z-rc.N` for a release candidate, which may
-come from any branch. Any other ref fails the run before anything is built. Pages holds one site, so
-each deploy replaces the one before it, a release candidate included.
+<https://sig-net.github.io/explorer/>. There is one environment, so the release flow is short:
+merge `dev` into `main`, tag the commit on `main` as `vX.Y.Z`, and push the tag. The workflow runs
+for that tag form alone, and it fails before building anything when the tagged commit is not on
+`main`. Pages holds one site, so each deploy replaces the one before it.
 
 Two things make a single-page app work there:
 
