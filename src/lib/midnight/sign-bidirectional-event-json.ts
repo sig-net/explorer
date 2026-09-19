@@ -1,4 +1,9 @@
-import { bytesToHex, type EvmType2TxParams, type SignBidirectionalEvent } from '@sig-net/midnight'
+import {
+  asciiUnpadded,
+  bytesToHex,
+  type EvmType2TxParams,
+  type SignBidirectionalEvent,
+} from '@sig-net/midnight'
 
 /** A Compact unsigned integer as JSON: a number while it is exactly representable, else a string. */
 type JsonInteger = number | string
@@ -34,13 +39,13 @@ function jsonInteger(value: bigint): JsonInteger {
   return value <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(value) : value.toString()
 }
 
-/** The bytes as UTF-8 text without their NUL padding, or as hex when they are not text. */
+/** The decoder's stand-in for a byte sequence that is not UTF-8. */
+const REPLACEMENT_CHARACTER = '\uFFFD'
+
+/** A zero-padded text field as its text, or as hex when its bytes are not text. */
 function textOrHex(bytes: Uint8Array): string {
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/\0+$/u, '')
-  } catch {
-    return bytesToHex(bytes)
-  }
+  const text = asciiUnpadded(bytes)
+  return text.includes(REPLACEMENT_CHARACTER) ? bytesToHex(bytes) : text
 }
 
 function txParamsJson(txParams: EvmType2TxParams): SignBidirectionalEventJson['txParams'] {

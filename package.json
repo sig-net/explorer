@@ -20,7 +20,7 @@
     "@fontsource-variable/geist": "^5.3.0",
     "@microlink/react-json-view": "1.31.34",
     "@midnightntwrk/ledger-v9": "1.0.0-rc.3",
-    "@sig-net/midnight": "0.22.1",
+    "@sig-net/midnight": "0.22.2",
     "@tanstack/react-router": "^1.170.36",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
