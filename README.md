@@ -166,8 +166,11 @@ keys its loads on. They are `null` until the first build completes, just after t
 
 ### WebAssembly and bundle weight
 
-The production build carries one WebAssembly module, the 1.4MB onchain runtime, and the whole
-output is about 2.2MB. Keep it that way when adding Midnight features.
+The first page load carries one WebAssembly module, the 1.4MB onchain runtime, inside about
+2.2MB of output. Keep it that way when adding Midnight features. The build also emits the 10.3MB
+Midnight ledger module (`@midnightntwrk/ledger-v9`), which only the lazy transaction inspection
+chunk references: the browser fetches it the first time a lifecycle row is expanded (see
+"Transaction inspection" below). `vite.config.ts` keeps both wasm packages out of the prebundle.
 `@midnight-ntwrk/midnight-js-indexer-public-data-provider` is the package to watch. A static import
 of it pulls in `@midnight-ntwrk/midnight-js-types`, which imports the Midnight ledger as runtime
 values. Measured at 5.0.0-beta.6, that added two builds of the ledger WebAssembly (20.8MB, one of
@@ -232,8 +235,8 @@ indexer id of their earliest event.
 
 The Explorer tab renders them with `SignBidirectionalLifecycleTable` in
 `src/components/midnight/sign-bidirectional-lifecycle-table.tsx`, one row per lifecycle. The table
-fills the height the page has left, down to the status line, with a sticky header, and scrolls
-inside its body. The app shell in `src/routes/__root.tsx` is exactly one viewport tall, which is
+fills the height the page has left below the search and status line, with a sticky header, and
+scrolls inside its body. The app shell in `src/routes/__root.tsx` is exactly one viewport tall, which is
 what gives the table a height to fill. Times are block times as
 `DD-MM-YY HH:MM:SS` in the browser's time zone, a cell lists at most three entries before an ellipsis, a clock marks a
 signature or response that has not arrived, and Duration runs from the first request to the first
@@ -241,6 +244,36 @@ response. Hovering a truncated request id or caller shows the full value, and th
 beside it puts the full value on the clipboard. The search box filters
 rows as you type by a fragment of the request id or of a caller contract address. The display
 formatters live in `src/lib/format.ts`.
+
+Expanding a row shows one section per event kind, with a numbered tab per event: where the event
+was emitted (transaction hash, block hash, block height, block time), then every field of its
+decoded record.
+
+### Transaction inspection
+
+The Sign Bidirectional Notification section also shows what the emitting transaction did, read
+from the transaction's own bytes. `src/lib/midnight/sign-bidirectional-transaction-loader.ts`
+fetches the raw transaction from the indexer by hash and hands it to
+`src/lib/midnight/sign-bidirectional-transaction-inspection.ts`, which deserialises it with the
+Midnight ledger and returns two things:
+
+- The call chains. Every contract call carries its entry point name and address. A caller's
+  transcript claims each call it makes by callee address, entry point hash and communication
+  commitment, and a call matching all three is nested under its caller. Calls nobody claims are
+  the top level calls, and each is listed as its own chain, separated by a divider.
+  A call with any of its program in the transaction's fallible section carries a "fallible"
+  badge: the MPC reads guaranteed transcripts only, so a Signet call flagged this way is one it
+  skips.
+- The request at the requests path. The caller's transcript holds the map insert that stores the
+  request: the write whose path equals the notification's requests path and whose key equals the
+  request id. Its value is decoded with the SDK's `decodeEvmType2SignBidirectionalEvent` and shown
+  as JSON (`src/lib/midnight/sign-bidirectional-event-json.ts`: bytes as hex, text fields as text,
+  integers as numbers while exactly representable) in a fixed height viewport that scrolls both
+  ways.
+
+Results are cached per indexer URL, transaction and request id for the life of the page, since a
+finalised transaction never changes. The inspection's test runs against a real stagenet
+transaction kept in `sign-bidirectional-transaction-inspection.fixture.ts`.
 
 ## Local SDK link
 

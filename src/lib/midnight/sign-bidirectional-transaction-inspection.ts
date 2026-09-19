@@ -22,6 +22,11 @@ import {
 export interface ContractCallNode {
   readonly entryPoint: string
   readonly address: string
+  /**
+   * Whether any of the call's program runs in the transaction's fallible section. The MPC reads
+   * guaranteed transcripts only, so it skips a Signet call this is true for.
+   */
+  readonly fallible: boolean
   readonly calls: readonly ContractCallNode[]
 }
 
@@ -79,6 +84,7 @@ function callChains(calls: readonly Call[]): ContractCallNode[] {
   const node = (call: Call, ancestors: readonly Call[]): ContractCallNode => ({
     entryPoint: entryPointName(call),
     address: call.address,
+    fallible: call.fallibleTranscript !== undefined,
     calls: (claimed.get(call) ?? [])
       .filter((callee) => !ancestors.includes(callee))
       .map((callee) => node(callee, [...ancestors, call])),

@@ -45,8 +45,11 @@ Keep setup instructions and application reference material in README.md and docs
   (about 20MB) and Apollo Client into the importing chunk, even when only constructed. Never import
   it, or anything that reaches `@midnight-ntwrk/midnight-js-types` at runtime, from shared or
   root-mounted code. A feature that needs it loads it with a dynamic `import()` inside its own
-  route. After adding any Midnight dependency, run `yarn build` and check the emitted `.wasm`
-  files: the expected set is the onchain runtime alone.
+  route. The Midnight ledger WebAssembly (`@midnightntwrk/ledger-v9`, about 10MB) follows the
+  same rule: only `src/lib/midnight/sign-bidirectional-transaction-inspection.ts` imports it as
+  values, and that module is reached by dynamic `import()` alone. After adding any Midnight
+  dependency, run `yarn build` and check the emitted `.wasm` files: the expected set is the
+  onchain runtime, plus one ledger build referenced only by the lazy inspection chunk.
 - Match names to actual responsibilities. Adding a variant reopens sibling and container names.
   Qualify both members when introducing a qualified twin. Moves, deletions and renames require a
   whole-repository search for invalidated names and updates to imports, configuration, manifests,

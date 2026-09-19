@@ -3,7 +3,10 @@ import { expect, test } from 'vitest'
 
 import { signBidirectionalEventJson } from './sign-bidirectional-event-json'
 import { inspectSignBidirectionalTransaction } from './sign-bidirectional-transaction-inspection'
-import { START_DEPOSIT_RAW_TRANSACTION_HEX } from './sign-bidirectional-transaction-inspection.fixture'
+import {
+  FALLIBLE_START_DEPOSIT_RAW_TRANSACTION_HEX,
+  START_DEPOSIT_RAW_TRANSACTION_HEX,
+} from './sign-bidirectional-transaction-inspection.fixture'
 
 const REQUEST_ID = parseRequestIdHex(
   'af95a7c83af12c495d457f8b7f322db1e4d9f9b54ae294164cf828da8d2aa100',
@@ -26,7 +29,8 @@ test('the call chain nests the claimed signet call under the top level call', ()
     {
       entryPoint: 'startDeposit',
       address: VAULT,
-      calls: [{ entryPoint: 'signBidirectional', address: SIGNET, calls: [] }],
+      fallible: false,
+      calls: [{ entryPoint: 'signBidirectional', address: SIGNET, fallible: false, calls: [] }],
     },
   ])
 })
@@ -85,4 +89,22 @@ test('no request is found at another path or under another request id', () => {
       NOTIFICATION,
     ).request,
   ).toBeNull()
+})
+
+test('calls partitioned into the fallible section are flagged, and their request is still read', () => {
+  const fallibleVault = '5fa9de7119edcab960b9a9cc2772efc7018664a6ddb256372ad4a57eb121d3f4'
+  const { callChains, request } = inspectSignBidirectionalTransaction(
+    FALLIBLE_START_DEPOSIT_RAW_TRANSACTION_HEX,
+    parseRequestIdHex('82f3f1147984eab34fcdca6badfc4b3bff1b33d2607e3b5b0beca56e7c221900'),
+    { version: 1, callerAddress: fallibleVault, requestsPath: [1, 3] },
+  )
+  expect(callChains).toEqual([
+    {
+      entryPoint: 'startDeposit',
+      address: fallibleVault,
+      fallible: true,
+      calls: [{ entryPoint: 'signBidirectional', address: SIGNET, fallible: true, calls: [] }],
+    },
+  ])
+  expect(request?.requestNonce).toBe(6n)
 })

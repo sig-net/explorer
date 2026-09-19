@@ -5,8 +5,10 @@ import { useMidnight } from '@/components/contexts/MidnightContext'
 import { useTheme } from '@/components/contexts/ThemeContext'
 import { CopyableHex } from '@/components/copyable-hex'
 import { PendingIcon } from '@/components/pending-icon'
+import { Badge } from '@/components/ui/badge'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { signBidirectionalEventJson } from '@/lib/midnight/sign-bidirectional-event-json'
 import type {
   ContractCallNode,
@@ -66,6 +68,15 @@ function CallChain({ calls }: { calls: readonly ContractCallNode[] }) {
           <span className="inline-flex items-center gap-2">
             <span className="font-mono">{call.entryPoint}</span>@
             <CopyableHex value={call.address} label={`${call.entryPoint} contract address`} />
+            {call.fallible && (
+              <Tooltip>
+                <TooltipTrigger render={<Badge variant="destructive" />}>fallible</TooltipTrigger>
+                <TooltipContent>
+                  Runs in the transaction's fallible section. The MPC reads guaranteed transcripts
+                  only, so it skips a Signet call made this way.
+                </TooltipContent>
+              </Tooltip>
+            )}
           </span>
           {call.calls.length > 0 && <CallChain calls={call.calls} />}
         </li>
