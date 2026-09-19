@@ -10,6 +10,7 @@ import {
 import { SignBidirectionalTransactionDetails } from '@/components/midnight/sign-bidirectional-transaction-details'
 import { SignatureCheck } from '@/components/midnight/signature-check'
 import { SignetEventsSection } from '@/components/midnight/signet-events-section'
+import { useValidSignatureResponseIds } from '@/components/midnight/use-valid-signature-response-ids'
 import { PendingIcon } from '@/components/pending-icon'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -50,6 +51,48 @@ function Timestamps({ dates }: { dates: readonly Date[] }) {
         </span>
       ))}
     </Stacked>
+  )
+}
+
+/** Mounted only while its row is expanded, as it inspects the lifecycle's transactions. */
+function LifecycleDetails({ lifecycle }: { lifecycle: SignBidirectionalLifecycle }) {
+  const { signBidirectionalEvents, signatureRespondedEvents, respondBidirectionalEvents } =
+    lifecycle
+  const validSignatureResponseIds = useValidSignatureResponseIds(
+    signBidirectionalEvents,
+    signatureRespondedEvents,
+  )
+  return (
+    <div className="grid grid-cols-3 divide-x">
+      <SignetEventsSection
+        heading="Sign Bidirectional Notification"
+        events={signBidirectionalEvents}
+        renderRecord={(event) => (
+          <>
+            <SignBidirectionalNotificationDetails record={event.record} />
+            <Separator />
+            <SignBidirectionalTransactionDetails event={event} />
+          </>
+        )}
+      />
+      <SignetEventsSection
+        heading="Signature Responded Event"
+        events={signatureRespondedEvents}
+        successfulEventIds={validSignatureResponseIds}
+        renderRecord={(event) => (
+          <>
+            <SignatureRespondedEventDetails record={event.record} />
+            <Separator />
+            <SignatureCheck notifications={signBidirectionalEvents} response={event.record} />
+          </>
+        )}
+      />
+      <SignetEventsSection
+        heading="Respond Bidirectional Event"
+        events={respondBidirectionalEvents}
+        renderRecord={(event) => <RespondBidirectionalEventDetails record={event.record} />}
+      />
+    </div>
   )
 }
 
@@ -124,38 +167,7 @@ function LifecycleRow({
       {expanded && (
         <TableRow id={detailsId} className="hover:bg-transparent">
           <TableCell colSpan={COLUMN_COUNT} className="p-0 whitespace-normal">
-            <div className="grid grid-cols-3 divide-x">
-              <SignetEventsSection
-                heading="Sign Bidirectional Notification"
-                events={signBidirectionalEvents}
-                renderRecord={(event) => (
-                  <>
-                    <SignBidirectionalNotificationDetails record={event.record} />
-                    <Separator />
-                    <SignBidirectionalTransactionDetails event={event} />
-                  </>
-                )}
-              />
-              <SignetEventsSection
-                heading="Signature Responded Event"
-                events={signatureRespondedEvents}
-                renderRecord={(event) => (
-                  <>
-                    <SignatureRespondedEventDetails record={event.record} />
-                    <Separator />
-                    <SignatureCheck
-                      notifications={signBidirectionalEvents}
-                      response={event.record}
-                    />
-                  </>
-                )}
-              />
-              <SignetEventsSection
-                heading="Respond Bidirectional Event"
-                events={respondBidirectionalEvents}
-                renderRecord={(event) => <RespondBidirectionalEventDetails record={event.record} />}
-              />
-            </div>
+            <LifecycleDetails lifecycle={lifecycle} />
           </TableCell>
         </TableRow>
       )}

@@ -83,3 +83,43 @@ test('overflowing tabs scroll with a button at each end', async () => {
   await expect.element(back).toBeEnabled()
   await expect.poll(() => screen.getByRole('tablist').element().scrollLeft).toBeGreaterThan(0)
 })
+
+test('the first successful event is selected until a tab is picked by hand', async () => {
+  const screen = await render(
+    <SignetEventsSection heading="Kind" events={events(4)} renderRecord={renderRecord} />,
+  )
+  await expect
+    .element(screen.getByRole('tab', { name: '1' }))
+    .toHaveAttribute('aria-selected', 'true')
+
+  await screen.rerender(
+    <SignetEventsSection
+      heading="Kind"
+      events={events(4)}
+      renderRecord={renderRecord}
+      successfulEventIds={new Set([2, 3])}
+    />,
+  )
+  await expect
+    .element(screen.getByRole('tab', { name: '2' }))
+    .toHaveAttribute('aria-selected', 'true')
+  await expect.element(screen.getByText('record of event 2')).toBeVisible()
+  await expect.element(screen.getByRole('tab', { name: '2' })).toHaveAttribute('data-successful')
+  await expect.element(screen.getByRole('tab', { name: '3' })).toHaveAttribute('data-successful')
+  await expect
+    .element(screen.getByRole('tab', { name: '1' }))
+    .not.toHaveAttribute('data-successful')
+
+  await screen.getByRole('tab', { name: '4' }).click()
+  await screen.rerender(
+    <SignetEventsSection
+      heading="Kind"
+      events={events(4)}
+      renderRecord={renderRecord}
+      successfulEventIds={new Set([3])}
+    />,
+  )
+  await expect
+    .element(screen.getByRole('tab', { name: '4' }))
+    .toHaveAttribute('aria-selected', 'true')
+})
