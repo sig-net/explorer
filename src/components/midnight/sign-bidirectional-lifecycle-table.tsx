@@ -8,6 +8,7 @@ import {
   SignBidirectionalNotificationDetails,
 } from '@/components/midnight/signet-event-record-details'
 import { SignBidirectionalTransactionDetails } from '@/components/midnight/sign-bidirectional-transaction-details'
+import { SignatureCheck } from '@/components/midnight/signature-check'
 import { SignetEventsSection } from '@/components/midnight/signet-events-section'
 import { PendingIcon } from '@/components/pending-icon'
 import { Button } from '@/components/ui/button'
@@ -52,11 +53,20 @@ function Timestamps({ dates }: { dates: readonly Date[] }) {
   )
 }
 
-function LifecycleRow({ lifecycle }: { lifecycle: SignBidirectionalLifecycle }) {
+function LifecycleRow({
+  lifecycle,
+  expandedByDefault,
+}: {
+  lifecycle: SignBidirectionalLifecycle
+  expandedByDefault: boolean
+}) {
   const { signBidirectionalEvents, signatureRespondedEvents, respondBidirectionalEvents } =
     lifecycle
   const durationMs = signBidirectionalLifecycleDurationMs(lifecycle)
-  const [expanded, setExpanded] = useState(false)
+  // Null until the row is toggled by hand. A toggled row keeps that choice, and an untouched one
+  // follows the default as it changes.
+  const [toggled, setToggled] = useState<boolean | null>(null)
+  const expanded = toggled ?? expandedByDefault
   const detailsId = useId()
   return (
     <>
@@ -68,7 +78,7 @@ function LifecycleRow({ lifecycle }: { lifecycle: SignBidirectionalLifecycle }) 
             aria-label={expanded ? 'Collapse event details' : 'Expand event details'}
             aria-expanded={expanded}
             aria-controls={detailsId}
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => setToggled(!expanded)}
           >
             {expanded ? <ChevronUp /> : <ChevronDown />}
           </Button>
@@ -129,7 +139,16 @@ function LifecycleRow({ lifecycle }: { lifecycle: SignBidirectionalLifecycle }) 
               <SignetEventsSection
                 heading="Signature Responded Event"
                 events={signatureRespondedEvents}
-                renderRecord={(event) => <SignatureRespondedEventDetails record={event.record} />}
+                renderRecord={(event) => (
+                  <>
+                    <SignatureRespondedEventDetails record={event.record} />
+                    <Separator />
+                    <SignatureCheck
+                      notifications={signBidirectionalEvents}
+                      response={event.record}
+                    />
+                  </>
+                )}
               />
               <SignetEventsSection
                 heading="Respond Bidirectional Event"
@@ -157,13 +176,18 @@ const COLUMNS = [
 /** The named columns and the leading expand control's column. */
 const COLUMN_COUNT = COLUMNS.length + 1
 
-/** The given lifecycles, one expandable row each. `emptyText` fills the body when there are none. */
+/**
+ * The given lifecycles, one expandable row each. `emptyText` fills the body when there are none.
+ * With `expandSoleRow`, a row that is the only one starts expanded.
+ */
 export function SignBidirectionalLifecycleTable({
   lifecycles,
   emptyText,
+  expandSoleRow,
 }: {
   lifecycles: readonly SignBidirectionalLifecycle[]
   emptyText: string
+  expandSoleRow: boolean
 }) {
   // This wrapper fills the height the page has left. The table component scrolls inside its own
   // container, so that container takes the wrapper's height and the header sticks to it.
@@ -192,7 +216,11 @@ export function SignBidirectionalLifecycleTable({
             </TableRow>
           ) : (
             lifecycles.map((lifecycle) => (
-              <LifecycleRow key={lifecycle.requestId} lifecycle={lifecycle} />
+              <LifecycleRow
+                key={lifecycle.requestId}
+                lifecycle={lifecycle}
+                expandedByDefault={expandSoleRow && lifecycles.length === 1}
+              />
             ))
           )}
         </TableBody>

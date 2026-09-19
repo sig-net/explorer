@@ -261,3 +261,26 @@
     @apply font-sans;
   }
 }
+
+/*
+ * Every enabled control a click activates shows the pointer cursor. Unlayered, so it outranks the
+ * `cursor-default` utility the shadcn menu and select items carry.
+ */
+:is(
+  button,
+  summary,
+  select,
+  label[for],
+  [role='button'],
+  [role='tab'],
+  [role='menuitem'],
+  [role='menuitemradio'],
+  [role='menuitemcheckbox'],
+  [role='option'],
+  [role='combobox'],
+  [role='checkbox'],
+  [role='radio'],
+  [role='switch']
+):not(:disabled, [aria-disabled='true'], [data-disabled]) {
+  cursor: pointer;
+}

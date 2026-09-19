@@ -53,6 +53,8 @@ const CONFIG_FIELDS: readonly ConfigField[] = [
     problem: (value) =>
       parseSignetContractAddress(value) === null ? 'Expected 32 bytes of hex (64 digits).' : null,
   },
+  { key: 'ethereumMainnetRpcUrl', label: 'Ethereum Mainnet RPC URL' },
+  { key: 'ethereumSepoliaRpcUrl', label: 'Ethereum Sepolia RPC URL' },
 ]
 
 export function MidnightConfiguration() {

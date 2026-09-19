@@ -23,6 +23,19 @@ export interface MidnightNetworkConfig {
   nodeUrl: string
   mpcRootPublicKey: string
   signetContractAddress: string
+  /** JSON-RPC endpoint asked about requested transactions that target Ethereum mainnet. */
+  ethereumMainnetRpcUrl: string
+  /** JSON-RPC endpoint asked about requested transactions that target Sepolia. */
+  ethereumSepoliaRpcUrl: string
+}
+
+/** Keyless public endpoints that accept cross-origin calls from a browser. */
+const EVM_RPC_DEFAULTS: Pick<
+  MidnightNetworkConfig,
+  'ethereumMainnetRpcUrl' | 'ethereumSepoliaRpcUrl'
+> = {
+  ethereumMainnetRpcUrl: 'https://ethereum-rpc.publicnode.com',
+  ethereumSepoliaRpcUrl: 'https://ethereum-sepolia-rpc.publicnode.com',
 }
 
 /**
@@ -104,6 +117,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     indexerWsUrl: 'ws://127.0.0.1:8088/api/v4/graphql/ws',
     nodeUrl: 'http://127.0.0.1:9944',
     ...parseMidnightUndeployedEnv(import.meta.env),
+    ...EVM_RPC_DEFAULTS,
   },
   [MidnightNetwork.Stagenet]: {
     indexerUrl: 'https://indexer.stagenet.shielded.tools/api/v4/graphql',
@@ -111,6 +125,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     nodeUrl: 'https://rpc.stagenet.shielded.tools',
     mpcRootPublicKey: getMpcRootPublicKey(MidnightNetwork.Stagenet),
     signetContractAddress: getSignetContractAddress(MidnightNetwork.Stagenet),
+    ...EVM_RPC_DEFAULTS,
   },
   // TODO: populate for this network once released to these networks
   [MidnightNetwork.Preview]: {
@@ -119,6 +134,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     nodeUrl: 'https://rpc.preview.midnight.network',
     mpcRootPublicKey: '',
     signetContractAddress: '',
+    ...EVM_RPC_DEFAULTS,
   },
   // TODO: populate for this network once released to these networks
   [MidnightNetwork.Preprod]: {
@@ -127,6 +143,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     nodeUrl: 'https://rpc.preprod.midnight.network',
     mpcRootPublicKey: '',
     signetContractAddress: '',
+    ...EVM_RPC_DEFAULTS,
   },
   // TODO: populate for this network once released to these networks
   [MidnightNetwork.Mainnet]: {
@@ -135,6 +152,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     nodeUrl: 'https://rpc.mainnet.midnight.network',
     mpcRootPublicKey: '',
     signetContractAddress: '',
+    ...EVM_RPC_DEFAULTS,
   },
 }
 

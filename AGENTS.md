@@ -62,6 +62,12 @@ Keep setup instructions and application reference material in README.md and docs
   CLI (`yarn dlx shadcn@latest add <component>`) rather than writing it by hand.
 - If shadcn has no component for what is asked, stop and say so. Do not invent a substitute,
   hand-roll a primitive, or pull in another component library.
+- Never put a cursor class on a control. One unlayered rule at the end of `src/index.css` gives
+  every enabled clickable control the pointer cursor, by element and ARIA role, and it outranks
+  the `cursor-default` utility shadcn sets on menu and select items. A per-component
+  `cursor-pointer` hides a gap in that rule from every other component with the same gap. When a
+  control lacks the pointer, add its element or role to that rule's selector list. Disabled
+  controls keep their own cursor: keep the rule's `:not(...)` exclusions intact.
 
 ## File layout
 

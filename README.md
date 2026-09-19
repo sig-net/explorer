@@ -117,6 +117,11 @@ Dark mode is a class on the root element. `ThemeProvider` in `src/components/con
 falls back to the system preference, and the toggle in the app bar flips it and persists it in
 local storage.
 
+Tailwind leaves buttons on the default cursor, and shadcn pins `cursor-default` on menu and select
+items. One unlayered rule at the end of `src/index.css` gives every enabled control a click
+activates (buttons, tabs, menu items, select options and their kin) the pointer cursor. Disabled
+controls keep their own cursor.
+
 To add a shadcn component:
 
 ```bash
@@ -268,12 +273,83 @@ Midnight ledger and returns two things:
   request: the write whose path equals the notification's requests path and whose key equals the
   request id. Its value is decoded with the SDK's `decodeEvmType2SignBidirectionalEvent` and shown
   as JSON (`src/lib/midnight/sign-bidirectional-event-json.ts`: bytes as hex, text fields as text,
-  integers as numbers while exactly representable) in a fixed height viewport that scrolls both
-  ways.
+  integers as numbers while exactly representable) in a viewport that scrolls both ways.
+
+Above the JSON, the Signing Key and Signing Key Address lines show the request signing key, the key
+the MPC derives for the request's `sender` and `path` and signs the requested transaction with: its
+public key as uncompressed SEC1 hex, and that key's EVM address.
+`src/lib/midnight/request-signing-key.ts` derives both from the configured MPC root public key
+with the SDK's `deriveSignBidirectionalEventSigningKey` and
+`deriveSignBidirectionalEventSignerEvmAddress`, so the Signing Key line asks for a valid root key
+while the configuration holds none.
+Each of the two labels has an info icon whose tooltip says what the value is and how the two differ.
+The address carries a link to its Etherscan page (`src/lib/midnight/evm-block-explorer.ts`):
+Etherscan when the selected Midnight network is mainnet, Sepolia Etherscan for every other network.
+
+The JSON viewport resizes vertically by dragging its bottom right corner (the browser's own resize
+grip). Two buttons float in the bottom right corner of the viewport
+(`src/components/midnight/sign-bidirectional-request-json.tsx`): one copies the whole JSON, indented,
+and one opens the same tree in a dialog sized to 90% of the window.
 
 Results are cached per indexer URL, transaction and request id for the life of the page, since a
 finalised transaction never changes. The inspection's test runs against a real stagenet
 transaction kept in `sign-bidirectional-transaction-inspection.fixture.ts`.
+
+### Signature check
+
+The contract's events are unauthenticated: anyone can post a Signature Responded Event declaring any
+request id. Under each posted signature, the Signature Check list judges it against every Sign
+Bidirectional Notification of the same request id, numbered as the notification tabs are. For each
+notification it takes the request record from the transaction inspection, derives that request's
+signing key, and asks the SDK's `verifySignatureRespondedEvent` whether the signature, over the
+transaction the request describes, recovers to that key (`src/lib/midnight/signature-check.ts`). A
+line reads "valid for key" or "not valid for key" with the key it was judged against. A notification
+whose transaction stores no request has nothing to check.
+
+A valid line also carries the EVM transaction hash, with a link to the transaction on Etherscan. The
+hash is the Keccak-256 of the signed transaction's bytes, signature included, so it exists only for
+a request paired with a signature, never for a request alone, and it is shown only where that
+signature is valid. The SDK's `signBidirectionalEventToSignedEvmTransaction` assembles the signed
+transaction. The hash says what the transaction's id is, not that anyone broadcast it: Etherscan
+finds nothing for a signed transaction that was never sent.
+
+Next comes the Signed Txn line: the raw signed transaction, as the hex a node's
+`eth_sendRawTransaction` takes, with a copy button.
+
+Below the hash, the On Chain line asks an EVM RPC node what became of the transaction, with a
+spinner while it waits and a button to ask again (`src/lib/midnight/evm-transaction-status.ts`). The
+node is chosen by the request's own `txParams.chainId`: the configuration holds one endpoint for
+Ethereum mainnet (chain 1) and one for Sepolia (chain 11155111), both defaulting to keyless public
+endpoints that accept calls from a browser and both editable in the Midnight configuration popover.
+A request for any other chain says it has no endpoint.
+
+| Node reports                                  | Line                                                         |
+| --------------------------------------------- | ------------------------------------------------------------ |
+| A receipt with status 1                       | submitted, succeeded, with block, confirmations and finality |
+| A receipt with status 0                       | submitted, reverted, with block, confirmations and finality  |
+| No receipt, but it holds the transaction      | submitted, waiting for a block                               |
+| Nothing, and the sender's nonce has passed it | not found, and another transaction has used its nonce        |
+| Nothing                                       | not found by this node, with the submittable verdict below   |
+| An error, or no answer                        | could not check, with the reason                             |
+
+A transaction the node does not know, whose nonce is still free, gets a verdict: "still
+submittable", or "not submittable as things stand" with the reasons. The reasons are a gap before
+its nonce (the sender's next nonce is lower), a balance below the gas limit at the maximum fee plus
+the value, and a maximum fee below the latest block's base fee. Beside the verdict, a link opens
+Etherscan's broadcast page with the signed transaction filled in
+(`etherscanBroadcastUrl` in `src/lib/midnight/evm-block-explorer.ts`). The explorer itself never
+broadcasts: the visitor sends from Etherscan's page. Broadcasting is permanent, and a signed
+transaction can be sent by anyone who holds it.
+
+A mined transaction is laid out as a block explorer does: a status badge, the block with its
+confirmations and finality as badges, and how long ago it was included with the exact local time.
+That time is the block's timestamp, since the chain does not record when a transaction was first
+sent. Confirmations count the blocks from the transaction's block to the node's head, both included, and
+a transaction is finalised when its block is at or below the node's `finalized` block. The line is
+best effort and its info icon says so: it is one node's view, "not found" and "could not check"
+never mean "not submitted", and a block can still be reorganised away until it is finalised. Public
+endpoints are rate limited and see only their own pending pool, so set a keyed endpoint when the
+answer matters.
 
 ## Local SDK link
 
@@ -324,6 +400,18 @@ that network. The Vite plugin regenerates
 `src/routeTree.gen.ts` whenever a route file changes. That file is committed so a fresh
 checkout type-checks before the first dev server run, and it is excluded from lint and
 format.
+
+The explorer page takes an optional `requestId` query parameter, so a request can be linked to:
+`/midnight/explorer?networkId=stagenet&requestId=<64 hex digits>`. It fills the search box, which
+filters the table to that request and opens its row. The parameter is a link target and nothing more: the box also
+searches caller addresses, so the first edit to the box removes the parameter from the address bar.
+A value that is not a request id is dropped from the URL, and one spelled with `0x` or capitals is
+rewritten in canonical form.
+
+A row that is the only result of a search starts expanded, whether the search came from a link or
+was typed, and it collapses again when the search widens. A row toggled by hand keeps that choice.
+Without a search nothing opens by itself: while the page loads, the first request to arrive is
+briefly the only row.
 
 Route components are code split automatically, so each route ships as its own chunk.
 

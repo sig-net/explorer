@@ -1,72 +1,27 @@
-import ReactJson from '@microlink/react-json-view'
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment } from 'react'
 
 import { useMidnight } from '@/components/contexts/MidnightContext'
-import { useTheme } from '@/components/contexts/ThemeContext'
 import { CopyableHex } from '@/components/copyable-hex'
+import { DetailLine, DetailList } from '@/components/detail-list'
+import { ExternalLinkButton } from '@/components/external-link-button'
+import { SignBidirectionalRequestJson } from '@/components/midnight/sign-bidirectional-request-json'
+import { useSignBidirectionalTransactionInspection } from '@/components/midnight/use-sign-bidirectional-transaction-inspection'
 import { PendingIcon } from '@/components/pending-icon'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { signBidirectionalEventJson } from '@/lib/midnight/sign-bidirectional-event-json'
-import type {
-  ContractCallNode,
-  SignBidirectionalTransactionInspection,
-} from '@/lib/midnight/sign-bidirectional-transaction-inspection'
-import {
-  loadSignBidirectionalTransactionInspection,
-  type SignBidirectionalNotificationEvent,
-} from '@/lib/midnight/sign-bidirectional-transaction-loader'
-
-type InspectionState =
-  | { readonly status: 'loading' }
-  | { readonly status: 'loaded'; readonly inspection: SignBidirectionalTransactionInspection }
-  | { readonly status: 'error'; readonly error: string }
-
-/** A settled inspection, tagged with what it was loaded for. */
-interface SettledInspection {
-  readonly indexerUrl: string
-  readonly event: SignBidirectionalNotificationEvent
-  readonly state: InspectionState
-}
-
-function useSignBidirectionalTransactionInspection(
-  event: SignBidirectionalNotificationEvent,
-): InspectionState {
-  const { indexerUrl } = useMidnight().config
-  const [settled, setSettled] = useState<SettledInspection | null>(null)
-
-  useEffect(() => {
-    let current = true
-    const settle = (state: InspectionState) => {
-      if (current) {
-        setSettled({ indexerUrl, event, state })
-      }
-    }
-    loadSignBidirectionalTransactionInspection(indexerUrl, event).then(
-      (inspection) => settle({ status: 'loaded', inspection }),
-      (error: unknown) =>
-        settle({ status: 'error', error: error instanceof Error ? error.message : String(error) }),
-    )
-    return () => {
-      current = false
-    }
-  }, [indexerUrl, event])
-
-  // A result settled for other inputs is stale, so the current inputs are still loading.
-  return settled?.indexerUrl === indexerUrl && settled.event === event
-    ? settled.state
-    : { status: 'loading' }
-}
+import { etherscanAddressUrl } from '@/lib/midnight/evm-block-explorer'
+import { deriveRequestSigningKey } from '@/lib/midnight/request-signing-key'
+import type { ContractCallNode } from '@/lib/midnight/sign-bidirectional-transaction-inspection'
+import type { SignBidirectionalNotificationEvent } from '@/lib/midnight/sign-bidirectional-transaction-loader'
 
 function CallChain({ calls }: { calls: readonly ContractCallNode[] }) {
   return (
     <ul className="list-disc pl-5">
       {calls.map((call, index) => (
         <li key={index}>
-          <span className="inline-flex items-center gap-2">
-            <span className="font-mono">{call.entryPoint}</span>@
+          <span className="flex flex-wrap items-center gap-x-2">
+            <span className="min-w-0 font-mono break-all">{call.entryPoint}</span>@
             <CopyableHex value={call.address} label={`${call.entryPoint} contract address`} />
             {call.fallible && (
               <Tooltip>
@@ -87,7 +42,8 @@ function CallChain({ calls }: { calls: readonly ContractCallNode[] }) {
 
 /**
  * What the transaction that emitted a sign bidirectional notification did: the chain of contract
- * calls under each of its top level calls, and the request record it stored in the caller.
+ * calls under each of its top level calls, and the request record it stored in the caller, with the
+ * key the MPC signs that request with.
  */
 export function SignBidirectionalTransactionDetails({
   event,
@@ -95,7 +51,7 @@ export function SignBidirectionalTransactionDetails({
   event: SignBidirectionalNotificationEvent
 }) {
   const state = useSignBidirectionalTransactionInspection(event)
-  const { theme } = useTheme()
+  const { network, config } = useMidnight()
 
   if (state.status === 'loading') {
     return <PendingIcon />
@@ -104,6 +60,8 @@ export function SignBidirectionalTransactionDetails({
     return <p className="text-destructive">Could not inspect the transaction: {state.error}</p>
   }
   const { callChains, request } = state.inspection
+  const signingKey =
+    request === null ? null : deriveRequestSigningKey(config.mpcRootPublicKey, request)
   return (
     <>
       <h4 className="font-bold">Call Chain</h4>
@@ -118,21 +76,39 @@ export function SignBidirectionalTransactionDetails({
       {request === null ? (
         <p className="text-muted-foreground">The transaction stores no request at this path</p>
       ) : (
-        <ScrollArea className="bg-muted/50 h-72 rounded-md border">
-          <div className="w-max p-2">
-            <ReactJson
-              src={signBidirectionalEventJson(request)}
-              name={false}
-              theme={theme === 'dark' ? 'ocean' : 'rjv-default'}
-              style={{ backgroundColor: 'transparent' }}
-              displayDataTypes={false}
-              displayObjectSize={false}
-              enableClipboard={false}
-              collapseStringsAfterLength={false}
-            />
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+        <>
+          <DetailList>
+            {signingKey === null ? (
+              <DetailLine label="Signing Key">
+                <span className="text-muted-foreground">
+                  Needs a valid MPC root public key in the configuration
+                </span>
+              </DetailLine>
+            ) : (
+              <>
+                <DetailLine
+                  label="Signing Key"
+                  info="The secp256k1 public key the MPC signs this request's transaction with. The MPC derives it from its root public key, the requesting contract's address and the request's path, so each contract and path has a key of its own."
+                >
+                  <CopyableHex value={signingKey.publicKey} label="signing key" />
+                </DetailLine>
+                <DetailLine
+                  label="Signing Key Address"
+                  info="The Ethereum address of the signing key: the last 20 bytes of the Keccak-256 hash of the public key. It is the account the signed transaction is sent from, so it pays that transaction's gas."
+                >
+                  <span className="flex flex-wrap items-center gap-1">
+                    <CopyableHex value={signingKey.evmAddress} label="signing key address" />
+                    <ExternalLinkButton
+                      href={etherscanAddressUrl(network, signingKey.evmAddress)}
+                      label="Open signing key address on Etherscan"
+                    />
+                  </span>
+                </DetailLine>
+              </>
+            )}
+          </DetailList>
+          <SignBidirectionalRequestJson request={request} />
+        </>
       )}
     </>
   )
