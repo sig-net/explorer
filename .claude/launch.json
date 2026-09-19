@@ -1,0 +1,22 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "explorer",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "yarn dev --port \"$PORT\" --strictPort"],
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "explorer-pages-preview",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "EXPLORER_BASE_PATH=/explorer/ yarn build && EXPLORER_BASE_PATH=/explorer/ yarn preview --port \"$PORT\" --strictPort"
+      ],
+      "port": 4173,
+      "autoPort": true
+    }
+  ]
+}
