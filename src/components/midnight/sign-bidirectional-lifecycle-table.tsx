@@ -1,7 +1,12 @@
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { useRouter } from '@tanstack/react-router'
+import { ChevronDown, ChevronUp, Link } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
 
+import { useMidnight } from '@/components/contexts/MidnightContext'
+import { CopyButton } from '@/components/copy-button'
 import { CopyableHex } from '@/components/copyable-hex'
+import { ExternalLinkButton } from '@/components/external-link-button'
+import { AttestationCheck } from '@/components/midnight/attestation-check'
 import {
   RespondBidirectionalEventDetails,
   SignatureRespondedEventDetails,
@@ -10,7 +15,7 @@ import {
 import { SignBidirectionalTransactionDetails } from '@/components/midnight/sign-bidirectional-transaction-details'
 import { SignatureCheck } from '@/components/midnight/signature-check'
 import { SignetEventsSection } from '@/components/midnight/signet-events-section'
-import { useValidSignatureResponseIds } from '@/components/midnight/use-valid-signature-response-ids'
+import { useLifecycleVerification } from '@/components/midnight/use-lifecycle-verification'
 import { PendingIcon } from '@/components/pending-icon'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -58,10 +63,15 @@ function Timestamps({ dates }: { dates: readonly Date[] }) {
 function LifecycleDetails({ lifecycle }: { lifecycle: SignBidirectionalLifecycle }) {
   const { signBidirectionalEvents, signatureRespondedEvents, respondBidirectionalEvents } =
     lifecycle
-  const validSignatureResponseIds = useValidSignatureResponseIds(
-    signBidirectionalEvents,
-    signatureRespondedEvents,
-  )
+  const { validSignatureResponseIds, attestationChecks } = useLifecycleVerification(lifecycle)
+  const validAttestationIds =
+    attestationChecks.status === 'checked'
+      ? new Set(
+          [...attestationChecks.checks]
+            .filter(([, { status }]) => status === 'valid-success' || status === 'valid-failure')
+            .map(([id]) => id),
+        )
+      : undefined
   return (
     <div className="grid grid-cols-3 divide-x">
       <SignetEventsSection
@@ -90,7 +100,14 @@ function LifecycleDetails({ lifecycle }: { lifecycle: SignBidirectionalLifecycle
       <SignetEventsSection
         heading="Respond Bidirectional Event"
         events={respondBidirectionalEvents}
-        renderRecord={(event) => <RespondBidirectionalEventDetails record={event.record} />}
+        successfulEventIds={validAttestationIds}
+        renderRecord={(event) => (
+          <>
+            <RespondBidirectionalEventDetails record={event.record} />
+            <Separator />
+            <AttestationCheck checks={attestationChecks} eventId={event.source.id} />
+          </>
+        )}
       />
     </div>
   )
@@ -111,6 +128,16 @@ function LifecycleRow({
   const [toggled, setToggled] = useState<boolean | null>(null)
   const expanded = toggled ?? expandedByDefault
   const detailsId = useId()
+  const router = useRouter()
+  const { network } = useMidnight()
+  // The public href carries the base path the app is served under.
+  const requestUrl = new URL(
+    router.buildLocation({
+      to: '/midnight/explorer',
+      search: { networkId: network, requestId: lifecycle.requestId },
+    }).publicHref,
+    window.location.origin,
+  ).href
   return (
     <>
       <TableRow className="[&>td]:align-top">
@@ -130,7 +157,16 @@ function LifecycleRow({
           <Timestamps dates={signBidirectionalEvents.map((event) => event.source.blockTimestamp)} />
         </TableCell>
         <TableCell>
-          <CopyableHex value={lifecycle.requestId} label="request id" />
+          <span className="inline-flex items-center gap-1">
+            <CopyableHex value={lifecycle.requestId} label="request id" />
+            <CopyButton
+              value={requestUrl}
+              label="link to this request"
+              icon={<Link />}
+              tooltip="Copy a link to share this request"
+            />
+            <ExternalLinkButton href={requestUrl} label="Open this request in a new tab" />
+          </span>
         </TableCell>
         <TableCell>
           <Stacked>

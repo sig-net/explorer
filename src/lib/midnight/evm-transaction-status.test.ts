@@ -53,7 +53,7 @@ const CASES: StatusCase[] = [
     },
     expected: {
       status: 'mined',
-      succeeded: true,
+      outcome: 'succeeded',
       blockNumber: 100,
       minedAt: MINED_AT,
       confirmations: 11,
@@ -70,7 +70,7 @@ const CASES: StatusCase[] = [
     },
     expected: {
       status: 'mined',
-      succeeded: false,
+      outcome: 'reverted',
       blockNumber: 100,
       minedAt: MINED_AT,
       confirmations: 1,
@@ -86,7 +86,7 @@ const CASES: StatusCase[] = [
     },
     expected: {
       status: 'mined',
-      succeeded: true,
+      outcome: 'succeeded',
       blockNumber: 100,
       minedAt: MINED_AT,
       confirmations: 2,
@@ -94,9 +94,30 @@ const CASES: StatusCase[] = [
     },
   },
   {
-    name: 'a transaction the node holds without a receipt is pending',
-    results: { eth_getTransactionByHash: { hash: QUERY.hash }, eth_getTransactionCount: '0x1' },
+    name: 'a transaction the node holds in no block is pending',
+    results: {
+      eth_getTransactionByHash: { hash: QUERY.hash, blockNumber: null },
+      eth_getTransactionCount: '0x1',
+    },
     expected: { status: 'pending' },
+  },
+  {
+    name: 'a transaction the node holds in a block, its receipt pruned, is mined with an unknown outcome',
+    results: {
+      eth_getTransactionByHash: { hash: QUERY.hash, blockNumber: '0x64' },
+      eth_getTransactionCount: '0x2',
+      eth_blockNumber: '0x6e',
+      'eth_getBlockByNumber finalized': { number: '0x64' },
+      ...MINED_BLOCK,
+    },
+    expected: {
+      status: 'mined',
+      outcome: 'unknown',
+      blockNumber: 100,
+      minedAt: MINED_AT,
+      confirmations: 11,
+      finalised: true,
+    },
   },
   {
     name: 'an unknown transaction whose nonce the sender has passed lost its nonce',

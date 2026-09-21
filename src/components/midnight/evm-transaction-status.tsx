@@ -86,6 +86,46 @@ function blockerText(blocker: EvmSubmissionBlocker): string {
   }
 }
 
+function Outcome({
+  outcome,
+}: {
+  outcome: Extract<EvmTransactionStatusReport, { status: 'mined' }>['outcome']
+}) {
+  switch (outcome) {
+    case 'succeeded':
+      return (
+        <Badge variant="outline" className={`border-current ${SUCCESS}`}>
+          <CircleCheck />
+          Success
+        </Badge>
+      )
+    case 'reverted':
+      return (
+        <Badge variant="destructive">
+          <CircleX />
+          Reverted
+        </Badge>
+      )
+    case 'unknown':
+      return (
+        <Tooltip>
+          <TooltipTrigger render={<Badge variant="outline" />}>
+            <CircleHelp />
+            Included, outcome unknown
+          </TooltipTrigger>
+          <TooltipContent>
+            This node holds the transaction and has pruned its receipt, which says whether it
+            succeeded or reverted. Etherscan, or an archive node, has it.
+          </TooltipContent>
+        </Tooltip>
+      )
+    default: {
+      const exhaustive: never = outcome
+      throw new Error(`unhandled outcome ${String(exhaustive)}`)
+    }
+  }
+}
+
 function Report({
   report,
   checkedAt,
@@ -101,17 +141,7 @@ function Report({
         <div className="basis-full">
           <DetailList>
             <DetailLine label="Status">
-              {report.succeeded ? (
-                <Badge variant="outline" className={`border-current ${SUCCESS}`}>
-                  <CircleCheck />
-                  Success
-                </Badge>
-              ) : (
-                <Badge variant="destructive">
-                  <CircleX />
-                  Reverted
-                </Badge>
-              )}
+              <Outcome outcome={report.outcome} />
             </DetailLine>
             <DetailLine label="Block">
               <span className="flex flex-wrap items-center gap-1 tabular-nums">

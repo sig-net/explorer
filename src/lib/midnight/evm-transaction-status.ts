@@ -1,3 +1,4 @@
+import { evmRpcCall } from '@/lib/midnight/evm-json-rpc'
 import type { MidnightNetworkConfig } from '@/lib/midnight/network'
 
 const ETHEREUM_MAINNET_CHAIN_ID = 1n
@@ -41,8 +42,8 @@ export type EvmSubmissionBlocker =
 export type EvmTransactionStatus =
   | {
       readonly status: 'mined'
-      /** False when the transaction was included and reverted. */
-      readonly succeeded: boolean
+      /** `unknown` when the node holds the transaction and has pruned its receipt. */
+      readonly outcome: 'succeeded' | 'reverted' | 'unknown'
       readonly blockNumber: number
       /** The block's timestamp: when the transaction was included, not when it was first sent. */
       readonly minedAt: Date
@@ -58,33 +59,7 @@ export type EvmTransactionStatus =
   /** Unknown to the node. An empty `blockers` means it could still be broadcast and included. */
   | { readonly status: 'not-found'; readonly blockers: readonly EvmSubmissionBlocker[] }
 
-async function rpcCall(
-  rpcUrl: string,
-  method: string,
-  params: readonly (string | boolean)[],
-): Promise<unknown> {
-  const response = await fetch(rpcUrl, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  })
-  if (!response.ok) {
-    throw new Error(`the RPC node answered ${String(response.status)}`)
-  }
-  const body: unknown = await response.json()
-  if (typeof body !== 'object' || body === null) {
-    throw new Error('the RPC node returned no JSON-RPC response')
-  }
-  if ('error' in body && body.error !== null && body.error !== undefined) {
-    const { error } = body
-    const message =
-      typeof error === 'object' && 'message' in error && typeof error.message === 'string'
-        ? error.message
-        : 'an error'
-    throw new Error(`the RPC node refused ${method}: ${message}`)
-  }
-  return 'result' in body ? body.result : null
-}
+type MinedEvmTransactionStatus = Extract<EvmTransactionStatus, { status: 'mined' }>
 
 /** A JSON-RPC quantity (`0x`-prefixed hex) as a bigint. */
 function quantity(value: unknown, what: string): bigint {
@@ -100,6 +75,33 @@ function quantityField(value: object, field: string): bigint {
   return quantity(record[field], field)
 }
 
+async function minedStatus(
+  rpcUrl: string,
+  blockNumber: bigint,
+  outcome: MinedEvmTransactionStatus['outcome'],
+): Promise<MinedEvmTransactionStatus> {
+  const [head, finalisedBlock, block] = await Promise.all([
+    evmRpcCall(rpcUrl, 'eth_blockNumber', []),
+    evmRpcCall(rpcUrl, 'eth_getBlockByNumber', ['finalized', false]),
+    evmRpcCall(rpcUrl, 'eth_getBlockByNumber', [`0x${blockNumber.toString(16)}`, false]),
+  ])
+  if (typeof block !== 'object' || block === null) {
+    throw new Error("the RPC node returned no block for the transaction's block number")
+  }
+  const finalisedNumber =
+    typeof finalisedBlock === 'object' && finalisedBlock !== null
+      ? quantityField(finalisedBlock, 'number')
+      : null
+  return {
+    status: 'mined',
+    outcome,
+    blockNumber: Number(blockNumber),
+    minedAt: new Date(Number(quantityField(block, 'timestamp')) * 1000),
+    confirmations: Number(quantity(head, 'head block number') - blockNumber + 1n),
+    finalised: finalisedNumber !== null && blockNumber <= finalisedNumber,
+  }
+}
+
 /**
  * Asks one RPC node what became of a signed transaction.
  *
@@ -109,44 +111,32 @@ export async function fetchEvmTransactionStatus(
   rpcUrl: string,
   { hash, from, nonce, gasLimit, maxFeePerGas, value }: EvmTransactionQuery,
 ): Promise<EvmTransactionStatus> {
-  const receipt = await rpcCall(rpcUrl, 'eth_getTransactionReceipt', [hash])
+  const receipt = await evmRpcCall(rpcUrl, 'eth_getTransactionReceipt', [hash])
   if (typeof receipt === 'object' && receipt !== null) {
-    const blockNumber = quantityField(receipt, 'blockNumber')
-    const [head, finalisedBlock, block] = await Promise.all([
-      rpcCall(rpcUrl, 'eth_blockNumber', []),
-      rpcCall(rpcUrl, 'eth_getBlockByNumber', ['finalized', false]),
-      rpcCall(rpcUrl, 'eth_getBlockByNumber', [`0x${blockNumber.toString(16)}`, false]),
-    ])
-    if (typeof block !== 'object' || block === null) {
-      throw new Error("the RPC node returned no block for the transaction's receipt")
-    }
-    const finalisedNumber =
-      typeof finalisedBlock === 'object' && finalisedBlock !== null
-        ? quantityField(finalisedBlock, 'number')
-        : null
-    return {
-      status: 'mined',
-      succeeded: quantityField(receipt, 'status') === 1n,
-      blockNumber: Number(blockNumber),
-      minedAt: new Date(Number(quantityField(block, 'timestamp')) * 1000),
-      confirmations: Number(quantity(head, 'head block number') - blockNumber + 1n),
-      finalised: finalisedNumber !== null && blockNumber <= finalisedNumber,
-    }
+    return minedStatus(
+      rpcUrl,
+      quantityField(receipt, 'blockNumber'),
+      quantityField(receipt, 'status') === 1n ? 'succeeded' : 'reverted',
+    )
   }
   const [transaction, sentCount] = await Promise.all([
-    rpcCall(rpcUrl, 'eth_getTransactionByHash', [hash]),
-    rpcCall(rpcUrl, 'eth_getTransactionCount', [from, 'latest']),
+    evmRpcCall(rpcUrl, 'eth_getTransactionByHash', [hash]),
+    evmRpcCall(rpcUrl, 'eth_getTransactionCount', [from, 'latest']),
   ])
   if (typeof transaction === 'object' && transaction !== null) {
-    return { status: 'pending' }
+    // A node that prunes old receipts still serves the transaction, with the block it is in.
+    const record: Record<string, unknown> = { ...transaction }
+    return record.blockNumber === null || record.blockNumber === undefined
+      ? { status: 'pending' }
+      : minedStatus(rpcUrl, quantityField(transaction, 'blockNumber'), 'unknown')
   }
   const nextNonce = quantity(sentCount, 'transaction count')
   if (nextNonce > nonce) {
     return { status: 'nonce-used' }
   }
   const [rawBalance, latestBlock] = await Promise.all([
-    rpcCall(rpcUrl, 'eth_getBalance', [from, 'latest']),
-    rpcCall(rpcUrl, 'eth_getBlockByNumber', ['latest', false]),
+    evmRpcCall(rpcUrl, 'eth_getBalance', [from, 'latest']),
+    evmRpcCall(rpcUrl, 'eth_getBlockByNumber', ['latest', false]),
   ])
   if (typeof latestBlock !== 'object' || latestBlock === null) {
     throw new Error('the RPC node returned no latest block')
