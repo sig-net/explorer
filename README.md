@@ -138,10 +138,21 @@ VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY=0x04...
 VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS=380b...
 ```
 
-They become the `undeployed` defaults, so Reset Defaults returns to them. Unset variables leave the
-fields empty. A value that is not a valid secp256k1 public key or 32-byte hex contract address
-stops the app from loading, and the error names the variable. Only variables prefixed `VITE_` reach
-the browser, and each one read is declared in `src/vite-env.d.ts`.
+The app opens on `stagenet`. To open on another network, such as that local stack, name it in the
+same file:
+
+```dotenv
+VITE_MIDNIGHT_DEFAULT_NETWORK=undeployed
+```
+
+It takes a network id: `undeployed`, `stagenet`, `preview`, `preprod` or `mainnet`. A `networkId` in
+the URL still wins over it.
+
+The key and the address become the `undeployed` defaults, so Reset Defaults returns to them. Unset
+variables leave the fields empty. A value that is not a valid secp256k1 public key, 32-byte hex
+contract address or network id stops the app from loading, and the error names the variable. Only
+variables prefixed `VITE_` reach the browser, and each one read is declared in
+`src/vite-env.d.ts`.
 
 `@sig-net/midnight` loads the Midnight onchain-runtime WebAssembly module through the Compact
 runtime. Vite's dependency optimizer cannot inline it, so `vite.config.ts` adds `vite-plugin-wasm`

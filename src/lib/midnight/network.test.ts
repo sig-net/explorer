@@ -1,3 +1,4 @@
+import { MidnightNetwork } from '@sig-net/midnight'
 import { expect, test } from 'vitest'
 
 import {
@@ -5,6 +6,7 @@ import {
   MIDNIGHT_NETWORK_DEFAULTS,
   MIDNIGHT_NETWORKS,
   isMidnightNetwork,
+  parseMidnightDefaultNetworkEnv,
   parseMidnightNetwork,
   parseMidnightUndeployedEnv,
   parseMpcRootPublicKey,
@@ -23,6 +25,19 @@ test('unknown or missing values fall back to the default network', () => {
   expect(parseMidnightNetwork(undefined)).toBe(DEFAULT_MIDNIGHT_NETWORK)
   expect(parseMidnightNetwork('devnet')).toBe(DEFAULT_MIDNIGHT_NETWORK)
   expect(isMidnightNetwork(42)).toBe(false)
+})
+
+test('the default network env value is a network id, and stagenet while unset', () => {
+  expect(parseMidnightDefaultNetworkEnv({})).toBe(MidnightNetwork.Stagenet)
+  expect(parseMidnightDefaultNetworkEnv({ VITE_MIDNIGHT_DEFAULT_NETWORK: ' ' })).toBe(
+    MidnightNetwork.Stagenet,
+  )
+  expect(parseMidnightDefaultNetworkEnv({ VITE_MIDNIGHT_DEFAULT_NETWORK: ' undeployed ' })).toBe(
+    MidnightNetwork.Undeployed,
+  )
+  expect(() => parseMidnightDefaultNetworkEnv({ VITE_MIDNIGHT_DEFAULT_NETWORK: 'devnet' })).toThrow(
+    'Invalid VITE_MIDNIGHT_DEFAULT_NETWORK',
+  )
 })
 
 const LOCAL_MPC_ROOT_PUBLIC_KEY =
