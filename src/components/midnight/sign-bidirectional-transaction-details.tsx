@@ -7,9 +7,7 @@ import { ExternalLinkButton } from '@/components/external-link-button'
 import { SignBidirectionalRequestJson } from '@/components/midnight/sign-bidirectional-request-json'
 import { useSignBidirectionalTransactionInspection } from '@/components/midnight/use-sign-bidirectional-transaction-inspection'
 import { PendingIcon } from '@/components/pending-icon'
-import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { etherscanAddressUrl } from '@/lib/midnight/evm-block-explorer'
 import { deriveRequestSigningKey } from '@/lib/midnight/request-signing-key'
 import type { ContractCallNode } from '@/lib/midnight/sign-bidirectional-transaction-inspection'
@@ -23,15 +21,6 @@ function CallChain({ calls }: { calls: readonly ContractCallNode[] }) {
           <span className="flex flex-wrap items-center gap-x-2">
             <span className="min-w-0 font-mono break-all">{call.entryPoint}</span>@
             <CopyableHex value={call.address} label={`${call.entryPoint} contract address`} />
-            {call.fallible && (
-              <Tooltip>
-                <TooltipTrigger render={<Badge variant="destructive" />}>fallible</TooltipTrigger>
-                <TooltipContent>
-                  Runs in the transaction's fallible section. The MPC reads guaranteed transcripts
-                  only, so it skips a Signet call made this way.
-                </TooltipContent>
-              </Tooltip>
-            )}
           </span>
           {call.calls.length > 0 && <CallChain calls={call.calls} />}
         </li>

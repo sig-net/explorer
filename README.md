@@ -265,9 +265,6 @@ Midnight ledger and returns two things:
   transcript claims each call it makes by callee address, entry point hash and communication
   commitment, and a call matching all three is nested under its caller. Calls nobody claims are
   the top level calls, and each is listed as its own chain, separated by a divider.
-  A call with any of its program in the transaction's fallible section carries a "fallible"
-  badge: the MPC reads guaranteed transcripts only, so a Signet call flagged this way is one it
-  skips.
 - The request at the requests path. The caller's transcript holds the map insert that stores the
   request: the write whose path equals the notification's requests path and whose key equals the
   request id. Its value is decoded with the SDK's `decodeEvmType2SignBidirectionalEvent` and shown
