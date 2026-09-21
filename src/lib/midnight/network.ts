@@ -15,8 +15,6 @@ export const MIDNIGHT_NETWORKS: readonly MidnightNetwork[] = [
   MidnightNetwork.Mainnet,
 ]
 
-export const DEFAULT_MIDNIGHT_NETWORK: MidnightNetwork = MidnightNetwork.Stagenet
-
 export interface MidnightNetworkConfig {
   indexerUrl: string
   indexerWsUrl: string
@@ -162,6 +160,30 @@ const MIDNIGHT_NETWORK_VALUES: readonly string[] = MIDNIGHT_NETWORKS
 export function isMidnightNetwork(value: unknown): value is MidnightNetwork {
   return typeof value === 'string' && MIDNIGHT_NETWORK_VALUES.includes(value)
 }
+
+export type MidnightDefaultNetworkEnv = Pick<ImportMetaEnv, 'VITE_MIDNIGHT_DEFAULT_NETWORK'>
+
+/**
+ * Reads the network the app opens on. An unset or empty variable yields stagenet.
+ *
+ * @throws {Error} When the variable is set to anything but a network id.
+ */
+export function parseMidnightDefaultNetworkEnv(env: MidnightDefaultNetworkEnv): MidnightNetwork {
+  const value = env.VITE_MIDNIGHT_DEFAULT_NETWORK?.trim() ?? ''
+  if (value === '') {
+    return MidnightNetwork.Stagenet
+  }
+  if (!isMidnightNetwork(value)) {
+    throw new Error(
+      `Invalid VITE_MIDNIGHT_DEFAULT_NETWORK: expected one of ${MIDNIGHT_NETWORKS.join(', ')}`,
+    )
+  }
+  return value
+}
+
+export const DEFAULT_MIDNIGHT_NETWORK: MidnightNetwork = parseMidnightDefaultNetworkEnv(
+  import.meta.env,
+)
 
 /** Narrows a raw search-param value to a network, falling back to the default. */
 export function parseMidnightNetwork(value: unknown): MidnightNetwork {

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 import babel from '@rolldown/plugin-babel'
@@ -20,8 +21,35 @@ function basePath(): string {
   return value
 }
 
+/**
+ * The version the footer shows. A release build takes it from `EXPLORER_VERSION`, which the
+ * deploy workflow sets to the release tag. Any other build describes its checkout as
+ * `<latest release tag>-<short commit>`, with `vX.X.X` standing in for a tag or a checkout git
+ * cannot describe.
+ */
+function explorerVersion(): string {
+  if (process.env.EXPLORER_VERSION) return process.env.EXPLORER_VERSION
+  const git = (...args: string[]): string | undefined => {
+    try {
+      return execFileSync('git', args, {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim()
+    } catch {
+      return undefined
+    }
+  }
+  const tag =
+    git('describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*', '--exclude', '*-*') ?? 'vX.X.X'
+  const commit = git('rev-parse', '--short', 'HEAD')
+  return commit === undefined ? tag : `${tag}-${commit}`
+}
+
 export default defineConfig({
   base: basePath(),
+  define: {
+    'import.meta.env.VITE_EXPLORER_VERSION': JSON.stringify(explorerVersion()),
+  },
   plugins: [
     // The router plugin must run before the React plugin.
     tanstackRouter({ target: 'react', autoCodeSplitting: true }),

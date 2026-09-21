@@ -2,6 +2,7 @@ import { Outlet, createRootRoute } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 
 import { AppBar } from '@/components/app-bar'
+import { AppFooter } from '@/components/app-footer'
 import { MidnightProvider } from '@/components/contexts/MidnightContext'
 import { MidnightSignetEventsProvider } from '@/components/contexts/MidnightSignetEventsContext'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -21,6 +22,7 @@ function RootLayout() {
             <div className="flex h-dvh flex-col">
               <AppBar />
               <Outlet />
+              <AppFooter />
             </div>
           </MidnightSignetEventsProvider>
         </MidnightProvider>

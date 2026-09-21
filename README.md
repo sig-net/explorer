@@ -70,6 +70,11 @@ Two things make a single-page app work there:
 The deployment runs in the `github-pages` environment, whose deployment rules must allow release
 tags (a tag rule `v[0-9]*.[0-9]*.[0-9]*`). Under Settings, Pages, the source is "GitHub Actions".
 
+The footer shows the build's version. The workflow passes the release tag to the build as
+`EXPLORER_VERSION`. A build without that variable describes its checkout instead, as the latest
+release tag and the short commit (`v1.2.0-bc90655`), with `vX.X.X` standing in while the checkout
+has no release tag.
+
 Vite inlines `VITE_*` values at build time. The workflow builds from a clean checkout, where no
 `.env.local` exists, so the site serves the SDK's published network defaults.
 
@@ -133,10 +138,21 @@ VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY=0x04...
 VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS=380b...
 ```
 
-They become the `undeployed` defaults, so Reset Defaults returns to them. Unset variables leave the
-fields empty. A value that is not a valid secp256k1 public key or 32-byte hex contract address
-stops the app from loading, and the error names the variable. Only variables prefixed `VITE_` reach
-the browser, and each one read is declared in `src/vite-env.d.ts`.
+The app opens on `stagenet`. To open on another network, such as that local stack, name it in the
+same file:
+
+```dotenv
+VITE_MIDNIGHT_DEFAULT_NETWORK=undeployed
+```
+
+It takes a network id: `undeployed`, `stagenet`, `preview`, `preprod` or `mainnet`. A `networkId` in
+the URL still wins over it.
+
+The key and the address become the `undeployed` defaults, so Reset Defaults returns to them. Unset
+variables leave the fields empty. A value that is not a valid secp256k1 public key, 32-byte hex
+contract address or network id stops the app from loading, and the error names the variable. Only
+variables prefixed `VITE_` reach the browser, and each one read is declared in
+`src/vite-env.d.ts`.
 
 `@sig-net/midnight` loads the Midnight onchain-runtime WebAssembly module through the Compact
 runtime. Vite's dependency optimizer cannot inline it, so `vite.config.ts` adds `vite-plugin-wasm`
@@ -229,7 +245,9 @@ what gives the table a height to fill. Times are block times as
 `DD-MM-YY HH:MM:SS` in the browser's time zone, a cell lists at most three entries before an ellipsis, a clock marks a
 signature or response that has not arrived, and Duration runs from the first request to the first
 response. Hovering a truncated request id or caller shows the full value, and the copy button
-beside it puts the full value on the clipboard. The search box filters
+beside it puts the full value on the clipboard. The link button beside a request id copies a URL
+to share, naming the selected network and that request, which opens the explorer on that request
+alone, and the button after it opens that URL in a new tab. The search box filters
 rows as you type by a fragment of the request id or of a caller contract address. The display
 formatters live in `src/lib/format.ts`.
 
@@ -249,9 +267,6 @@ Midnight ledger and returns two things:
   transcript claims each call it makes by callee address, entry point hash and communication
   commitment, and a call matching all three is nested under its caller. Calls nobody claims are
   the top level calls, and each is listed as its own chain, separated by a divider.
-  A call with any of its program in the transaction's fallible section carries a "fallible"
-  badge: the MPC reads guaranteed transcripts only, so a Signet call flagged this way is one it
-  skips.
 - The request at the requests path. The caller's transcript holds the map insert that stores the
   request: the write whose path equals the notification's requests path and whose key equals the
   request id. Its value is decoded with the SDK's `decodeEvmType2SignBidirectionalEvent` and shown
@@ -306,14 +321,15 @@ Ethereum mainnet (chain 1) and one for Sepolia (chain 11155111), both defaulting
 endpoints that accept calls from a browser and both editable in the Midnight configuration popover.
 A request for any other chain says it has no endpoint.
 
-| Node reports                                  | Line                                                         |
-| --------------------------------------------- | ------------------------------------------------------------ |
-| A receipt with status 1                       | submitted, succeeded, with block, confirmations and finality |
-| A receipt with status 0                       | submitted, reverted, with block, confirmations and finality  |
-| No receipt, but it holds the transaction      | submitted, waiting for a block                               |
-| Nothing, and the sender's nonce has passed it | not found, and another transaction has used its nonce        |
-| Nothing                                       | not found by this node, with the submittable verdict below   |
-| An error, or no answer                        | could not check, with the reason                             |
+| Node reports                                         | Line                                                          |
+| ---------------------------------------------------- | ------------------------------------------------------------- |
+| A receipt with status 1                              | submitted, succeeded, with block, confirmations and finality  |
+| A receipt with status 0                              | submitted, reverted, with block, confirmations and finality   |
+| No receipt, and it holds the transaction in a block  | included with an unknown outcome: the node pruned the receipt |
+| No receipt, and it holds the transaction in no block | submitted, waiting for a block                                |
+| Nothing, and the sender's nonce has passed it        | not found, and another transaction has used its nonce         |
+| Nothing                                              | not found by this node, with the submittable verdict below    |
+| An error, or no answer                               | could not check, with the reason                              |
 
 A transaction the node does not know, whose nonce is still free, gets a verdict: "still
 submittable", or "not submittable as things stand" with the reasons. The reasons are a gap before
@@ -333,6 +349,37 @@ best effort and its info icon says so: it is one node's view, "not found" and "c
 never mean "not submitted", and a block can still be reorganised away until it is finalised. Public
 endpoints are rate limited and see only their own pending pool, so set a keyed endpoint when the
 answer matters.
+
+### Attestation check
+
+A Respond Bidirectional Event carries only a signature: the MPC's attestation of what the foreign
+transaction did. Under each one, the Attestation Check judges that signature against the requesting
+contract's response key (`src/lib/midnight/attestation-check.ts`).
+
+The response key is derived with the SDK's `deriveMidnightResponseKey` from the configured MPC root
+public key and the notification's caller address, under the reserved path "midnight response key".
+It is fixed for a contract, and it is shown on every line that has a valid root key.
+
+The attested bytes do not travel on chain, so the check rebuilds the two things they can be and asks
+the SDK's `verifyRespondBidirectionalSignature` about each:
+
+- The MPC's fixed failure payload. This needs nothing from the foreign chain.
+- The transaction's output. The signed transaction's hash comes from the valid signature responses,
+  its return data is read with `debug_traceTransaction` from the EVM RPC endpoint configured for
+  the request's chain (`src/lib/midnight/evm-transaction-output.ts`), and the SDK's
+  `deserializeEvmOutput` and `serializeRespondOutput` turn it into the attested bytes by the
+  request's two schemas.
+
+| Finding                                              | Line                                                     |
+| ---------------------------------------------------- | -------------------------------------------------------- |
+| The attestation is over the recovered output         | valid, with the attested bytes and the decoded output    |
+| The attestation is over the failure payload          | valid, and the foreign transaction failed                |
+| The output was recovered and the attestation differs | not valid, with the reason                               |
+| The output could not be recovered                    | not checked, with the node's reason and the response key |
+
+Hosted nodes often gate `debug_traceTransaction`, the default public endpoints among them, so a
+success is checked only once the configuration names an endpoint that serves it. The tab of an
+event with a valid attestation is green, as the tab of a valid signature response is.
 
 ## Local SDK link
 

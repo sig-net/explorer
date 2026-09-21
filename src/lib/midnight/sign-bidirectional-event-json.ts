@@ -6,7 +6,7 @@ import {
 } from '@sig-net/midnight'
 
 /** A Compact unsigned integer as JSON: a number while it is exactly representable, else a string. */
-type JsonInteger = number | string
+export type JsonInteger = number | string
 
 /** A {@link SignBidirectionalEvent} as plain JSON: bytes as hex, text fields as text. */
 export interface SignBidirectionalEventJson {
@@ -35,7 +35,7 @@ export interface SignBidirectionalEventJson {
   respondSerializationSchema: string
 }
 
-function jsonInteger(value: bigint): JsonInteger {
+export function jsonInteger(value: bigint): JsonInteger {
   return value <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(value) : value.toString()
 }
 
