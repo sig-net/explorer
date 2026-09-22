@@ -1,4 +1,4 @@
-import type { SignBidirectionalEvent } from '@sig-net/midnight'
+import type { RequestIdHex, SignBidirectionalEvent } from '@sig-net/midnight'
 import { useEffect, useState } from 'react'
 
 import { useMidnight } from '@/components/contexts/MidnightContext'
@@ -9,6 +9,7 @@ import {
 } from '@/lib/midnight/attestation-check'
 import { loadEvmTransactionOutput } from '@/lib/midnight/evm-transaction-output'
 import { evmRpcUrl } from '@/lib/midnight/evm-transaction-status'
+import { loadMpcCachedOutput } from '@/lib/midnight/mpc-output-cache'
 import type { MidnightNetworkConfig } from '@/lib/midnight/network'
 import type { SignBidirectionalLifecycle } from '@/lib/midnight/sign-bidirectional-lifecycle'
 import { loadSignBidirectionalTransactionInspection } from '@/lib/midnight/sign-bidirectional-transaction-loader'
@@ -54,44 +55,88 @@ async function traceFirst(
   throw failure
 }
 
+function failureMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/**
+ * The output an attestation is checked against, from the MPC's cache first, then from a trace of
+ * the signed transaction on the request's chain. Without either, the reasons for both.
+ */
 async function recoverExecution(
-  rpcUrls: Pick<MidnightNetworkConfig, 'ethereumMainnetRpcUrl' | 'ethereumSepoliaRpcUrl'>,
+  config: Pick<
+    MidnightNetworkConfig,
+    | 'ethereumMainnetRpcUrl'
+    | 'ethereumSepoliaRpcUrl'
+    | 'mpcOutputCacheUrl'
+    | 'signetContractAddress'
+  >,
+  networkId: string,
+  requestId: RequestIdHex,
   request: SignBidirectionalEvent | undefined,
   signedTransactionHashes: readonly string[],
 ): Promise<AttestedExecution> {
-  if (request === undefined) {
-    return { status: 'unavailable', reason: 'no request record could be read' }
-  }
-  const rpcUrl = evmRpcUrl(rpcUrls, request.txParams.chainId)
-  if (rpcUrl === null) {
-    return {
-      status: 'unavailable',
-      reason: `no RPC endpoint is configured for chain ${request.txParams.chainId.toString()}`,
+  const reasons: string[] = []
+  if (config.mpcOutputCacheUrl.trim() === '') {
+    reasons.push('no MPC output cache URL is configured')
+  } else {
+    try {
+      const serializedOutput = await loadMpcCachedOutput(
+        {
+          cacheUrl: config.mpcOutputCacheUrl,
+          networkId,
+          signetContractAddress: config.signetContractAddress,
+        },
+        requestId,
+      )
+      return { status: 'cached', serializedOutput }
+    } catch (error) {
+      reasons.push(`the MPC output cache gave nothing (${failureMessage(error)})`)
     }
+  }
+  if (request === undefined) {
+    reasons.push('no request record could be read, so no transaction to trace')
+    return { status: 'unavailable', reason: reasons.join(', and ') }
+  }
+  const rpcUrl = evmRpcUrl(config, request.txParams.chainId)
+  if (rpcUrl === null) {
+    reasons.push(`no RPC endpoint is configured for chain ${request.txParams.chainId.toString()}`)
+    return { status: 'unavailable', reason: reasons.join(', and ') }
   }
   try {
     return { status: 'traced', request, trace: await traceFirst(rpcUrl, signedTransactionHashes) }
   } catch (error) {
-    return { status: 'unavailable', reason: error instanceof Error ? error.message : String(error) }
+    reasons.push(`the EVM node gave no trace (${failureMessage(error)})`)
+    return { status: 'unavailable', reason: reasons.join(', and ') }
   }
 }
 
 /**
  * Checks an expanded lifecycle's responses against its requests: which signature responses are by a
  * request signing key, and whether each attestation is by the requesting contract's response key.
- * The signature result settles first, as the attestation check waits on a trace of the signed
- * transaction.
+ * The signature result settles first, as the attestation check waits on the attested output, read
+ * from the MPC's cache or recovered by tracing the signed transaction.
  */
 export function useLifecycleVerification(
   lifecycle: SignBidirectionalLifecycle,
 ): LifecycleVerification {
-  const { indexerUrl, mpcRootPublicKey, ethereumMainnetRpcUrl, ethereumSepoliaRpcUrl } =
-    useMidnight().config
-  const configKey = JSON.stringify([
+  const { network, config } = useMidnight()
+  const {
     indexerUrl,
     mpcRootPublicKey,
     ethereumMainnetRpcUrl,
     ethereumSepoliaRpcUrl,
+    mpcOutputCacheUrl,
+    signetContractAddress,
+  } = config
+  const configKey = JSON.stringify([
+    network,
+    indexerUrl,
+    mpcRootPublicKey,
+    ethereumMainnetRpcUrl,
+    ethereumSepoliaRpcUrl,
+    mpcOutputCacheUrl,
+    signetContractAddress,
   ])
   const [settled, setSettled] = useState<SettledVerification | null>(null)
 
@@ -133,7 +178,9 @@ export function useLifecycleVerification(
         return
       }
       const execution = await recoverExecution(
-        { ethereumMainnetRpcUrl, ethereumSepoliaRpcUrl },
+        { ethereumMainnetRpcUrl, ethereumSepoliaRpcUrl, mpcOutputCacheUrl, signetContractAddress },
+        network,
+        requestId,
         requests[0],
         [...new Set(signedTransactionHashes.values())],
       )
@@ -156,10 +203,13 @@ export function useLifecycleVerification(
     }
   }, [
     configKey,
+    network,
     indexerUrl,
     mpcRootPublicKey,
     ethereumMainnetRpcUrl,
     ethereumSepoliaRpcUrl,
+    mpcOutputCacheUrl,
+    signetContractAddress,
     lifecycle,
   ])
 

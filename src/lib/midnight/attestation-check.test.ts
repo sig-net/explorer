@@ -45,9 +45,31 @@ test('the MPC attestation is valid over the traced return data', () => {
   ).toEqual({
     status: 'valid-success',
     responseKey: RESPONSE_KEY,
+    source: 'evm-node',
     decodedOutput: { success: true },
     serializedOutput: new Uint8Array([1]),
   })
+})
+
+test('the MPC attestation is valid over the cached bytes, which carry no decoded output', () => {
+  expect(
+    checkAttestation(ROOT_KEY, REQUEST_ID, CALLER, MPC_ATTESTATION, {
+      status: 'cached',
+      serializedOutput: new Uint8Array([1]),
+    }),
+  ).toEqual({
+    status: 'valid-success',
+    responseKey: RESPONSE_KEY,
+    source: 'mpc-cache',
+    decodedOutput: null,
+    serializedOutput: new Uint8Array([1]),
+  })
+  expect(
+    checkAttestation(ROOT_KEY, REQUEST_ID, CALLER, MPC_ATTESTATION, {
+      status: 'cached',
+      serializedOutput: new Uint8Array([0]),
+    }),
+  ).toMatchObject({ status: 'invalid', reason: expect.stringContaining('MPC cache') })
 })
 
 test('an attestation that is not over the traced return data is invalid', () => {

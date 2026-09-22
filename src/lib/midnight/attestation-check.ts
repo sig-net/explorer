@@ -15,8 +15,13 @@ import {
 import type { EvmTransactionOutput } from '@/lib/midnight/evm-transaction-output'
 import { parseMpcRootPublicKey } from '@/lib/midnight/network'
 
+/** Where an attested output was obtained. */
+export type AttestedOutputSource = 'mpc-cache' | 'evm-node'
+
 /** What is known of the foreign execution an attestation is checked against. */
 export type AttestedExecution =
+  /** The serialised output the MPC cached before posting, verbatim and unverified. */
+  | { readonly status: 'cached'; readonly serializedOutput: Uint8Array }
   | {
       readonly status: 'traced'
       readonly request: SignBidirectionalEvent
@@ -38,9 +43,13 @@ export type AttestationCheck =
   | {
       readonly status: 'valid-success'
       readonly responseKey: string
-      /** The transaction's return data, decoded by the request's output deserialisation schema. */
-      readonly decodedOutput: AbiDecodedOutput
-      /** The attested bytes: `decodedOutput` packed by the request's respond serialisation schema. */
+      readonly source: AttestedOutputSource
+      /**
+       * The transaction's return data, decoded by the request's output deserialisation schema.
+       * Null for output from the MPC cache, which holds the packed bytes alone.
+       */
+      readonly decodedOutput: AbiDecodedOutput | null
+      /** The attested bytes: the decoded output packed by the request's respond serialisation schema. */
       readonly serializedOutput: Uint8Array
     }
   /** The transaction's return data was recovered, and the attestation is not over it. */
@@ -74,6 +83,21 @@ export function checkAttestation(
   if (execution.status === 'unavailable') {
     return { status: 'unverified', responseKey, reason: execution.reason }
   }
+  if (execution.status === 'cached') {
+    return attests(execution.serializedOutput)
+      ? {
+          status: 'valid-success',
+          responseKey,
+          source: 'mpc-cache',
+          decodedOutput: null,
+          serializedOutput: execution.serializedOutput,
+        }
+      : {
+          status: 'invalid',
+          responseKey,
+          reason: 'the attestation is not over the output the MPC cache holds for this request',
+        }
+  }
   const { request, trace } = execution
   if (trace.reverted) {
     return {
@@ -95,6 +119,6 @@ export function checkAttestation(
     }
   }
   return attests(serializedOutput)
-    ? { status: 'valid-success', responseKey, decodedOutput, serializedOutput }
-    : { status: 'invalid', responseKey, reason: 'the attestation is not over the recovered output' }
+    ? { status: 'valid-success', responseKey, source: 'evm-node', decodedOutput, serializedOutput }
+    : { status: 'invalid', responseKey, reason: 'the attestation is not over the traced output' }
 }

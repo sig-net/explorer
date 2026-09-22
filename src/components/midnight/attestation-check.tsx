@@ -6,10 +6,18 @@ import { InfoTooltip } from '@/components/info-tooltip'
 import { JsonViewer } from '@/components/json-viewer'
 import type { AttestationChecksState } from '@/components/midnight/use-lifecycle-verification'
 import { PendingIcon } from '@/components/pending-icon'
-import type { AttestationCheck as AttestationCheckResult } from '@/lib/midnight/attestation-check'
+import type {
+  AttestationCheck as AttestationCheckResult,
+  AttestedOutputSource,
+} from '@/lib/midnight/attestation-check'
 import { attestedOutputJson } from '@/lib/midnight/attested-output-json'
 
 const SUCCESS = 'text-success-600 dark:text-success-400'
+
+const OUTPUT_SOURCE_LABELS: Record<AttestedOutputSource, string> = {
+  'mpc-cache': 'the MPC output cache',
+  'evm-node': 'a trace of the transaction on the EVM node',
+}
 
 function ResponseKey({ responseKey }: { responseKey: string }) {
   return (
@@ -57,14 +65,22 @@ function Check({ check }: { check: AttestationCheckResult }) {
             <ResponseKey responseKey={check.responseKey} />
           </span>
           <SerializedOutput serializedOutput={check.serializedOutput} />
-          <h4 className="font-bold">Recovered Output</h4>
-          <JsonViewer
-            json={attestedOutputJson(check.decodedOutput)}
-            name="recovered output JSON"
-            title="Recovered Output"
-            description="The foreign transaction's return data, decoded by the request's output deserialisation schema."
-            className="h-32 min-h-24"
-          />
+          <span className="flex flex-wrap items-center gap-1">
+            <span className="font-bold">Output Source:</span>
+            {OUTPUT_SOURCE_LABELS[check.source]}
+          </span>
+          {check.decodedOutput !== null && (
+            <>
+              <h4 className="font-bold">Recovered Output</h4>
+              <JsonViewer
+                json={attestedOutputJson(check.decodedOutput)}
+                name="recovered output JSON"
+                title="Recovered Output"
+                description="The foreign transaction's return data, decoded by the request's output deserialisation schema."
+                className="h-32 min-h-24"
+              />
+            </>
+          )}
         </>
       )
     case 'valid-failure':
@@ -103,9 +119,9 @@ function Check({ check }: { check: AttestationCheckResult }) {
           </span>
           <p className="text-muted-foreground">
             The attestation is not over the failure payload, and the foreign transaction's output
-            could not be recovered to check it against: {check.reason}. Recovery reads it with
-            debug_traceTransaction, which many hosted nodes gate, so set an RPC endpoint that serves
-            it in the configuration.
+            could not be obtained to check it against: {check.reason}. The output is read from the
+            MPC's output cache, else recovered with debug_traceTransaction, which many hosted nodes
+            gate, so set an RPC endpoint that serves it in the configuration.
           </p>
         </>
       )
