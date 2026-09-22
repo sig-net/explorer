@@ -1454,23 +1454,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sig-net/midnight-serde@npm:^0.22.2":
-  version: 0.22.2
-  resolution: "@sig-net/midnight-serde@npm:0.22.2"
-  checksum: 10c0/df6c7674cfba889f391adb5c96c1b3b469ea2390756d68d9f8f8cbe81e9a6402f082297cdf23cb69df98246d2e625f925128f36f39b6c4824e683bd133f8bdae
+"@sig-net/midnight-serde@npm:^0.23.0":
+  version: 0.23.0
+  resolution: "@sig-net/midnight-serde@npm:0.23.0"
+  checksum: 10c0/3249b786fbe57061c6850f944e6c3bcd8a4e2c9a4a7436c958beb86d73a0cb63334b4067786d0c31e97c0cecb67802631e3656a237ab831c6c3723d6979f6bab
   languageName: node
   linkType: hard
 
-"@sig-net/midnight@npm:0.22.2":
-  version: 0.22.2
-  resolution: "@sig-net/midnight@npm:0.22.2"
+"@sig-net/midnight@npm:0.23.0":
+  version: 0.23.0
+  resolution: "@sig-net/midnight@npm:0.23.0"
   dependencies:
     "@midnight-ntwrk/compact-runtime": "npm:0.18.0-rc.1"
     "@midnight-ntwrk/midnight-js-types": "npm:5.0.0-beta.6"
     "@noble/curves": "npm:^2.2.0"
-    "@sig-net/midnight-serde": "npm:^0.22.2"
+    "@sig-net/midnight-serde": "npm:^0.23.0"
     ethers: "npm:^6.17.0"
-  checksum: 10c0/81886c41c10ff703c4cb0cf936d20daa102081621aaaaf74991fa6772b477a4124235dcc75f4eee15027f3cd7ed8964a66d0f6544b81048deb2577bff2712b6c
+  checksum: 10c0/fa9d3f03f6f6627d8600e631ac505c4dd36ad3f62caf79ce72a336efa5a64aa0be6d4235a4942509a68b4870edc2cda5442a6872a8640c18ae8af3ee9aa3f187
   languageName: node
   linkType: hard
 
@@ -3180,7 +3180,7 @@ __metadata:
     "@microlink/react-json-view": "npm:1.31.34"
     "@midnightntwrk/ledger-v9": "npm:1.0.0-rc.3"
     "@rolldown/plugin-babel": "npm:^0.2.4"
-    "@sig-net/midnight": "npm:0.22.2"
+    "@sig-net/midnight": "npm:0.23.0"
     "@tailwindcss/vite": "npm:^4.3.3"
     "@tanstack/react-router": "npm:^1.170.36"
     "@tanstack/react-router-devtools": "npm:^1.167.2"
