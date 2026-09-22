@@ -105,6 +105,16 @@ Dark mode is a class on the root element. `ThemeProvider` in `src/components/con
 falls back to the system preference, and the toggle in the app bar flips it and persists it in
 local storage.
 
+Typography follows the sig.network brand assets in Notion: Elza Text for interface text and
+Söhne Mono for hashes, identifiers and other technical content.
+
+- Elza Text is served by the sig.network Adobe Fonts kit, linked from `index.html`, and reached
+  through the `font-sans` utility (`--font-sans` in `src/index.css`). The kit provides weights 300
+  to 700 in upright and italic.
+- Söhne Mono is licensed from Klim Type Foundry. Its WOFF2 files live in `src/fonts` and are
+  declared with `@font-face` at the top of `src/index.css`, reached through the `font-mono`
+  utility. Weights 200 (Extraleicht), 300 (Leicht), 400 (Buch) and 500 (Kräftig) are included.
+
 Tailwind leaves buttons on the default cursor, and shadcn pins `cursor-default` on menu and select
 items. One unlayered rule at the end of `src/index.css` gives every enabled control a click
 activates (buttons, tabs, menu items, select options and their kin) the pointer cursor. Disabled

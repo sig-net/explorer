@@ -660,13 +660,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@fontsource-variable/geist@npm:^5.3.0":
-  version: 5.3.0
-  resolution: "@fontsource-variable/geist@npm:5.3.0"
-  checksum: 10c0/6b1d1d249643377c885d040769bf0964f242e8d03c4470535329ad4eed3d30a8134fea0d45c0b99b8069924a1f506a3bcb5b8d9cea77b7b5234dc7dd57371842
-  languageName: node
-  linkType: hard
-
 "@hono/node-server@npm:^1.19.9 || ^2.0.5":
   version: 2.1.1
   resolution: "@hono/node-server@npm:2.1.1"
@@ -3184,7 +3177,6 @@ __metadata:
   dependencies:
     "@babel/core": "npm:^8.0.5"
     "@base-ui/react": "npm:^1.8.0"
-    "@fontsource-variable/geist": "npm:^5.3.0"
     "@microlink/react-json-view": "npm:1.31.34"
     "@midnightntwrk/ledger-v9": "npm:1.0.0-rc.3"
     "@rolldown/plugin-babel": "npm:^0.2.4"
