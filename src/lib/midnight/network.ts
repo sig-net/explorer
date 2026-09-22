@@ -1,6 +1,7 @@
 import {
   bytesToHex,
   contractAddressFromHex,
+  getMpcOutputCacheUrl,
   getMpcRootPublicKey,
   getSignetContractAddress,
   MidnightNetwork,
@@ -25,6 +26,11 @@ export interface MidnightNetworkConfig {
   ethereumMainnetRpcUrl: string
   /** JSON-RPC endpoint asked about requested transactions that target Sepolia. */
   ethereumSepoliaRpcUrl: string
+  /**
+   * The MPC's output cache down to its object prefix, where attested serialised outputs are read
+   * before a transaction is traced. Empty for a network with none.
+   */
+  mpcOutputCacheUrl: string
 }
 
 /** Keyless public endpoints that accept cross-origin calls from a browser. */
@@ -116,6 +122,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     nodeUrl: 'http://127.0.0.1:9944',
     ...parseMidnightUndeployedEnv(import.meta.env),
     ...EVM_RPC_DEFAULTS,
+    mpcOutputCacheUrl: '',
   },
   [MidnightNetwork.Stagenet]: {
     indexerUrl: 'https://indexer.stagenet.shielded.tools/api/v4/graphql',
@@ -124,6 +131,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     mpcRootPublicKey: getMpcRootPublicKey(MidnightNetwork.Stagenet),
     signetContractAddress: getSignetContractAddress(MidnightNetwork.Stagenet),
     ...EVM_RPC_DEFAULTS,
+    mpcOutputCacheUrl: getMpcOutputCacheUrl(MidnightNetwork.Stagenet),
   },
   // TODO: populate for this network once released to these networks
   [MidnightNetwork.Preview]: {
@@ -133,6 +141,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     mpcRootPublicKey: '',
     signetContractAddress: '',
     ...EVM_RPC_DEFAULTS,
+    mpcOutputCacheUrl: '',
   },
   // TODO: populate for this network once released to these networks
   [MidnightNetwork.Preprod]: {
@@ -142,6 +151,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     mpcRootPublicKey: '',
     signetContractAddress: '',
     ...EVM_RPC_DEFAULTS,
+    mpcOutputCacheUrl: '',
   },
   // TODO: populate for this network once released to these networks
   [MidnightNetwork.Mainnet]: {
@@ -151,6 +161,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     mpcRootPublicKey: '',
     signetContractAddress: '',
     ...EVM_RPC_DEFAULTS,
+    mpcOutputCacheUrl: '',
   },
 }
 

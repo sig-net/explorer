@@ -1,7 +1,39 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
-@import '@fontsource-variable/geist';
+
+/*
+ * Söhne Mono, licensed from Klim Type Foundry for sig.network. The files come from the brand
+ * assets in Notion and live in src/fonts so the app serves them itself.
+ */
+@font-face {
+  font-family: 'Söhne Mono';
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+  src: url('./fonts/soehne-mono-extraleicht.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Söhne Mono';
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+  src: url('./fonts/soehne-mono-leicht.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Söhne Mono';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url('./fonts/soehne-mono-buch.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Söhne Mono';
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url('./fonts/soehne-mono-kraftig.woff2') format('woff2');
+}
 
 @custom-variant dark (&:is(.dark *));
 
@@ -140,7 +172,8 @@
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans: 'elza-text', sans-serif;
+  --font-mono: 'Söhne Mono', monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

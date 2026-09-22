@@ -47,12 +47,19 @@ function Stacked({ children }: { children: readonly ReactNode[] }) {
   )
 }
 
-function Timestamps({ dates }: { dates: readonly Date[] }) {
+/** Block times, each followed by how long after `since` it is when `since` is given. */
+function Timestamps({ dates, since }: { dates: readonly Date[]; since?: Date }) {
   return (
     <Stacked>
       {dates.map((date, index) => (
         <span key={index} className="tabular-nums">
           {formatLocalTimestamp(date)}
+          {since !== undefined && (
+            <span className="text-muted-foreground">
+              {' '}
+              ({formatDuration(date.getTime() - since.getTime())})
+            </span>
+          )}
         </span>
       ))}
     </Stacked>
@@ -123,6 +130,7 @@ function LifecycleRow({
   const { signBidirectionalEvents, signatureRespondedEvents, respondBidirectionalEvents } =
     lifecycle
   const durationMs = signBidirectionalLifecycleDurationMs(lifecycle)
+  const requestedAt = signBidirectionalEvents[0]?.source.blockTimestamp
   // Null until the row is toggled by hand. A toggled row keeps that choice, and an untouched one
   // follows the default as it changes.
   const [toggled, setToggled] = useState<boolean | null>(null)
@@ -182,16 +190,17 @@ function LifecycleRow({
         <TableCell>Bidirectional</TableCell>
         <TableCell>
           {signatureRespondedEvents.length === 0 ? (
-            <PendingIcon />
+            <PendingIcon tooltip="Waiting for the MPC to provide the signature" />
           ) : (
             <Timestamps
               dates={signatureRespondedEvents.map((event) => event.source.blockTimestamp)}
+              since={requestedAt}
             />
           )}
         </TableCell>
         <TableCell>
           {respondBidirectionalEvents.length === 0 ? (
-            <PendingIcon />
+            <PendingIcon tooltip="Waiting for the MPC to attest the response. An attestation is only expected once the foreign transaction is finalised, which takes up to 15 minutes on an EVM chain." />
           ) : (
             <Timestamps
               dates={respondBidirectionalEvents.map((event) => event.source.blockTimestamp)}

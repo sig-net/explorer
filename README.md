@@ -105,6 +105,16 @@ Dark mode is a class on the root element. `ThemeProvider` in `src/components/con
 falls back to the system preference, and the toggle in the app bar flips it and persists it in
 local storage.
 
+Typography follows the sig.network brand assets in Notion: Elza Text for interface text and
+Söhne Mono for hashes, identifiers and other technical content.
+
+- Elza Text is served by the sig.network Adobe Fonts kit, linked from `index.html`, and reached
+  through the `font-sans` utility (`--font-sans` in `src/index.css`). The kit provides weights 300
+  to 700 in upright and italic.
+- Söhne Mono is licensed from Klim Type Foundry. Its WOFF2 files live in `src/fonts` and are
+  declared with `@font-face` at the top of `src/index.css`, reached through the `font-mono`
+  utility. Weights 200 (Extraleicht), 300 (Leicht), 400 (Buch) and 500 (Kräftig) are included.
+
 Tailwind leaves buttons on the default cursor, and shadcn pins `cursor-default` on menu and select
 items. One unlayered rule at the end of `src/index.css` gives every enabled control a click
 activates (buttons, tabs, menu items, select options and their kin) the pointer cursor. Disabled
@@ -242,9 +252,10 @@ The Explorer tab renders them with `SignBidirectionalLifecycleTable` in
 fills the height the page has left below the search and status line, with a sticky header, and
 scrolls inside its body. The app shell in `src/routes/__root.tsx` is exactly one viewport tall, which is
 what gives the table a height to fill. Times are block times as
-`DD-MM-YY HH:MM:SS` in the browser's time zone, a cell lists at most three entries before an ellipsis, a clock marks a
-signature or response that has not arrived, and Duration runs from the first request to the first
-response. Hovering a truncated request id or caller shows the full value, and the copy button
+`DD-MM-YY HH:MM:SS` in the browser's time zone, a cell lists at most three entries before an ellipsis, each signature
+time carries how long after the request it came, a clock marks a signature or response that has
+not arrived (hovering it says what is being waited for), and Duration runs from the first request
+to the first response. Hovering a truncated request id or caller shows the full value, and the copy button
 beside it puts the full value on the clipboard. The link button beside a request id copies a URL
 to share, naming the selected network and that request, which opens the explorer on that request
 alone, and the button after it opens that URL in a new tab. The search box filters
@@ -360,25 +371,34 @@ The response key is derived with the SDK's `deriveMidnightResponseKey` from the 
 public key and the notification's caller address, under the reserved path "midnight response key".
 It is fixed for a contract, and it is shown on every line that has a valid root key.
 
-The attested bytes do not travel on chain, so the check rebuilds the two things they can be and asks
-the SDK's `verifyRespondBidirectionalSignature` about each:
+The attested bytes do not travel on chain, so the check obtains them and asks the SDK's
+`verifyRespondBidirectionalSignature` about each candidate, in this order:
 
 - The MPC's fixed failure payload. This needs nothing from the foreign chain.
-- The transaction's output. The signed transaction's hash comes from the valid signature responses,
-  its return data is read with `debug_traceTransaction` from the EVM RPC endpoint configured for
-  the request's chain (`src/lib/midnight/evm-transaction-output.ts`), and the SDK's
+- The MPC's output cache. The MPC writes each request's attested bytes to a public bucket before
+  it posts the attestation, at `<cache URL>/<network id>/<signet contract address>/<request id>.bin`.
+  The SDK's `MpcOutputCacheReader` reads it (`src/lib/midnight/mpc-output-cache.ts`) from the
+  MPC Output Cache URL in the configuration, which defaults to the one the SDK publishes for the
+  network and is empty where it publishes none. The bytes come packed, so this route shows no
+  decoded output.
+- A trace of the transaction. The signed transaction's hash comes from the valid signature
+  responses, its return data is read with `debug_traceTransaction` from the EVM RPC endpoint
+  configured for the request's chain (`src/lib/midnight/evm-transaction-output.ts`), and the SDK's
   `deserializeEvmOutput` and `serializeRespondOutput` turn it into the attested bytes by the
   request's two schemas.
 
-| Finding                                              | Line                                                     |
-| ---------------------------------------------------- | -------------------------------------------------------- |
-| The attestation is over the recovered output         | valid, with the attested bytes and the decoded output    |
-| The attestation is over the failure payload          | valid, and the foreign transaction failed                |
-| The output was recovered and the attestation differs | not valid, with the reason                               |
-| The output could not be recovered                    | not checked, with the node's reason and the response key |
+| Finding                                              | Line                                                  |
+| ---------------------------------------------------- | ----------------------------------------------------- |
+| The attestation is over the recovered output         | valid, with the attested bytes and the decoded output |
+| The attestation is over the failure payload          | valid, and the foreign transaction failed             |
+| The output was recovered and the attestation differs | not valid, with the reason                            |
+| Neither the cache nor a trace gave the output        | not checked, with both reasons and the response key   |
 
-Hosted nodes often gate `debug_traceTransaction`, the default public endpoints among them, so a
-success is checked only once the configuration names an endpoint that serves it. The tab of an
+Hosted nodes often gate `debug_traceTransaction`, the default public endpoints among them, so
+without the cache a success is checked only once the configuration names an endpoint that serves
+it. The line names which source the attested bytes came from. The bucket must allow cross-origin
+reads: a browser cannot read an object from a bucket without a CORS policy, whatever the object's
+status. The tab of an
 event with a valid attestation is green, as the tab of a valid signature response is.
 
 ## Local SDK link

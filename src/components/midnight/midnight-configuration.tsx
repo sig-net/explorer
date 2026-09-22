@@ -55,6 +55,7 @@ const CONFIG_FIELDS: readonly ConfigField[] = [
   },
   { key: 'ethereumMainnetRpcUrl', label: 'Ethereum Mainnet RPC URL' },
   { key: 'ethereumSepoliaRpcUrl', label: 'Ethereum Sepolia RPC URL' },
+  { key: 'mpcOutputCacheUrl', label: 'MPC Output Cache URL' },
 ]
 
 export function MidnightConfiguration() {
