@@ -161,6 +161,19 @@ the URL still wins over it.
 The key and the address become the `undeployed` defaults, so Reset Defaults returns to them. Unset
 variables leave the fields empty.
 
+Stagenet takes its MPC root public key, Signet contract address and MPC output cache URL from the
+SDK. To point stagenet at another MPC deployment, such as one the SDK does not publish yet, name
+its values in the same file:
+
+```dotenv
+VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY=secp256k1:54hU...
+VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS=8387...
+VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL=https://storage.example/v1/stagenet
+```
+
+Each is optional, and an unset variable keeps the SDK's value. They become the `stagenet`
+defaults, so Reset Defaults returns to them.
+
 The EVM RPC endpoints default to keyless public nodes, which do not serve `debug_traceTransaction`.
 To default to endpoints of your own on every network, name them in the same file:
 

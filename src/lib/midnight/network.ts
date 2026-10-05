@@ -156,6 +156,41 @@ export function parseMidnightUndeployedEnv(
   }
 }
 
+export type MidnightStagenetEnv = Pick<
+  ImportMetaEnv,
+  | 'VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY'
+  | 'VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS'
+  | 'VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL'
+>
+
+/**
+ * Reads stagenet's MPC root public key, Signet contract address and MPC output cache URL. An unset
+ * or empty variable yields the value the SDK publishes for stagenet.
+ *
+ * @throws {Error} When a set variable is not a valid key, address or http URL.
+ */
+export function parseMidnightStagenetEnv(
+  env: MidnightStagenetEnv,
+): Pick<MidnightNetworkConfig, 'mpcRootPublicKey' | 'signetContractAddress' | 'mpcOutputCacheUrl'> {
+  return {
+    mpcRootPublicKey:
+      readOptionalEnv(
+        env,
+        'VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY',
+        normaliseSecp256k1PublicKey,
+      ) || getMpcRootPublicKey(MidnightNetwork.Stagenet),
+    signetContractAddress:
+      readOptionalEnv(
+        env,
+        'VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS',
+        normaliseSignetContractAddress,
+      ) || getSignetContractAddress(MidnightNetwork.Stagenet),
+    mpcOutputCacheUrl:
+      readOptionalEnv(env, 'VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL', normaliseHttpUrl) ||
+      getMpcOutputCacheUrl(MidnightNetwork.Stagenet),
+  }
+}
+
 export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkConfig> = {
   [MidnightNetwork.Undeployed]: {
     indexerUrl: 'http://127.0.0.1:8088/api/v4/graphql',
@@ -169,10 +204,8 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     indexerUrl: 'https://indexer.stagenet.shielded.tools/api/v4/graphql',
     indexerWsUrl: 'wss://indexer.stagenet.shielded.tools/api/v4/graphql/ws',
     nodeUrl: 'https://rpc.stagenet.shielded.tools',
-    mpcRootPublicKey: getMpcRootPublicKey(MidnightNetwork.Stagenet),
-    signetContractAddress: getSignetContractAddress(MidnightNetwork.Stagenet),
+    ...parseMidnightStagenetEnv(import.meta.env),
     ...EVM_RPC_DEFAULTS,
-    mpcOutputCacheUrl: getMpcOutputCacheUrl(MidnightNetwork.Stagenet),
   },
   // TODO: populate for this network once released to these networks
   [MidnightNetwork.Preview]: {
