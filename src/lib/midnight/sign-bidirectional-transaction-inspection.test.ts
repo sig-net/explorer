@@ -3,52 +3,46 @@ import { expect, test } from 'vitest'
 
 import { signBidirectionalEventJson } from './sign-bidirectional-event-json'
 import { inspectSignBidirectionalTransaction } from './sign-bidirectional-transaction-inspection'
-import {
-  FALLIBLE_START_DEPOSIT_RAW_TRANSACTION_HEX,
-  START_DEPOSIT_RAW_TRANSACTION_HEX,
-} from './sign-bidirectional-transaction-inspection.fixture'
+import { SEND_DEPOSIT_RAW_TRANSACTION_HEX } from './sign-bidirectional-transaction-inspection.fixture'
 
 const REQUEST_ID = parseRequestIdHex(
-  'af95a7c83af12c495d457f8b7f322db1e4d9f9b54ae294164cf828da8d2aa100',
+  '6fcfb0b2bc97d03961d5dd7f062408800a9d0844e083156a13283f2dd5051800',
 )
-const VAULT = 'f8ea9475479adc86e9e4a98f1cda5c1ad8411047c61d6f93b0c5b589ecdb3b17'
-const SIGNET = '1df4ce25fc9f9c03dc6f4d0eb12ddf3d0db094995d4c70aca1142eebb3b77a5d'
+const CALLER = '6d72911f7f14ff750be043ec62b9e4342cd9ebd3894bcb242d3902edc58d9a00'
+const SIGNET = '838778d20f63f5e9ffebc95f6bdc48b8ed8c478e191eba6aab82447f6eed1baa'
 const NOTIFICATION: SignBidirectionalNotification = {
   version: 1,
-  callerAddress: VAULT,
-  requestsPath: [1, 3],
+  callerAddress: CALLER,
+  requestsPath: [2, 5],
 }
 
-test('the call chain nests the claimed signet call under the top level call', () => {
+test('the call chain nests the claimed signet call under the top level call, and flags the fallible section', () => {
   const { callChains } = inspectSignBidirectionalTransaction(
-    START_DEPOSIT_RAW_TRANSACTION_HEX,
+    SEND_DEPOSIT_RAW_TRANSACTION_HEX,
     REQUEST_ID,
     NOTIFICATION,
   )
   expect(callChains).toEqual([
     {
-      entryPoint: 'startDeposit',
-      address: VAULT,
-      fallible: false,
-      calls: [{ entryPoint: 'signBidirectional', address: SIGNET, fallible: false, calls: [] }],
+      entryPoint: 'sendDeposit',
+      address: CALLER,
+      fallible: true,
+      calls: [{ entryPoint: 'signBidirectional', address: SIGNET, fallible: true, calls: [] }],
     },
   ])
 })
 
 test('the request is the record written at the requests path under the request id', () => {
   const { request } = inspectSignBidirectionalTransaction(
-    START_DEPOSIT_RAW_TRANSACTION_HEX,
+    SEND_DEPOSIT_RAW_TRANSACTION_HEX,
     REQUEST_ID,
     NOTIFICATION,
   )
   expect(request && signBidirectionalEventJson(request)).toEqual({
-    sender: VAULT,
-    requestNonce: 1,
     keyVersion: 1,
-    path: 'cd89a13a47228126d87c29ebc7eede5753f13d2cc633eda13db39b1a9943d200',
+    sender: CALLER,
+    path: '7ee08daa234fd7e5760485df51800e9978624ec222cdb834a8caa0531b946d00',
     algo: 0,
-    dest: 0,
-    params: '00'.repeat(64),
     txParamType: 0,
     txParams: {
       chainId: 11155111,
@@ -62,49 +56,33 @@ test('the request is the record written at the requests path under the request i
         selector: 'a9059cbb',
         noWords: 2,
         words: [
-          '000000000000000000000000493bd202a82841f4969b6955884b142ae6e0b23d',
+          '000000000000000000000000420a9a212b2b8afd908ce63074451a6f2456fa82',
           '00000000000000000000000000000000000000000000000000000000000186a0',
         ],
       },
       accessListEntryCount: 0,
       accessList: [],
     },
-    caip2Id: 'eip155:1',
+    executionDest: 'eip155:1',
+    signatureDest: 0,
+    params: '00'.repeat(64),
     outputDeserializationSchema: '[{"name":"success","type":"bool"}]',
-    respondSerializationSchema: '[{"name":"success","type":"bool"}]',
+    respondSerializationSchema: '',
   })
 })
 
 test('no request is found at another path or under another request id', () => {
   expect(
-    inspectSignBidirectionalTransaction(START_DEPOSIT_RAW_TRANSACTION_HEX, REQUEST_ID, {
+    inspectSignBidirectionalTransaction(SEND_DEPOSIT_RAW_TRANSACTION_HEX, REQUEST_ID, {
       ...NOTIFICATION,
-      requestsPath: [1, 2],
+      requestsPath: [2, 4],
     }).request,
   ).toBeNull()
   expect(
     inspectSignBidirectionalTransaction(
-      START_DEPOSIT_RAW_TRANSACTION_HEX,
+      SEND_DEPOSIT_RAW_TRANSACTION_HEX,
       parseRequestIdHex('00'.repeat(32)),
       NOTIFICATION,
     ).request,
   ).toBeNull()
-})
-
-test('calls partitioned into the fallible section are flagged, and their request is still read', () => {
-  const fallibleVault = '5fa9de7119edcab960b9a9cc2772efc7018664a6ddb256372ad4a57eb121d3f4'
-  const { callChains, request } = inspectSignBidirectionalTransaction(
-    FALLIBLE_START_DEPOSIT_RAW_TRANSACTION_HEX,
-    parseRequestIdHex('82f3f1147984eab34fcdca6badfc4b3bff1b33d2607e3b5b0beca56e7c221900'),
-    { version: 1, callerAddress: fallibleVault, requestsPath: [1, 3] },
-  )
-  expect(callChains).toEqual([
-    {
-      entryPoint: 'startDeposit',
-      address: fallibleVault,
-      fallible: true,
-      calls: [{ entryPoint: 'signBidirectional', address: SIGNET, fallible: true, calls: [] }],
-    },
-  ])
-  expect(request?.requestNonce).toBe(6n)
 })

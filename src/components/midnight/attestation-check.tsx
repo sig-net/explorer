@@ -1,4 +1,4 @@
-import { bytesToHex } from '@sig-net/midnight'
+import { bytesToHex, OutputKind } from '@sig-net/midnight'
 import { CircleCheck, CircleHelp, CircleX } from 'lucide-react'
 
 import { CopyableHex } from '@/components/copyable-hex'
@@ -34,18 +34,40 @@ function ResponseKey({ responseKey }: { responseKey: string }) {
   )
 }
 
-function SerializedOutput({ serializedOutput }: { serializedOutput: Uint8Array }) {
+function SerializedOutput({ serializedOutput }: { serializedOutput: Uint8Array | null }) {
   return (
     <span className="flex flex-wrap items-center gap-1">
       <span className="font-bold">Attested Bytes:</span>
-      <CopyableHex value={bytesToHex(serializedOutput)} label="attested bytes" />
+      {serializedOutput === null || serializedOutput.length === 0 ? (
+        <span className="text-muted-foreground">none</span>
+      ) : (
+        <CopyableHex value={bytesToHex(serializedOutput)} label="attested bytes" />
+      )}
       <InfoTooltip label="About the attested bytes">
-        The serialised output the attestation is over. Only the signature travels on chain, so these
-        bytes are rebuilt here: the transaction's return data, decoded by the request's output
-        deserialisation schema and packed by its respond serialisation schema.
+        The serialised output the attestation is over. The event carries its width and digest, never
+        the bytes, so they are obtained here: from the MPC's output cache, or rebuilt from the
+        transaction's return data, decoded by the request's output deserialisation schema and Borsh
+        serialised. An attestation that declares a width of zero is over no bytes, so nothing is
+        obtained for it.
       </InfoTooltip>
     </span>
   )
+}
+
+function verdict(outputKind: OutputKind, blockHeight: bigint): string {
+  const block = `destination block ${blockHeight.toString()}`
+  switch (outputKind) {
+    case OutputKind.executed:
+      return `The MPC attests that the foreign transaction executed, finalised in ${block}.`
+    case OutputKind.failed:
+      return `The MPC attests that the foreign transaction reverted, finalised in ${block}, so there is no output.`
+    case OutputKind.unviable:
+      return `The MPC attests that another transaction, finalised in ${block}, took the request's nonce, so the requested transaction cannot execute and there is no output.`
+    default: {
+      const exhaustive: never = outputKind
+      throw new Error(`unhandled output kind ${String(exhaustive)}`)
+    }
+  }
 }
 
 function Check({ check }: { check: AttestationCheckResult }) {
@@ -56,7 +78,7 @@ function Check({ check }: { check: AttestationCheckResult }) {
           Needs a valid MPC root public key in the configuration
         </p>
       )
-    case 'valid-success':
+    case 'valid':
       return (
         <>
           <span className={`inline-flex flex-wrap items-center gap-1 ${SUCCESS}`}>
@@ -64,16 +86,19 @@ function Check({ check }: { check: AttestationCheckResult }) {
             valid for response key
             <ResponseKey responseKey={check.responseKey} />
           </span>
-          <SerializedOutput serializedOutput={check.serializedOutput} />
-          <span className="flex flex-wrap items-center gap-1">
-            <span className="font-bold">Output Source:</span>
-            {OUTPUT_SOURCE_LABELS[check.source]}
-          </span>
-          {check.decodedOutput !== null && (
+          <p className="text-muted-foreground">{verdict(check.outputKind, check.blockHeight)}</p>
+          <SerializedOutput serializedOutput={check.output?.serializedOutput ?? null} />
+          {check.output !== null && (
+            <span className="flex flex-wrap items-center gap-1">
+              <span className="font-bold">Output Source:</span>
+              {OUTPUT_SOURCE_LABELS[check.output.source]}
+            </span>
+          )}
+          {check.output !== null && check.output.decodedOutput !== null && (
             <>
               <h4 className="font-bold">Recovered Output</h4>
               <JsonViewer
-                json={attestedOutputJson(check.decodedOutput)}
+                json={attestedOutputJson(check.output.decodedOutput)}
                 name="recovered output JSON"
                 title="Recovered Output"
                 description="The foreign transaction's return data, decoded by the request's output deserialisation schema."
@@ -81,21 +106,6 @@ function Check({ check }: { check: AttestationCheckResult }) {
               />
             </>
           )}
-        </>
-      )
-    case 'valid-failure':
-      return (
-        <>
-          <span className={`inline-flex flex-wrap items-center gap-1 ${SUCCESS}`}>
-            <CircleCheck className="size-4" />
-            valid for response key
-            <ResponseKey responseKey={check.responseKey} />
-          </span>
-          <SerializedOutput serializedOutput={check.serializedOutput} />
-          <p className="text-muted-foreground">
-            These are the MPC's fixed failure payload: it attests that the foreign transaction
-            failed, so there is no output.
-          </p>
         </>
       )
     case 'invalid':
@@ -118,10 +128,10 @@ function Check({ check }: { check: AttestationCheckResult }) {
             <ResponseKey responseKey={check.responseKey} />
           </span>
           <p className="text-muted-foreground">
-            The attestation is not over the failure payload, and the foreign transaction's output
-            could not be obtained to check it against: {check.reason}. The output is read from the
-            MPC's output cache, else recovered with debug_traceTransaction, which many hosted nodes
-            gate, so set an RPC endpoint that serves it in the configuration.
+            The attestation declares output bytes, and they could not be obtained to check it
+            against: {check.reason}. The output is read from the MPC's output cache, else recovered
+            with debug_traceTransaction, which many hosted nodes gate, so set an RPC endpoint that
+            serves it in the configuration.
           </p>
         </>
       )

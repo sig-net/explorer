@@ -1,4 +1,4 @@
-import type { MpcSignature } from '@sig-net/midnight'
+import { type MpcSignature, OutputKind } from '@sig-net/midnight'
 import { expect, test } from 'vitest'
 import { render } from 'vitest-browser-react'
 
@@ -33,17 +33,48 @@ test('a notification shows its version, caller and requests path', async () => {
   await expect.element(screen.getByText('[1, 14]')).toBeVisible()
 })
 
-test.for([
-  ['signature responded event', SignatureRespondedEventDetails],
-  ['respond bidirectional event', RespondBidirectionalEventDetails],
-] as const)('a %s shows every signature field', async ([, Details]) => {
+const REQUEST_ID = new Uint8Array(32).fill(0xd4)
+const REQUEST_ID_AND_SIGNATURE_TEXTS = [
+  truncateMiddle('d4'.repeat(32)),
+  truncateMiddle('a1'.repeat(32)),
+  truncateMiddle('b2'.repeat(32)),
+  truncateMiddle('c3'.repeat(32)),
+  '1',
+]
+
+test('a signature responded event shows its request id and every signature field', async () => {
   const screen = await render(
     <TooltipProvider>
-      <Details record={{ signature: SIGNATURE }} />
+      <SignatureRespondedEventDetails record={{ requestId: REQUEST_ID, signature: SIGNATURE }} />
     </TooltipProvider>,
   )
-  await expect.element(screen.getByText(truncateMiddle('a1'.repeat(32)))).toBeVisible()
-  await expect.element(screen.getByText(truncateMiddle('b2'.repeat(32)))).toBeVisible()
-  await expect.element(screen.getByText(truncateMiddle('c3'.repeat(32)))).toBeVisible()
-  await expect.element(screen.getByText('1', { exact: true })).toBeVisible()
+  for (const text of REQUEST_ID_AND_SIGNATURE_TEXTS) {
+    await expect.element(screen.getByText(text, { exact: true })).toBeVisible()
+  }
+})
+
+test('a respond bidirectional event shows what it attests and every signature field', async () => {
+  const screen = await render(
+    <TooltipProvider>
+      <RespondBidirectionalEventDetails
+        record={{
+          requestId: REQUEST_ID,
+          blockHeight: 9_000_000n,
+          outputKind: OutputKind.unviable,
+          serializedOutputLength: 33n,
+          digest: new Uint8Array(32).fill(0xe5),
+          signature: SIGNATURE,
+        }}
+      />
+    </TooltipProvider>,
+  )
+  for (const text of [
+    ...REQUEST_ID_AND_SIGNATURE_TEXTS,
+    '9000000',
+    'Unviable',
+    '33',
+    truncateMiddle('e5'.repeat(32)),
+  ]) {
+    await expect.element(screen.getByText(text, { exact: true })).toBeVisible()
+  }
 })

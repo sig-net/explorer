@@ -1,45 +1,59 @@
+import { type EvmTraceOutput, evmTraceOutputFromCallFrame, type JsonValue } from '@sig-net/midnight'
+
 import { evmRpcCall } from '@/lib/midnight/evm-json-rpc'
 
-/** The return data of a mined transaction's top call, as `0x` hex. */
-export interface EvmTransactionOutput {
-  readonly output: string
-  /** True when the top call failed, so `output` is its revert data. */
-  readonly reverted: boolean
+/** What a mined transaction's top call frame yields, read by the MPC's rules. */
+export type EvmTransactionOutput =
+  | { readonly status: 'read'; readonly trace: EvmTraceOutput }
+  /** A frame the MPC reads no return data from: the call errored, or the frame is malformed. */
+  | { readonly status: 'unreadable'; readonly reason: string }
+
+function isJsonValue(value: unknown): value is JsonValue {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return true
+  }
+  if (Array.isArray(value)) {
+    return value.every(isJsonValue)
+  }
+  return typeof value === 'object' && Object.values(value).every(isJsonValue)
 }
 
 /**
- * Reads a mined transaction's return data with `debug_traceTransaction`, the method the MPC observes
- * executions with. Hosted nodes often gate it behind a paid tier.
+ * Reads a mined transaction's top call frame with `debug_traceTransaction`, the method the MPC
+ * observes executions with. Hosted nodes often gate it behind a paid tier.
  *
  * @throws {Error} When the node cannot be reached, refuses the method, does not know the
- *   transaction or returns a malformed trace.
+ *   transaction or returns no trace.
  */
 async function fetchEvmTransactionOutput(
   rpcUrl: string,
   hash: string,
 ): Promise<EvmTransactionOutput> {
-  const trace = await evmRpcCall(rpcUrl, 'debug_traceTransaction', [
+  const frame = await evmRpcCall(rpcUrl, 'debug_traceTransaction', [
     hash,
     { tracer: 'callTracer', tracerConfig: { onlyTopCall: true } },
   ])
-  if (typeof trace !== 'object' || trace === null) {
+  if (frame === null || frame === undefined || !isJsonValue(frame)) {
     throw new Error('the RPC node returned no trace')
   }
-  const frame: Record<string, unknown> = { ...trace }
-  // A call that returns nothing has no `output` field.
-  const output = frame.output ?? '0x'
-  if (typeof output !== 'string' || !/^0x([0-9a-f]{2})*$/iu.test(output)) {
-    throw new Error('the RPC node returned a trace with a malformed output')
+  try {
+    return { status: 'read', trace: evmTraceOutputFromCallFrame(frame) }
+  } catch (error) {
+    return { status: 'unreadable', reason: error instanceof Error ? error.message : String(error) }
   }
-  return { output, reverted: typeof frame.error === 'string' }
 }
 
 const outputs = new Map<string, Promise<EvmTransactionOutput>>()
 
 /**
- * {@link fetchEvmTransactionOutput}, once per node and transaction: a mined transaction's return
- * data never changes, so every later call shares the first result. A failed read is forgotten, so
- * the next call retries.
+ * {@link fetchEvmTransactionOutput}, once per node and transaction: a mined transaction's trace
+ * never changes, so every later call shares the first result. A failed read is forgotten, so the
+ * next call retries.
  */
 export function loadEvmTransactionOutput(
   rpcUrl: string,

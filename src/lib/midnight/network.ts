@@ -34,7 +34,7 @@ export interface MidnightNetworkConfig {
 }
 
 /** Keyless public endpoints that accept cross-origin calls from a browser. */
-const EVM_RPC_DEFAULTS: Pick<
+const PUBLIC_EVM_RPC_URLS: Pick<
   MidnightNetworkConfig,
   'ethereumMainnetRpcUrl' | 'ethereumSepoliaRpcUrl'
 > = {
@@ -70,15 +70,15 @@ export function parseMpcRootPublicKey(value: string): string | null {
   }
 }
 
-export type MidnightUndeployedEnv = Pick<
-  ImportMetaEnv,
-  | 'VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY'
-  | 'VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS'
->
-
-function readMidnightUndeployedEnv(
-  env: MidnightUndeployedEnv,
-  name: keyof MidnightUndeployedEnv,
+/**
+ * The trimmed value of an optional env variable in the form `normalise` gives it, or an empty
+ * string while the variable is unset or empty.
+ *
+ * @throws {Error} When `normalise` rejects the value. The error names the variable.
+ */
+function readOptionalEnv<TName extends string>(
+  env: Partial<Record<TName, string>>,
+  name: TName,
   normalise: (value: string) => string,
 ): string {
   const value = env[name]?.trim() ?? ''
@@ -92,6 +92,47 @@ function readMidnightUndeployedEnv(
   }
 }
 
+/** @throws {Error} When the value is not an http or https URL. */
+function normaliseHttpUrl(value: string): string {
+  const { protocol } = new URL(value)
+  if (protocol !== 'http:' && protocol !== 'https:') {
+    throw new Error(`expected an http or https URL, got ${protocol}`)
+  }
+  return value
+}
+
+export type MidnightEvmRpcEnv = Pick<
+  ImportMetaEnv,
+  'VITE_MIDNIGHT_ETHEREUM_MAINNET_RPC_URL' | 'VITE_MIDNIGHT_ETHEREUM_SEPOLIA_RPC_URL'
+>
+
+/**
+ * Reads the default EVM RPC endpoints. An unset or empty variable yields the keyless public
+ * endpoint for its chain.
+ *
+ * @throws {Error} When a set variable is not an http or https URL.
+ */
+export function parseMidnightEvmRpcEnv(
+  env: MidnightEvmRpcEnv,
+): Pick<MidnightNetworkConfig, 'ethereumMainnetRpcUrl' | 'ethereumSepoliaRpcUrl'> {
+  return {
+    ethereumMainnetRpcUrl:
+      readOptionalEnv(env, 'VITE_MIDNIGHT_ETHEREUM_MAINNET_RPC_URL', normaliseHttpUrl) ||
+      PUBLIC_EVM_RPC_URLS.ethereumMainnetRpcUrl,
+    ethereumSepoliaRpcUrl:
+      readOptionalEnv(env, 'VITE_MIDNIGHT_ETHEREUM_SEPOLIA_RPC_URL', normaliseHttpUrl) ||
+      PUBLIC_EVM_RPC_URLS.ethereumSepoliaRpcUrl,
+  }
+}
+
+const EVM_RPC_DEFAULTS = parseMidnightEvmRpcEnv(import.meta.env)
+
+export type MidnightUndeployedEnv = Pick<
+  ImportMetaEnv,
+  | 'VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY'
+  | 'VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS'
+>
+
 /**
  * Reads the undeployed network's MPC root public key and Signet contract address, which every local
  * stack generates afresh. Unset or empty variables yield empty strings.
@@ -102,12 +143,12 @@ export function parseMidnightUndeployedEnv(
   env: MidnightUndeployedEnv,
 ): Pick<MidnightNetworkConfig, 'mpcRootPublicKey' | 'signetContractAddress'> {
   return {
-    mpcRootPublicKey: readMidnightUndeployedEnv(
+    mpcRootPublicKey: readOptionalEnv(
       env,
       'VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY',
       normaliseSecp256k1PublicKey,
     ),
-    signetContractAddress: readMidnightUndeployedEnv(
+    signetContractAddress: readOptionalEnv(
       env,
       'VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS',
       normaliseSignetContractAddress,

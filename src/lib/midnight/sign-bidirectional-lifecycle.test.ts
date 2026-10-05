@@ -44,7 +44,11 @@ function request(id: number, requestId: Uint8Array, caller: Uint8Array, seconds:
 }
 
 function respond(id: number, name: SignetEventName, requestId: Uint8Array, seconds: number) {
-  return indexed(id, name, [...requestId, ...new Uint8Array(96).fill(0x33), 1], seconds)
+  const signature = [...new Uint8Array(96).fill(0x33), 1]
+  // A respond bidirectional payload holds 49 bytes between the request id and the signature:
+  // block height, output kind, output length and digest. Zeros decode as an executed, empty output.
+  const attested = name === SignetEventName.RespondBidirectionalEvent ? new Uint8Array(49) : []
+  return indexed(id, name, [...requestId, ...attested, ...signature], seconds)
 }
 
 test('events group by declared request id, newest lifecycle first', () => {

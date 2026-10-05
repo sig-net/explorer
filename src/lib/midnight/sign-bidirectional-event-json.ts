@@ -10,13 +10,10 @@ export type JsonInteger = number | string
 
 /** A {@link SignBidirectionalEvent} as plain JSON: bytes as hex, text fields as text. */
 export interface SignBidirectionalEventJson {
-  sender: string
-  requestNonce: JsonInteger
   keyVersion: JsonInteger
+  sender: string
   path: string
   algo: number
-  dest: number
-  params: string
   txParamType: number
   txParams: {
     chainId: JsonInteger
@@ -30,7 +27,9 @@ export interface SignBidirectionalEventJson {
     accessListEntryCount: JsonInteger
     accessList: { address: string; storageKeyCount: JsonInteger; storageKeys: string[] }[]
   }
-  caip2Id: string
+  executionDest: string
+  signatureDest: number
+  params: string
   outputDeserializationSchema: string
   respondSerializationSchema: string
 }
@@ -77,16 +76,15 @@ export function signBidirectionalEventJson(
   event: SignBidirectionalEvent,
 ): SignBidirectionalEventJson {
   return {
-    sender: bytesToHex(event.sender.bytes),
-    requestNonce: jsonInteger(event.requestNonce),
     keyVersion: jsonInteger(event.keyVersion),
+    sender: bytesToHex(event.sender.bytes),
     path: bytesToHex(event.path),
     algo: event.algo,
-    dest: event.dest,
-    params: bytesToHex(event.params),
     txParamType: event.txParamType,
     txParams: txParamsJson(event.txParams),
-    caip2Id: textOrHex(event.caip2Id),
+    executionDest: textOrHex(event.executionDest),
+    signatureDest: event.signatureDest,
+    params: bytesToHex(event.params),
     outputDeserializationSchema: textOrHex(event.outputDeserializationSchema),
     respondSerializationSchema: textOrHex(event.respondSerializationSchema),
   }

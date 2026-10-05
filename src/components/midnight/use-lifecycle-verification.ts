@@ -5,9 +5,13 @@ import { useMidnight } from '@/components/contexts/MidnightContext'
 import {
   type AttestationCheck,
   type AttestedExecution,
-  checkAttestation,
+  checkAttestationOverEmptyOutput,
+  checkAttestationOverExecution,
 } from '@/lib/midnight/attestation-check'
-import { loadEvmTransactionOutput } from '@/lib/midnight/evm-transaction-output'
+import {
+  type EvmTransactionOutput,
+  loadEvmTransactionOutput,
+} from '@/lib/midnight/evm-transaction-output'
 import { evmRpcUrl } from '@/lib/midnight/evm-transaction-status'
 import { loadMpcCachedOutput } from '@/lib/midnight/mpc-output-cache'
 import type { MidnightNetworkConfig } from '@/lib/midnight/network'
@@ -42,7 +46,7 @@ const UNSETTLED: LifecycleVerification = {
 async function traceFirst(
   rpcUrl: string,
   hashes: readonly string[],
-): Promise<Awaited<ReturnType<typeof loadEvmTransactionOutput>>> {
+): Promise<EvmTransactionOutput> {
   let failure: unknown = new Error('no valid signature, so no signed transaction to trace')
   // Each valid signature signs the same transaction into a different hash, and one at most is mined.
   for (const hash of hashes) {
@@ -53,6 +57,12 @@ async function traceFirst(
     }
   }
   throw failure
+}
+
+/** `load`, run on the first call alone: every call shares that one result. */
+function once<T>(load: () => Promise<T>): () => Promise<T> {
+  let loaded: Promise<T> | undefined
+  return () => (loaded ??= load())
 }
 
 function failureMessage(error: unknown): string {
@@ -104,7 +114,11 @@ async function recoverExecution(
     return { status: 'unavailable', reason: reasons.join(', and ') }
   }
   try {
-    return { status: 'traced', request, trace: await traceFirst(rpcUrl, signedTransactionHashes) }
+    return {
+      status: 'traced',
+      request,
+      transactionOutput: await traceFirst(rpcUrl, signedTransactionHashes),
+    }
   } catch (error) {
     reasons.push(`the EVM node gave no trace (${failureMessage(error)})`)
     return { status: 'unavailable', reason: reasons.join(', and ') }
@@ -114,8 +128,8 @@ async function recoverExecution(
 /**
  * Checks an expanded lifecycle's responses against its requests: which signature responses are by a
  * request signing key, and whether each attestation is by the requesting contract's response key.
- * The signature result settles first, as the attestation check waits on the attested output, read
- * from the MPC's cache or recovered by tracing the signed transaction.
+ * The signature result settles first, as an attestation that declares output bytes waits on them,
+ * read from the MPC's cache or recovered by tracing the signed transaction.
  */
 export function useLifecycleVerification(
   lifecycle: SignBidirectionalLifecycle,
@@ -177,24 +191,39 @@ export function useLifecycleVerification(
         settle({ validSignatureResponseIds, attestationChecks: { status: 'no-notification' } })
         return
       }
-      const execution = await recoverExecution(
-        { ethereumMainnetRpcUrl, ethereumSepoliaRpcUrl, mpcOutputCacheUrl, signetContractAddress },
-        network,
-        requestId,
-        requests[0],
-        [...new Set(signedTransactionHashes.values())],
+      const recoverExecutionOnce = once(() =>
+        recoverExecution(
+          {
+            ethereumMainnetRpcUrl,
+            ethereumSepoliaRpcUrl,
+            mpcOutputCacheUrl,
+            signetContractAddress,
+          },
+          network,
+          requestId,
+          requests[0],
+          [...new Set(signedTransactionHashes.values())],
+        ),
+      )
+      const checks = await Promise.all(
+        lifecycle.respondBidirectionalEvents.map(
+          async ({ record, source }): Promise<[number, AttestationCheck]> => [
+            source.id,
+            // A width of zero declares an empty output, so there is nothing to recover.
+            record.serializedOutputLength === 0n
+              ? checkAttestationOverEmptyOutput(mpcRootPublicKey, callerAddress, record)
+              : checkAttestationOverExecution(
+                  mpcRootPublicKey,
+                  callerAddress,
+                  record,
+                  await recoverExecutionOnce(),
+                ),
+          ],
+        ),
       )
       settle({
         validSignatureResponseIds,
-        attestationChecks: {
-          status: 'checked',
-          checks: new Map(
-            lifecycle.respondBidirectionalEvents.map(({ record, source }) => [
-              source.id,
-              checkAttestation(mpcRootPublicKey, requestId, callerAddress, record, execution),
-            ]),
-          ),
-        },
+        attestationChecks: { status: 'checked', checks: new Map(checks) },
       })
     }
     void verify()

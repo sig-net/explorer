@@ -1,6 +1,7 @@
 import {
   bytesToHex,
   type MpcSignature,
+  OutputKind,
   type RespondBidirectionalEvent,
   type SignatureRespondedEvent,
   type SignBidirectionalNotification,
@@ -33,9 +34,17 @@ export function SignBidirectionalNotificationDetails({
   )
 }
 
-function MpcSignatureDetails({ signature }: { signature: MpcSignature }) {
+function RequestIdLine({ requestId }: { requestId: Uint8Array }) {
   return (
-    <DetailList>
+    <DetailLine label="Request Id">
+      <CopyableHex value={bytesToHex(requestId)} label="request id" />
+    </DetailLine>
+  )
+}
+
+function MpcSignatureLines({ signature }: { signature: MpcSignature }) {
+  return (
+    <>
       <DetailLine label="Big R X">
         <CopyableHex value={bytesToHex(signature.bigR.x)} label="signature big R x" />
       </DetailLine>
@@ -48,13 +57,24 @@ function MpcSignatureDetails({ signature }: { signature: MpcSignature }) {
       <DetailLine label="Recovery Id">
         <span className="tabular-nums">{signature.recoveryId.toString()}</span>
       </DetailLine>
-    </DetailList>
+    </>
   )
 }
 
 /** Every field of a decoded `SignatureRespondedEvent`. */
 export function SignatureRespondedEventDetails({ record }: { record: SignatureRespondedEvent }) {
-  return <MpcSignatureDetails signature={record.signature} />
+  return (
+    <DetailList>
+      <RequestIdLine requestId={record.requestId} />
+      <MpcSignatureLines signature={record.signature} />
+    </DetailList>
+  )
+}
+
+const OUTPUT_KIND_LABELS: Record<OutputKind, string> = {
+  [OutputKind.executed]: 'Executed',
+  [OutputKind.failed]: 'Failed',
+  [OutputKind.unviable]: 'Unviable',
 }
 
 /** Every field of a decoded `RespondBidirectionalEvent`. */
@@ -63,5 +83,31 @@ export function RespondBidirectionalEventDetails({
 }: {
   record: RespondBidirectionalEvent
 }) {
-  return <MpcSignatureDetails signature={record.signature} />
+  return (
+    <DetailList>
+      <RequestIdLine requestId={record.requestId} />
+      <DetailLine
+        label="Destination Block"
+        info="Height of the finalised block on the destination chain that holds the attested transaction."
+      >
+        <span className="tabular-nums">{record.blockHeight.toString()}</span>
+      </DetailLine>
+      <DetailLine
+        label="Output Kind"
+        info="The MPC's verdict on the execution. Executed: finalised and succeeded. Failed: finalised and reverted. Unviable: another finalised transaction took the nonce."
+      >
+        {OUTPUT_KIND_LABELS[record.outputKind]}
+      </DetailLine>
+      <DetailLine
+        label="Output Length"
+        info="Byte width of the serialised output the digest commits to. The bytes themselves travel off chain."
+      >
+        <span className="tabular-nums">{record.serializedOutputLength.toString()}</span>
+      </DetailLine>
+      <DetailLine label="Digest" info="The attestation digest the signature is over.">
+        <CopyableHex value={bytesToHex(record.digest)} label="attestation digest" />
+      </DetailLine>
+      <MpcSignatureLines signature={record.signature} />
+    </DetailList>
+  )
 }

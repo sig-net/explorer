@@ -1,6 +1,7 @@
 import {
   bytesToHex,
   type IndexedSignetMiscEvent,
+  OutputKind,
   SIGNET_EVENT_PAYLOAD_LENGTH,
   SignetEventName,
 } from '@sig-net/midnight'
@@ -37,13 +38,27 @@ function notificationPayload(version: number, depth: number): number[] {
   return [version, ...REQUEST_ID, ...CALLER_ADDRESS, depth, 4, 0, 0, 0]
 }
 
-function respondPayload(): number[] {
+const SIGNATURE_BYTES = [
+  ...new Uint8Array(32).fill(0x33),
+  ...new Uint8Array(32).fill(0x44),
+  ...new Uint8Array(32).fill(0x55),
+  1,
+]
+const DIGEST = new Uint8Array(32).fill(0x66)
+
+function signatureRespondedPayload(): number[] {
+  return [...REQUEST_ID, ...SIGNATURE_BYTES]
+}
+
+/** Block height 258 and output length 3, each as 8 little-endian bytes, around output kind 1. */
+function respondBidirectionalPayload(): number[] {
   return [
     ...REQUEST_ID,
-    ...new Uint8Array(32).fill(0x33),
-    ...new Uint8Array(32).fill(0x44),
-    ...new Uint8Array(32).fill(0x55),
+    ...[2, 1, 0, 0, 0, 0, 0, 0],
     1,
+    ...[3, 0, 0, 0, 0, 0, 0, 0],
+    ...DIGEST,
+    ...SIGNATURE_BYTES,
   ]
 }
 
@@ -58,23 +73,59 @@ test('a sign bidirectional event decodes to its request id and notification', ()
   })
 })
 
-test.each([SignetEventName.SignatureRespondedEvent, SignetEventName.RespondBidirectionalEvent])(
-  'a %s decodes to its request id and signature',
-  (name) => {
-    const decoded = decodeSignetContractEvent(signetEvent(name, respondPayload()))
-    if (decoded.kind !== 'decoded' || decoded.name === SignetEventName.SignBidirectionalEvent) {
-      throw new Error('expected a decoded respond event')
-    }
-    expect(decoded.name).toBe(name)
-    expect(decoded.requestId).toBe(bytesToHex(REQUEST_ID))
-    expect(decoded.source).toMatchObject({ id: 7, transactionId: 42 })
-    const { signature } = decoded.record
-    expect(signature.recoveryId).toBe(1n)
-    expect(signature.bigR.x).toEqual(new Uint8Array(32).fill(0x33))
-    expect(signature.bigR.y).toEqual(new Uint8Array(32).fill(0x44))
-    expect(signature.s).toEqual(new Uint8Array(32).fill(0x55))
-  },
-)
+test('a signature responded event decodes to its request id and signature', () => {
+  const decoded = decodeSignetContractEvent(
+    signetEvent(SignetEventName.SignatureRespondedEvent, signatureRespondedPayload()),
+  )
+  if (decoded.kind !== 'decoded' || decoded.name !== SignetEventName.SignatureRespondedEvent) {
+    throw new Error('expected a decoded signature responded event')
+  }
+  expect(decoded.requestId).toBe(bytesToHex(REQUEST_ID))
+  expect(decoded.source).toMatchObject({ id: 7, transactionId: 42 })
+  expect(decoded.record).toEqual({
+    requestId: REQUEST_ID,
+    signature: {
+      bigR: { x: new Uint8Array(32).fill(0x33), y: new Uint8Array(32).fill(0x44) },
+      s: new Uint8Array(32).fill(0x55),
+      recoveryId: 1n,
+    },
+  })
+})
+
+test('a respond bidirectional event decodes to everything its attestation declares', () => {
+  const decoded = decodeSignetContractEvent(
+    signetEvent(SignetEventName.RespondBidirectionalEvent, respondBidirectionalPayload()),
+  )
+  if (decoded.kind !== 'decoded' || decoded.name !== SignetEventName.RespondBidirectionalEvent) {
+    throw new Error('expected a decoded respond bidirectional event')
+  }
+  expect(decoded.requestId).toBe(bytesToHex(REQUEST_ID))
+  expect(decoded.record).toEqual({
+    requestId: REQUEST_ID,
+    blockHeight: 258n,
+    outputKind: OutputKind.failed,
+    serializedOutputLength: 3n,
+    digest: DIGEST,
+    signature: {
+      bigR: { x: new Uint8Array(32).fill(0x33), y: new Uint8Array(32).fill(0x44) },
+      s: new Uint8Array(32).fill(0x55),
+      recoveryId: 1n,
+    },
+  })
+})
+
+test('a respond bidirectional event with an unknown output kind is kept as undecodable', () => {
+  const payload = respondBidirectionalPayload()
+  payload[40] = 3
+  const decoded = decodeSignetContractEvent(
+    signetEvent(SignetEventName.RespondBidirectionalEvent, payload),
+  )
+  expect(decoded.kind).toBe('undecodable')
+  if (decoded.kind !== 'undecodable') {
+    throw new Error('expected an undecodable event')
+  }
+  expect(decoded.reason).toContain('unknown output kind 3')
+})
 
 test('an unknown event name is kept as unrecognised', () => {
   const source = signetEvent('SomethingElse', [0xff])

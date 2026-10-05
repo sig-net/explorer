@@ -7,6 +7,7 @@ import {
   MIDNIGHT_NETWORKS,
   isMidnightNetwork,
   parseMidnightDefaultNetworkEnv,
+  parseMidnightEvmRpcEnv,
   parseMidnightNetwork,
   parseMidnightUndeployedEnv,
   parseMpcRootPublicKey,
@@ -38,6 +39,30 @@ test('the default network env value is a network id, and stagenet while unset', 
   expect(() => parseMidnightDefaultNetworkEnv({ VITE_MIDNIGHT_DEFAULT_NETWORK: 'devnet' })).toThrow(
     'Invalid VITE_MIDNIGHT_DEFAULT_NETWORK',
   )
+})
+
+test('EVM RPC env values replace the public endpoints, which stand while unset', () => {
+  const publicEndpoints = parseMidnightEvmRpcEnv({})
+  expect(publicEndpoints.ethereumMainnetRpcUrl).toMatch(/^https:\/\//)
+  expect(publicEndpoints.ethereumSepoliaRpcUrl).toMatch(/^https:\/\//)
+  expect(
+    parseMidnightEvmRpcEnv({
+      VITE_MIDNIGHT_ETHEREUM_MAINNET_RPC_URL: ' ',
+      VITE_MIDNIGHT_ETHEREUM_SEPOLIA_RPC_URL: ' https://sepolia.example/v3/key ',
+    }),
+  ).toEqual({
+    ethereumMainnetRpcUrl: publicEndpoints.ethereumMainnetRpcUrl,
+    ethereumSepoliaRpcUrl: 'https://sepolia.example/v3/key',
+  })
+})
+
+test('an EVM RPC env value that is not an http or https URL names its variable', () => {
+  expect(() =>
+    parseMidnightEvmRpcEnv({ VITE_MIDNIGHT_ETHEREUM_SEPOLIA_RPC_URL: 'sepolia.example' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_ETHEREUM_SEPOLIA_RPC_URL')
+  expect(() =>
+    parseMidnightEvmRpcEnv({ VITE_MIDNIGHT_ETHEREUM_MAINNET_RPC_URL: 'wss://mainnet.example' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_ETHEREUM_MAINNET_RPC_URL')
 })
 
 const LOCAL_MPC_ROOT_PUBLIC_KEY =

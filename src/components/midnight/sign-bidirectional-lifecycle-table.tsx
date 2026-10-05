@@ -75,7 +75,7 @@ function LifecycleDetails({ lifecycle }: { lifecycle: SignBidirectionalLifecycle
     attestationChecks.status === 'checked'
       ? new Set(
           [...attestationChecks.checks]
-            .filter(([, { status }]) => status === 'valid-success' || status === 'valid-failure')
+            .filter(([, { status }]) => status === 'valid')
             .map(([id]) => id),
         )
       : undefined

@@ -22,10 +22,7 @@ import {
 export interface ContractCallNode {
   readonly entryPoint: string
   readonly address: string
-  /**
-   * Whether any of the call's program runs in the transaction's fallible section. The MPC reads
-   * guaranteed transcripts only, so it skips a Signet call this is true for.
-   */
+  /** Whether any of the call's program runs in the transaction's fallible section. */
   readonly fallible: boolean
   readonly calls: readonly ContractCallNode[]
 }
