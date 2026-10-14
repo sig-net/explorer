@@ -167,12 +167,16 @@ its values in the same file:
 
 ```dotenv
 VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY=secp256k1:54hU...
-VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS=8387...
+VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS=4960...
 VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL=https://storage.example/v1/stagenet
+VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK=874309
 ```
 
 Each is optional, and an unset variable keeps the SDK's value. They become the `stagenet`
-defaults, so Reset Defaults returns to them.
+defaults, so Reset Defaults returns to them. The last names the block the Signet contract's events
+are read from (see [Signet contract events](#signet-contract-events)). Unset, it is the block
+`src/lib/midnight/network.ts` lists for the contract address in use, and the whole history for a
+contract it does not list.
 
 The EVM RPC endpoints default to keyless public nodes, which do not serve `debug_traceTransaction`.
 To default to endpoints of your own on every network, name them in the same file:
@@ -229,10 +233,25 @@ current page.
 
 Once the indexer services exist and the selected network names a Signet contract address,
 `MidnightSignetEventsProvider` in `src/components/contexts/MidnightSignetEventsContext.tsx`,
-mounted at the root inside `MidnightProvider`, loads every event the contract has emitted. It
-consumes the SDK's `streamSignetEvents`, an async generator that requests one indexer page of 100
-events at a time, yields that page's events before requesting the next, and pins the indexer tip at
-the first page so a page-boundary insert can neither duplicate nor skip an event. The SDK queries
+mounted at the root inside `MidnightProvider`, loads every event the contract has emitted from the
+configured starting block on. It consumes the SDK's `streamSignetEvents`, an async generator that
+requests one indexer page of 100 events at a time, yields that page's events before requesting the
+next, and pins the indexer tip at the first page so a page-boundary insert can neither duplicate nor
+skip an event.
+
+The starting block is the Signet Events From Block field of the configuration popover: a block
+height, or empty for the whole history. Its default is the block `src/lib/midnight/network.ts`
+lists for the network's Signet contract: the contract's deployment block, since the indexer walks
+every block from the starting block to the tip and a contract has no events before it was deployed,
+or a later block where the contract's earliest events answer requests made on a predecessor
+contract, as the MPC posts in-flight responses on its new contract after a switch. The block belongs
+with the address beside it: an address of another contract needs its own block, and a block above
+the one listed hides events without any error.
+
+A lifecycle can hold responses and no request notification: the MPC answering a request notified
+on another Signet contract, or anyone posting a response for a request that never was. Its row says
+so in place of the request time, caller and duration, and the expanded notification section says
+what is missing. The SDK queries
 the indexer's GraphQL endpoint itself and selects each event's transaction, so every event arrives
 with its transaction hash and the height, hash and time of its block. Each event goes
 through the SDK's `tryDecodeSignetEvent`, which yields a union over the three Signet event names
@@ -246,12 +265,12 @@ event id, the transaction hash, and the block height, hash and timestamp.
 The events live in memory in `src/lib/midnight/signet-event-store.ts`, so switching tabs or moving
 between the Midnight and Solana pages does not reload them. Each page is published as it arrives,
 together with the id of the last loaded event and the indexer tip id (both are the indexer's global
-event cursor, not counts). Loads are cached per indexer URL and contract address pair: switching
-networks and back reuses the completed set, while changing either value starts a fresh load and
-abandons any load that no longer matches. Only completed loads are kept. The address typed into
+event cursor, not counts). Loads are cached per indexer URL, contract address and starting block: switching networks and
+back reuses the completed set, while changing any of the three starts a fresh load and abandons
+any load that no longer matches. Only completed loads are kept. The address typed into
 the configuration popover reaches the store only once it is 32 bytes of hex, in canonical form
-(lowercase, `0x` prefix dropped), so a half-typed address starts no load and the popover marks the
-field invalid. The popover checks the MPC root public key the same way: any spelling the SDK
+(lowercase, `0x` prefix dropped), and the starting block once it is a whole number or empty, so a
+half-typed value starts no load and the popover marks the field invalid. The popover checks the MPC root public key the same way: any spelling the SDK
 accepts (SEC1 hex, compressed or uncompressed, or NEAR's `secp256k1:<base58>`) is valid, and
 anything else is marked. Networks without a published address (preview, preprod, mainnet, and undeployed
 without the environment variable) stay unconfigured. Nothing is written to local storage.
@@ -391,39 +410,39 @@ answer matters.
 ### Attestation check
 
 A Respond Bidirectional Event is the MPC's attestation of what the foreign transaction did. It
-declares the request id, the height of the finalised destination block, an output kind, the byte
-width of the serialised output and the digest the signature is over, followed by the signature. The
-output kind is the MPC's verdict:
+declares the request id, the height of the finalised target-chain block, an output kind, the byte
+width and hash of the serialised output and the digest the signature is over, followed by the
+signature. The output kind is the MPC's verdict:
 
-| Output kind | Meaning                                                               |
-| ----------- | --------------------------------------------------------------------- |
-| Executed    | The transaction was finalised and succeeded                           |
-| Failed      | The transaction was finalised and reverted, and the output is empty   |
-| Unviable    | Another finalised transaction took the nonce, and the output is empty |
+| Output kind | Meaning                                                                      |
+| ----------- | ---------------------------------------------------------------------------- |
+| Executed    | The transaction was finalised and succeeded                                  |
+| Failed      | The transaction was finalised and reverted, and the output is empty          |
+| Unviable    | Another signet request's transaction took the nonce, and the output is empty |
 
 The event's own fields are shown as declared, and the contract emits them unverified. Under each
-event, the Attestation Check judges the signature against the requesting contract's response key
-(`src/lib/midnight/attestation-check.ts`).
+event, the Attestation Check judges it in two steps (`src/lib/midnight/attestation-check.ts`).
 
-The response key is derived with the SDK's `deriveMidnightResponseKey` from the configured MPC root
-public key and the notification's caller address, under the reserved path "midnight response key".
-It is fixed for a contract, and it is shown on every line that has a valid root key.
+The first step needs nothing from the foreign chain. The response key is derived with the SDK's
+`deriveMidnightResponseKey` from the configured MPC root public key and the notification's caller
+address, under the reserved path "midnight response key". It is fixed for a contract, and it is
+shown on every line that has a valid root key. The SDK's `verifyRespondBidirectionalAttestation`
+then says whether the signature is by that key over the request id, block height, output kind,
+output width and output hash the event declares. A line reads "valid for response key" or "not
+valid for response key", and a valid line states the verdict in words with the target block height,
+since both are covered by the signature.
 
-The signature covers the request id, the block height, the output kind and the output bytes. The
-bytes do not travel on chain, so the check obtains them and asks the SDK's
-`verifyRespondBidirectionalSignature` whether the signature is by the response key over the declared
-fields and those bytes. Where the bytes come from depends on the declared width:
+The second step, for a valid attestation that declares output bytes, obtains those bytes and asks
+the SDK's `verifyAttestedOutput` whether they have the declared width and hash. An attestation
+that declares a width of zero is over no bytes, so nothing is obtained for it: every failed and
+unviable attestation, and an executed one whose transaction returns nothing. The bytes come from:
 
-- A width of zero. The output is the empty byte string, so the check needs nothing from the foreign
-  chain. The MPC attests a failed or unviable execution over an empty output, so those take this
-  route, as does an executed one whose transaction returns nothing.
 - The MPC's output cache. The MPC writes each request's attested bytes to a public bucket before
   it posts the attestation, at `<cache URL>/<network id>/<signet contract address>/<request id>.bin`.
   The SDK's `MpcOutputCacheReader` reads it (`src/lib/midnight/mpc-output-cache.ts`) from the
   MPC Output Cache URL in the configuration, which defaults to the one the SDK publishes for the
   network and is empty where it publishes none. The bytes come serialised, so this route shows no
-  decoded output, and a cached object of another width than the attestation declares is reported as
-  such.
+  decoded output.
 - A trace of the transaction. The signed transaction's hash comes from the valid signature
   responses, and its top call frame is read with `debug_traceTransaction` from the EVM RPC endpoint
   configured for the request's chain (`src/lib/midnight/evm-transaction-output.ts`). The SDK reads
@@ -432,22 +451,20 @@ fields and those bytes. Where the bytes come from depends on the declared width:
   deserialisation schema, then Borsh serialised with one member per schema field. `deserializeEvmOutput`
   gives the decoded output that is shown beside the bytes.
 
-| Finding                                              | Line                                                   |
-| ---------------------------------------------------- | ------------------------------------------------------ |
-| The signature is over the declared fields and output | valid, with the verdict, the attested bytes and source |
-| The output is known and the signature is not over it | not valid, with the reason                             |
-| The attestation declares bytes and none were found   | not checked, with both reasons and the response key    |
+| Finding                                                 | Line                                                                            |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| The signature is not by the response key                | not valid, with the reason                                                      |
+| The signature is valid and the output declares no bytes | valid, with the verdict and no attested bytes                                   |
+| The obtained bytes have the declared width and hash     | valid, with the attested bytes and their source                                 |
+| The obtained bytes differ in width or hash              | valid, and the output from that source is not the attested one, with the reason |
+| The attestation declares bytes and none were obtained   | valid, and attested bytes not obtained, with both reasons                       |
 
-A valid line states the verdict in words with the destination block height, since both are covered
-by the signature. A trace whose top call errored yields no executed output, so an attestation that
-declares bytes for it is not valid.
-
-Hosted nodes often gate `debug_traceTransaction`, the default public endpoints among them, so
-without the cache an attestation that declares bytes is checked only once the configuration names an
-endpoint that serves it. A line whose bytes were obtained names the source they came from. The
-bucket must allow cross-origin reads: a browser cannot read an object from a bucket without a CORS
-policy, whatever the object's status. The tab of an event with a valid attestation is green, as the
-tab of a valid signature response is.
+A trace whose top call errored yields no executed output, so it counts as an output that is not the
+attested one. Hosted nodes often gate `debug_traceTransaction`, the default public endpoints among
+them, so without the cache the bytes of an executed attestation are obtained only once the
+configuration names an endpoint that serves it. The bucket must allow cross-origin reads: a browser
+cannot read an object from a bucket without a CORS policy, whatever the object's status. The tab of
+an event with a valid attestation is green, as the tab of a valid signature response is.
 
 ## Local SDK link
 

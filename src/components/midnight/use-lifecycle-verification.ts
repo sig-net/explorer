@@ -5,8 +5,8 @@ import { useMidnight } from '@/components/contexts/MidnightContext'
 import {
   type AttestationCheck,
   type AttestedExecution,
-  checkAttestationOverEmptyOutput,
-  checkAttestationOverExecution,
+  checkAttestation,
+  checkAttestedOutput,
 } from '@/lib/midnight/attestation-check'
 import {
   type EvmTransactionOutput,
@@ -207,18 +207,15 @@ export function useLifecycleVerification(
       )
       const checks = await Promise.all(
         lifecycle.respondBidirectionalEvents.map(
-          async ({ record, source }): Promise<[number, AttestationCheck]> => [
-            source.id,
+          async ({ record, source }): Promise<[number, AttestationCheck]> => {
+            const check = checkAttestation(mpcRootPublicKey, callerAddress, record)
             // A width of zero declares an empty output, so there is nothing to recover.
-            record.serializedOutputLength === 0n
-              ? checkAttestationOverEmptyOutput(mpcRootPublicKey, callerAddress, record)
-              : checkAttestationOverExecution(
-                  mpcRootPublicKey,
-                  callerAddress,
-                  record,
-                  await recoverExecutionOnce(),
-                ),
-          ],
+            if (check.status !== 'valid' || record.serializedOutputLength === 0n) {
+              return [source.id, check]
+            }
+            const output = checkAttestedOutput(record, await recoverExecutionOnce())
+            return [source.id, { ...check, output }]
+          },
         ),
       )
       settle({

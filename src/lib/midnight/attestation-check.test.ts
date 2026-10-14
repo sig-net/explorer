@@ -1,17 +1,7 @@
-import {
-  bytesToHex,
-  EvmTraceOutputKind,
-  OutputKind,
-  type RespondBidirectionalEvent,
-} from '@sig-net/midnight'
+import { bytesToHex, EvmTraceOutputKind, OutputKind } from '@sig-net/midnight'
 import { expect, test } from 'vitest'
 
-import {
-  type AttestationCheck,
-  type AttestedExecution,
-  checkAttestationOverEmptyOutput,
-  checkAttestationOverExecution,
-} from './attestation-check'
+import { type AttestedExecution, checkAttestation, checkAttestedOutput } from './attestation-check'
 import {
   EMPTY_OUTPUT_ATTESTATIONS,
   EXECUTED_TRUE_ATTESTATION as EXECUTED_ATTESTATION,
@@ -35,127 +25,94 @@ function traced(returnData: string): AttestedExecution {
   }
 }
 
-function overExecution(
-  attestation: RespondBidirectionalEvent,
-  execution: AttestedExecution,
-): AttestationCheck {
-  return checkAttestationOverExecution(ROOT_KEY, CALLER, attestation, execution)
+function cached(serializedOutput: Uint8Array): AttestedExecution {
+  return { status: 'cached', serializedOutput }
 }
 
-function overEmptyOutput(attestation: RespondBidirectionalEvent): AttestationCheck {
-  return checkAttestationOverEmptyOutput(ROOT_KEY, CALLER, attestation)
-}
-
-test('an executed attestation is valid over the traced return data', () => {
-  expect(overExecution(EXECUTED_ATTESTATION, traced(TRUE_WORD))).toEqual({
-    status: 'valid',
-    responseKey: RESPONSE_KEY,
-    outputKind: OutputKind.executed,
-    blockHeight: BLOCK_HEIGHT,
-    output: {
-      source: 'evm-node',
-      decodedOutput: { success: true },
-      serializedOutput: new Uint8Array([1]),
-    },
-  })
-})
-
-test('an executed attestation is valid over the cached bytes, which carry no decoded output', () => {
-  expect(
-    overExecution(EXECUTED_ATTESTATION, {
-      status: 'cached',
-      serializedOutput: new Uint8Array([1]),
-    }),
-  ).toEqual({
-    status: 'valid',
-    responseKey: RESPONSE_KEY,
-    outputKind: OutputKind.executed,
-    blockHeight: BLOCK_HEIGHT,
-    output: { source: 'mpc-cache', decodedOutput: null, serializedOutput: new Uint8Array([1]) },
-  })
-})
-
-test('cached bytes the attestation is not over are invalid, by content or by width', () => {
-  expect(
-    overExecution(EXECUTED_ATTESTATION, {
-      status: 'cached',
-      serializedOutput: new Uint8Array([0]),
-    }),
-  ).toMatchObject({ status: 'invalid', reason: expect.stringContaining('MPC cache holds for') })
-  expect(
-    overExecution(EXECUTED_ATTESTATION, {
-      status: 'cached',
-      serializedOutput: new Uint8Array([1, 1]),
-    }),
-  ).toMatchObject({ status: 'invalid', reason: expect.stringContaining('holds 2 bytes') })
-})
-
-test('an attestation that is not over the traced return data is invalid', () => {
-  expect(overExecution(EXECUTED_ATTESTATION, traced(FALSE_WORD))).toEqual({
-    status: 'invalid',
-    responseKey: RESPONSE_KEY,
-    reason: 'the attestation is not over the traced output',
-  })
-  expect(overExecution(EXECUTED_ATTESTATION, traced('0x1234'))).toMatchObject({
-    status: 'invalid',
-    reason: expect.stringContaining('not whole ABI words'),
-  })
-  expect(
-    overExecution(EXECUTED_ATTESTATION, {
-      status: 'traced',
-      request: REQUEST,
-      transactionOutput: { status: 'unreadable', reason: 'the call reverted' },
-    }),
-  ).toMatchObject({ status: 'invalid', reason: expect.stringContaining('the call reverted') })
-})
-
-test('with no output obtained an attestation is unverified, and still names the response key', () => {
-  expect(overExecution(EXECUTED_ATTESTATION, { status: 'unavailable', reason: 'gated' })).toEqual({
-    status: 'unverified',
-    responseKey: RESPONSE_KEY,
-    reason: 'gated',
-  })
-})
-
-test.for([OutputKind.executed, OutputKind.failed, OutputKind.unviable])(
-  'an attestation of output kind %s over an empty output is valid, with no output obtained',
-  (outputKind) => {
-    expect(overEmptyOutput(EMPTY_OUTPUT_ATTESTATIONS[outputKind])).toEqual({
+test('an attestation by the response key is valid for every output kind, with no output consulted', () => {
+  for (const attestation of [EXECUTED_ATTESTATION, ...Object.values(EMPTY_OUTPUT_ATTESTATIONS)]) {
+    expect(checkAttestation(ROOT_KEY, CALLER, attestation)).toEqual({
       status: 'valid',
       responseKey: RESPONSE_KEY,
-      outputKind,
+      outputKind: attestation.outputKind,
       blockHeight: BLOCK_HEIGHT,
       output: null,
     })
-  },
-)
-
-test('an attestation that declares bytes is invalid over an empty output', () => {
-  expect(overEmptyOutput(EXECUTED_ATTESTATION)).toMatchObject({
-    status: 'invalid',
-    responseKey: RESPONSE_KEY,
-  })
+  }
 })
 
 test('an attestation by another key, or altered after signing, is invalid', () => {
-  expect(overEmptyOutput(FOREIGN_KEY_ATTESTATION)).toMatchObject({
+  expect(checkAttestation(ROOT_KEY, CALLER, FOREIGN_KEY_ATTESTATION)).toMatchObject({
     status: 'invalid',
     responseKey: RESPONSE_KEY,
   })
   const failed = EMPTY_OUTPUT_ATTESTATIONS[OutputKind.failed]
-  expect(overEmptyOutput({ ...failed, outputKind: OutputKind.executed })).toMatchObject({
-    status: 'invalid',
-  })
-  expect(overEmptyOutput({ ...failed, blockHeight: BLOCK_HEIGHT + 1n })).toMatchObject({
-    status: 'invalid',
-  })
+  for (const altered of [
+    { ...failed, outputKind: OutputKind.executed },
+    { ...failed, blockHeight: BLOCK_HEIGHT + 1n },
+    { ...failed, serializedOutputLength: 1n },
+    { ...failed, outputHash: EXECUTED_ATTESTATION.outputHash },
+  ]) {
+    expect(checkAttestation(ROOT_KEY, CALLER, altered)).toMatchObject({ status: 'invalid' })
+  }
 })
 
 test('an invalid root key checks nothing', () => {
+  expect(checkAttestation('', CALLER, EXECUTED_ATTESTATION)).toEqual({ status: 'no-root-key' })
+})
+
+test('the traced return data is the attested output, decoded beside the bytes', () => {
+  expect(checkAttestedOutput(EXECUTED_ATTESTATION, traced(TRUE_WORD))).toEqual({
+    status: 'attested',
+    source: 'evm-node',
+    decodedOutput: { success: true },
+    serializedOutput: new Uint8Array([1]),
+  })
+})
+
+test('the cached bytes are the attested output, which carries no decoded output', () => {
+  expect(checkAttestedOutput(EXECUTED_ATTESTATION, cached(new Uint8Array([1])))).toEqual({
+    status: 'attested',
+    source: 'mpc-cache',
+    decodedOutput: null,
+    serializedOutput: new Uint8Array([1]),
+  })
+})
+
+test('cached bytes of another hash or width are a mismatch', () => {
+  expect(checkAttestedOutput(EXECUTED_ATTESTATION, cached(new Uint8Array([0])))).toEqual({
+    status: 'mismatch',
+    source: 'mpc-cache',
+    reason: 'the MPC cache holds bytes of another hash for this request',
+  })
+  expect(checkAttestedOutput(EXECUTED_ATTESTATION, cached(new Uint8Array([1, 1])))).toEqual({
+    status: 'mismatch',
+    source: 'mpc-cache',
+    reason: 'the MPC cache holds 2 bytes, and the attestation declares 1 for this request',
+  })
+})
+
+test('a trace that yields another output, no output or no respond output is a mismatch', () => {
+  expect(checkAttestedOutput(EXECUTED_ATTESTATION, traced(FALSE_WORD))).toEqual({
+    status: 'mismatch',
+    source: 'evm-node',
+    reason: 'the trace yields an output of another hash',
+  })
+  expect(checkAttestedOutput(EXECUTED_ATTESTATION, traced('0x1234'))).toMatchObject({
+    status: 'mismatch',
+    reason: expect.stringContaining('not whole ABI words'),
+  })
   expect(
-    checkAttestationOverExecution('', CALLER, EXECUTED_ATTESTATION, traced(TRUE_WORD)),
-  ).toEqual({ status: 'no-root-key' })
+    checkAttestedOutput(EXECUTED_ATTESTATION, {
+      status: 'traced',
+      request: REQUEST,
+      transactionOutput: { status: 'unreadable', reason: 'the call reverted' },
+    }),
+  ).toMatchObject({ status: 'mismatch', reason: expect.stringContaining('the call reverted') })
+})
+
+test('with no output obtained the check is unavailable, with the reason', () => {
   expect(
-    checkAttestationOverEmptyOutput('', CALLER, EMPTY_OUTPUT_ATTESTATIONS[OutputKind.failed]),
-  ).toEqual({ status: 'no-root-key' })
+    checkAttestedOutput(EXECUTED_ATTESTATION, { status: 'unavailable', reason: 'gated' }),
+  ).toEqual({ status: 'unavailable', reason: 'gated' })
 })

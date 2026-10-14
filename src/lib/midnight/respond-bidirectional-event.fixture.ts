@@ -13,7 +13,7 @@ export const FIXTURE_RESPONSE_KEY =
 
 export const FIXTURE_BLOCK_HEIGHT = 9_000_000n
 
-const REQUEST_ID = hexToBytes('52342beeb51a2437dc09369c4fbf84bf61dedc236c66ab023e36dce207d7df00')
+const REQUEST_ID = hexToBytes('7ff28136c33741c0c453461823ef424a5d2af315c48fa4094eb4cac671008c00')
 
 /** Over the single byte 1: the ERC20 transfer's `true`, Borsh serialised. */
 export const EXECUTED_TRUE_ATTESTATION: RespondBidirectionalEvent = {
@@ -21,14 +21,15 @@ export const EXECUTED_TRUE_ATTESTATION: RespondBidirectionalEvent = {
   blockHeight: FIXTURE_BLOCK_HEIGHT,
   outputKind: OutputKind.executed,
   serializedOutputLength: 1n,
-  digest: hexToBytes('b535d3dbe0c02f7f6dd223de8674a7582bf36df1d0af18eab4b523f6ba245400'),
+  outputHash: hexToBytes('964128a9faf20651ee613e71193d276de06718f194a8517e32805be89e1d6e00'),
+  digest: hexToBytes('2fba913ea7d841e829162f6cb61afcc26c96c8c5cb5f0d718604fc97d0a00300'),
   signature: {
     bigR: {
-      x: hexToBytes('a21d5444d799d1368feb75cdc199f6c74321deba9317b45e519b68f1e8af3f65'),
-      y: hexToBytes('d43f086f7e554612b5a72f4013863944cccf3aee376d4c1d304ba54adfe7584d'),
+      x: hexToBytes('ee0fbdd6b7af5420f09b18f189ce75648cab37079dcce1efb1d309ace8c832b8'),
+      y: hexToBytes('d048914c61662a812c6ef2e27df74c2b669d11e05990c81b1c8164dd00051850'),
     },
-    s: hexToBytes('40981ef951136e45540c734b708cb52c685da64a95a8a1deb041476f1e529419'),
-    recoveryId: 1n,
+    s: hexToBytes('7165ea491441ba64f7d5604be82b0e81ed9b2230cab6962654d4f833fc2ff743'),
+    recoveryId: 0n,
   },
 }
 
@@ -39,14 +40,15 @@ export const EMPTY_OUTPUT_ATTESTATIONS: Record<OutputKind, RespondBidirectionalE
     blockHeight: FIXTURE_BLOCK_HEIGHT,
     outputKind: OutputKind.executed,
     serializedOutputLength: 0n,
-    digest: hexToBytes('acd763526e41571038218c8dfbd7f3ca1313277413dd05c9d011d546e7a7e700'),
+    outputHash: hexToBytes('457658ccd1c76524eb79c8b2b32db01dadf14adf6c74e27d870b31a941bce600'),
+    digest: hexToBytes('74f78c7414806592abd1c3ad1aa0c3a4729155291a2547ace533c5cc92f88200'),
     signature: {
       bigR: {
-        x: hexToBytes('370adf5ff1d13e99de1220387c263312822521bf966741a9a857fbfb60a99849'),
-        y: hexToBytes('b94b6dd3eb67ef314579c9172a9d76d84a27c53c7af4d92251469234370b793b'),
+        x: hexToBytes('02da640e10bd095c49890d7c5e0533de6b27cb9038af046e82aa32bbedd74580'),
+        y: hexToBytes('6d85bd2badf64c05bffde2d9fde8b77cb61afca323fdc2501fd2e347c1702f0c'),
       },
-      s: hexToBytes('777ef5b76a4e6c9d03ef910575dc4fbb222f50feae722619421c57bc5770b29e'),
-      recoveryId: 1n,
+      s: hexToBytes('0fb44c3a88065a532e2e37efe13490a02fae14b7b32f77b6d6b111a088f516df'),
+      recoveryId: 0n,
     },
   },
   [OutputKind.failed]: {
@@ -54,13 +56,14 @@ export const EMPTY_OUTPUT_ATTESTATIONS: Record<OutputKind, RespondBidirectionalE
     blockHeight: FIXTURE_BLOCK_HEIGHT,
     outputKind: OutputKind.failed,
     serializedOutputLength: 0n,
-    digest: hexToBytes('c057fba2fcc1c9b44954c54b960b9d596a4d2e8d5b5ea7ee96d877fd5af86500'),
+    outputHash: hexToBytes('457658ccd1c76524eb79c8b2b32db01dadf14adf6c74e27d870b31a941bce600'),
+    digest: hexToBytes('756484f9932b34d716662b500975cfd93c0d796707c516ca2adeb10594d9cc00'),
     signature: {
       bigR: {
-        x: hexToBytes('a1304afe6d5418e37af69d263dfa506ef4c981e9345a43c100fe507a37d6fe50'),
-        y: hexToBytes('d86124cc0f7e4219889ba4613404031fe4f3a0743105877dde215d4696f54ced'),
+        x: hexToBytes('9d6ff79074f8d91dbc21a1d1ce82faac413656dc338780eb4b6abd0a13171069'),
+        y: hexToBytes('65046f4769bbed1bdd4a1f697f4dade150d740556daca6a1dd3e4591a78a32eb'),
       },
-      s: hexToBytes('6ab6864c3c3a6b205b8877f5257729690c834def1bfd254eedf448a71aa6c9e2'),
+      s: hexToBytes('5ff6e8106c16cf86bf9b01cee3fea8c3b41f34be0ebfc87ee13d8b8741956c0d'),
       recoveryId: 1n,
     },
   },
@@ -69,14 +72,15 @@ export const EMPTY_OUTPUT_ATTESTATIONS: Record<OutputKind, RespondBidirectionalE
     blockHeight: FIXTURE_BLOCK_HEIGHT,
     outputKind: OutputKind.unviable,
     serializedOutputLength: 0n,
-    digest: hexToBytes('84815456a3a9c6a6f8f685afbc9b7794b870b50637cba3bf20fb69efe3237600'),
+    outputHash: hexToBytes('457658ccd1c76524eb79c8b2b32db01dadf14adf6c74e27d870b31a941bce600'),
+    digest: hexToBytes('8889c3c061df08901cd9afcc9ec39d0b04997211b778cf4b9f61304fd42a9300'),
     signature: {
       bigR: {
-        x: hexToBytes('250513abcb9f511e9bcbbac1050a18d868701da711a074d0868818a0109c8867'),
-        y: hexToBytes('484a46c4511ff22d29872a47c6e88e618d31263caef36d4661c4a03c187f5cbd'),
+        x: hexToBytes('eb576f03e058a7647977100399b03fd87ac09eb9b3af54e28c993f6a98611510'),
+        y: hexToBytes('06e0748c6d36ac840892b37fdb6165698f499e5b333e72d445209d1b253cf656'),
       },
-      s: hexToBytes('0313eac9f58113d563977a12a087459bfd9ac81095096d3181acf0cc4cdbf24c'),
-      recoveryId: 1n,
+      s: hexToBytes('2f6781c697554c7ff26b423b4269672f684754e82fd1749266d8a682cfe12c3d'),
+      recoveryId: 0n,
     },
   },
 }
@@ -87,13 +91,14 @@ export const FOREIGN_KEY_ATTESTATION: RespondBidirectionalEvent = {
   blockHeight: FIXTURE_BLOCK_HEIGHT,
   outputKind: OutputKind.failed,
   serializedOutputLength: 0n,
-  digest: hexToBytes('c057fba2fcc1c9b44954c54b960b9d596a4d2e8d5b5ea7ee96d877fd5af86500'),
+  outputHash: hexToBytes('457658ccd1c76524eb79c8b2b32db01dadf14adf6c74e27d870b31a941bce600'),
+  digest: hexToBytes('756484f9932b34d716662b500975cfd93c0d796707c516ca2adeb10594d9cc00'),
   signature: {
     bigR: {
-      x: hexToBytes('4c9944fbc4ec494b4d79d77362d419c23d740d7d15b21858342b1ab98a0db73e'),
-      y: hexToBytes('34b56f218c69182f0f37bb85442092eb5641398d5fd0cae4e055428a95ddda35'),
+      x: hexToBytes('a765f5133c3f135bf0a9aabc4dc49650a1bdb0c0a09d368302d3fc7324f2cdd6'),
+      y: hexToBytes('861d24591a3ee2887e6e862d377c741371ce5033085e843ac87e703fd8707c9a'),
     },
-    s: hexToBytes('62fd6c07bb69bf5bb63d01eaf6ec0ad9dee89590d1f6937cb99d259c20f78eee'),
-    recoveryId: 1n,
+    s: hexToBytes('27079b73abcc141288b0cdba246e53c47888d667dcde43da293332b1909ca896'),
+    recoveryId: 0n,
   },
 }

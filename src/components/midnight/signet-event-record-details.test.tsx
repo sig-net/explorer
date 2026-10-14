@@ -62,6 +62,7 @@ test('a respond bidirectional event shows what it attests and every signature fi
           blockHeight: 9_000_000n,
           outputKind: OutputKind.unviable,
           serializedOutputLength: 33n,
+          outputHash: new Uint8Array(32).fill(0xf6),
           digest: new Uint8Array(32).fill(0xe5),
           signature: SIGNATURE,
         }}
@@ -74,6 +75,7 @@ test('a respond bidirectional event shows what it attests and every signature fi
     'Unviable',
     '33',
     truncateMiddle('e5'.repeat(32)),
+    truncateMiddle('f6'.repeat(32)),
   ]) {
     await expect.element(screen.getByText(text, { exact: true })).toBeVisible()
   }

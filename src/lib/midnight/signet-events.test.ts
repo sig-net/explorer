@@ -44,6 +44,7 @@ const SIGNATURE_BYTES = [
   ...new Uint8Array(32).fill(0x55),
   1,
 ]
+const OUTPUT_HASH = new Uint8Array(32).fill(0x77)
 const DIGEST = new Uint8Array(32).fill(0x66)
 
 function signatureRespondedPayload(): number[] {
@@ -57,6 +58,7 @@ function respondBidirectionalPayload(): number[] {
     ...[2, 1, 0, 0, 0, 0, 0, 0],
     1,
     ...[3, 0, 0, 0, 0, 0, 0, 0],
+    ...OUTPUT_HASH,
     ...DIGEST,
     ...SIGNATURE_BYTES,
   ]
@@ -105,6 +107,7 @@ test('a respond bidirectional event decodes to everything its attestation declar
     blockHeight: 258n,
     outputKind: OutputKind.failed,
     serializedOutputLength: 3n,
+    outputHash: OUTPUT_HASH,
     digest: DIGEST,
     signature: {
       bigR: { x: new Uint8Array(32).fill(0x33), y: new Uint8Array(32).fill(0x44) },

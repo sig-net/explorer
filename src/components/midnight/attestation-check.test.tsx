@@ -32,6 +32,7 @@ test('a valid executed attestation shows its verdict, bytes, source and decoded 
     outputKind: OutputKind.executed,
     blockHeight: 9_000_000n,
     output: {
+      status: 'attested',
       source: 'evm-node',
       decodedOutput: { success: true },
       serializedOutput: new Uint8Array([1]),
@@ -40,7 +41,7 @@ test('a valid executed attestation shows its verdict, bytes, source and decoded 
   await expect
     .element(
       screen.getByText(
-        'The MPC attests that the foreign transaction executed, finalised in destination block 9000000.',
+        'The MPC attests that the foreign transaction executed, finalised in target block 9000000.',
       ),
     )
     .toBeVisible()
@@ -56,11 +57,11 @@ test('a valid executed attestation shows its verdict, bytes, source and decoded 
 test.for([
   [
     OutputKind.failed,
-    'The MPC attests that the foreign transaction reverted, finalised in destination block 12, so there is no output.',
+    'The MPC attests that the foreign transaction reverted, finalised in target block 12, so there is no output.',
   ],
   [
     OutputKind.unviable,
-    "The MPC attests that another transaction, finalised in destination block 12, took the request's nonce, so the requested transaction cannot execute and there is no output.",
+    "The MPC attests that another transaction, finalised in target block 12, took the request's nonce, so the requested transaction cannot execute and there is no output.",
   ],
 ] as const)(
   'a valid attestation of output kind %s over an empty output shows its verdict and no source',
@@ -79,6 +80,33 @@ test.for([
     expect(text).not.toContain('Recovered Output')
   },
 )
+
+test('a valid attestation whose obtained output is not the attested one says so', async () => {
+  const screen = await renderCheck({
+    status: 'valid',
+    responseKey: RESPONSE_KEY,
+    outputKind: OutputKind.executed,
+    blockHeight: 12n,
+    output: { status: 'mismatch', source: 'mpc-cache', reason: 'the MPC cache holds 2 bytes' },
+  })
+  await expect.element(screen.getByText('the MPC cache holds 2 bytes')).toBeVisible()
+  const text = screen.container.textContent
+  expect(text).toContain('valid for response key')
+  expect(text).toContain('the output from the MPC output cache is not the attested one')
+  expect(text).not.toContain('Attested Bytes')
+})
+
+test('a valid attestation with no output obtained says why', async () => {
+  const screen = await renderCheck({
+    status: 'valid',
+    responseKey: RESPONSE_KEY,
+    outputKind: OutputKind.executed,
+    blockHeight: 12n,
+    output: { status: 'unavailable', reason: 'gated' },
+  })
+  await expect.element(screen.getByText(/could not be obtained: gated/u)).toBeVisible()
+  expect(screen.container.textContent).toContain('attested bytes not obtained')
+})
 
 test('an invalid attestation shows the reason', async () => {
   const screen = await renderCheck({

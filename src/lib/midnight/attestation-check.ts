@@ -9,18 +9,52 @@ import {
   isEvmContractCall,
   type OutputKind,
   type RespondBidirectionalEvent,
-  type Secp256k1Point,
   type SignBidirectionalEvent,
-  verifyRespondBidirectionalSignature,
+  verifyAttestedOutput,
+  verifyRespondBidirectionalAttestation,
 } from '@sig-net/midnight'
 
 import type { EvmTransactionOutput } from '@/lib/midnight/evm-transaction-output'
 import { parseMpcRootPublicKey } from '@/lib/midnight/network'
 
+/** Whether a posted attestation is by the requesting contract's response key, and over what. */
+export type AttestationCheck =
+  /** The configured MPC root public key is not a valid key, so the contract has no key to check. */
+  | { readonly status: 'no-root-key' }
+  | {
+      readonly status: 'valid'
+      readonly responseKey: string
+      /** The MPC's verdict on the execution, which the signature covers. */
+      readonly outputKind: OutputKind
+      /** Height of the finalised target-chain block that settled the verdict, signed as well. */
+      readonly blockHeight: bigint
+      /** Null when no output was consulted. */
+      readonly output: AttestedOutputCheck | null
+    }
+  /** The signature is not by the response key over the fields the attestation declares. */
+  | { readonly status: 'invalid'; readonly responseKey: string; readonly reason: string }
+
 /** Where an attested output was obtained. */
 export type AttestedOutputSource = 'mpc-cache' | 'evm-node'
 
-/** What is known of the foreign execution an attestation is checked against. */
+/** Whether an output obtained for an attestation is the one it declares, by width and hash. */
+export type AttestedOutputCheck =
+  | {
+      readonly status: 'attested'
+      readonly source: AttestedOutputSource
+      readonly serializedOutput: Uint8Array
+      /**
+       * The transaction's return data, decoded by the request's output deserialisation schema.
+       * Null unless the output was rebuilt from a trace that carries return data.
+       */
+      readonly decodedOutput: AbiDecodedOutput | null
+    }
+  /** The source yielded an output, and it is not the attested one. */
+  | { readonly status: 'mismatch'; readonly source: AttestedOutputSource; readonly reason: string }
+  /** No output could be obtained, and why. */
+  | { readonly status: 'unavailable'; readonly reason: string }
+
+/** What is known of the foreign execution an attestation's output is checked against. */
 export type AttestedExecution =
   /** The serialised output the MPC cached before posting, verbatim and unverified. */
   | { readonly status: 'cached'; readonly serializedOutput: Uint8Array }
@@ -32,151 +66,99 @@ export type AttestedExecution =
   /** No output to check against, and why. */
   | { readonly status: 'unavailable'; readonly reason: string }
 
-/** An output obtained for an attestation, which the attestation verified over. */
-export interface AttestedOutput {
-  readonly source: AttestedOutputSource
-  readonly serializedOutput: Uint8Array
-  /**
-   * The transaction's return data, decoded by the request's output deserialisation schema. Null
-   * unless the output was rebuilt from a trace that carries return data.
-   */
-  readonly decodedOutput: AbiDecodedOutput | null
-}
-
-/** Whether a posted attestation is by the requesting contract's response key, and over what. */
-export type AttestationCheck =
-  /** The configured MPC root public key is not a valid key, so the contract has no key to check. */
-  | { readonly status: 'no-root-key' }
-  | {
-      readonly status: 'valid'
-      readonly responseKey: string
-      /** The MPC's verdict on the execution, which the signature covers. */
-      readonly outputKind: OutputKind
-      /** Height of the finalised destination block that settled the verdict, signed as well. */
-      readonly blockHeight: bigint
-      /** Null when the attestation verified over an empty output, with none obtained. */
-      readonly output: AttestedOutput | null
-    }
-  /** The signature is not by the response key over the output it was checked against. */
-  | { readonly status: 'invalid'; readonly responseKey: string; readonly reason: string }
-  /** No output could be obtained to check the attestation against. */
-  | { readonly status: 'unverified'; readonly responseKey: string; readonly reason: string }
-
-interface ResponseKey {
-  readonly point: Secp256k1Point
-  readonly hex: string
-}
-
-/** The response key of `callerAddress`, or null when the MPC root public key is not a valid key. */
-function deriveResponseKey(mpcRootPublicKey: string, callerAddress: string): ResponseKey | null {
+/**
+ * Judges a posted attestation's signature against the response key of `callerAddress`, over the
+ * request id, block height, output kind, output width and output hash it declares. The output
+ * itself is judged by {@link checkAttestedOutput}.
+ */
+export function checkAttestation(
+  mpcRootPublicKey: string,
+  callerAddress: string,
+  attestation: RespondBidirectionalEvent,
+): AttestationCheck {
   const rootKey = parseMpcRootPublicKey(mpcRootPublicKey)
   if (rootKey === null) {
-    return null
+    return { status: 'no-root-key' }
   }
-  const point = deriveMidnightResponseKey(rootKey, callerAddress)
-  return { point, hex: formatSecp256k1PublicKey(point) }
-}
-
-/** Valid when the signature is by `responseKey` over `output`, an empty output while null. */
-function judge(
-  attestation: RespondBidirectionalEvent,
-  responseKey: ResponseKey,
-  output: AttestedOutput | null,
-  mismatch: string,
-): AttestationCheck {
-  const serializedOutput = output?.serializedOutput ?? new Uint8Array(0)
-  return verifyRespondBidirectionalSignature(serializedOutput, attestation, responseKey.point)
+  const responseKeyPoint = deriveMidnightResponseKey(rootKey, callerAddress)
+  const responseKey = formatSecp256k1PublicKey(responseKeyPoint)
+  return verifyRespondBidirectionalAttestation(attestation, responseKeyPoint)
     ? {
         status: 'valid',
-        responseKey: responseKey.hex,
+        responseKey,
         outputKind: attestation.outputKind,
         blockHeight: attestation.blockHeight,
-        output,
+        output: null,
       }
-    : { status: 'invalid', responseKey: responseKey.hex, reason: mismatch }
+    : {
+        status: 'invalid',
+        responseKey,
+        reason:
+          'the signature is not over the request, block height, output kind, output width and output hash the attestation declares',
+      }
 }
 
-/**
- * Judges a posted attestation against the response key of `callerAddress` over an empty output,
- * which is what an attestation declaring a width of zero covers.
- */
-export function checkAttestationOverEmptyOutput(
-  mpcRootPublicKey: string,
-  callerAddress: string,
-  attestation: RespondBidirectionalEvent,
-): AttestationCheck {
-  const responseKey = deriveResponseKey(mpcRootPublicKey, callerAddress)
-  if (responseKey === null) {
-    return { status: 'no-root-key' }
-  }
-  return judge(
-    attestation,
-    responseKey,
-    null,
-    'the signature is not over the request, block height and output kind the attestation declares, with an empty output',
-  )
-}
-
-/**
- * Judges a posted attestation against the response key of `callerAddress` over the output that
- * `execution` yields.
- */
-export function checkAttestationOverExecution(
-  mpcRootPublicKey: string,
-  callerAddress: string,
+/** Judges the output `execution` yields against the width and hash `attestation` declares. */
+export function checkAttestedOutput(
   attestation: RespondBidirectionalEvent,
   execution: AttestedExecution,
-): AttestationCheck {
-  const responseKey = deriveResponseKey(mpcRootPublicKey, callerAddress)
-  if (responseKey === null) {
-    return { status: 'no-root-key' }
-  }
-  const invalid = (reason: string): AttestationCheck => ({
-    status: 'invalid',
-    responseKey: responseKey.hex,
-    reason,
-  })
+): AttestedOutputCheck {
+  const { serializedOutputLength, outputHash } = attestation
+  const attested = (serializedOutput: Uint8Array): boolean =>
+    verifyAttestedOutput(serializedOutput, serializedOutputLength, outputHash)
+  const widthMismatch = (serializedOutput: Uint8Array): string | null =>
+    BigInt(serializedOutput.length) === serializedOutputLength
+      ? null
+      : `${String(serializedOutput.length)} bytes, and the attestation declares ${serializedOutputLength.toString()}`
   if (execution.status === 'unavailable') {
-    return { status: 'unverified', responseKey: responseKey.hex, reason: execution.reason }
+    return { status: 'unavailable', reason: execution.reason }
   }
   if (execution.status === 'cached') {
     const { serializedOutput } = execution
-    if (BigInt(serializedOutput.length) !== attestation.serializedOutputLength) {
-      return invalid(
-        `the MPC cache holds ${String(serializedOutput.length)} bytes for this request, and the attestation declares ${attestation.serializedOutputLength.toString()}`,
-      )
+    if (attested(serializedOutput)) {
+      return { status: 'attested', source: 'mpc-cache', serializedOutput, decodedOutput: null }
     }
-    return judge(
-      attestation,
-      responseKey,
-      { source: 'mpc-cache', serializedOutput, decodedOutput: null },
-      'the attestation is not over the output the MPC cache holds for this request',
-    )
+    return {
+      status: 'mismatch',
+      source: 'mpc-cache',
+      reason: `the MPC cache holds ${widthMismatch(serializedOutput) ?? 'bytes of another hash'} for this request`,
+    }
   }
   const { request, transactionOutput } = execution
   if (transactionOutput.status === 'unreadable') {
-    return invalid(`the traced transaction yields no output: ${transactionOutput.reason}`)
+    return {
+      status: 'mismatch',
+      source: 'evm-node',
+      reason: `the traced transaction yields no output: ${transactionOutput.reason}`,
+    }
   }
   const { trace } = transactionOutput
   const schema = request.outputDeserializationSchema
-  let output: AttestedOutput
+  let serializedOutput: Uint8Array
+  let decodedOutput: AbiDecodedOutput | null
   try {
-    output = {
-      source: 'evm-node',
-      serializedOutput: executedEvmRespondOutput(
-        schema,
-        isEvmContractCall(assembleCalldata(request.txParams.calldata)),
-        trace,
-      ),
-      decodedOutput:
-        trace.kind === EvmTraceOutputKind.Output
-          ? deserializeEvmOutput(schema, trace.returnData)
-          : null,
-    }
-  } catch (error) {
-    return invalid(
-      `the traced return data yields no respond output: ${error instanceof Error ? error.message : String(error)}`,
+    serializedOutput = executedEvmRespondOutput(
+      schema,
+      isEvmContractCall(assembleCalldata(request.txParams.calldata)),
+      trace,
     )
+    decodedOutput =
+      trace.kind === EvmTraceOutputKind.Output
+        ? deserializeEvmOutput(schema, trace.returnData)
+        : null
+  } catch (error) {
+    return {
+      status: 'mismatch',
+      source: 'evm-node',
+      reason: `the traced return data yields no respond output: ${error instanceof Error ? error.message : String(error)}`,
+    }
   }
-  return judge(attestation, responseKey, output, 'the attestation is not over the traced output')
+  if (attested(serializedOutput)) {
+    return { status: 'attested', source: 'evm-node', serializedOutput, decodedOutput }
+  }
+  return {
+    status: 'mismatch',
+    source: 'evm-node',
+    reason: `the trace yields ${widthMismatch(serializedOutput) ?? 'an output of another hash'}`,
+  }
 }

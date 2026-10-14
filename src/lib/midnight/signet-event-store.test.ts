@@ -1,4 +1,4 @@
-import type { IndexedSignetMiscEvent } from '@sig-net/midnight'
+import type { IndexedSignetMiscEvent, SignetEventStreamOptions } from '@sig-net/midnight'
 import { DateTime } from 'luxon'
 import { expect, test, vi } from 'vitest'
 
@@ -12,6 +12,7 @@ import {
 const LOCATION: SignetContractLocation = {
   indexerUrl: 'https://indexer.example/api/v4/graphql',
   signetContractAddress: '380b1348271af7dc5a18e199aa90483830342f16267025699b940ee4bfd35193',
+  fromBlock: null,
 }
 const OTHER_LOCATION: SignetContractLocation = {
   ...LOCATION,
@@ -50,13 +51,13 @@ interface HeldPage {
 function heldSource(): {
   source: IndexedSignetEventSource
   pages: HeldPage[]
-  streams: string[]
+  streams: [string, SignetEventStreamOptions | undefined][]
 } {
   const pages: HeldPage[] = []
-  const streams: string[] = []
+  const streams: [string, SignetEventStreamOptions | undefined][] = []
   const source: IndexedSignetEventSource = {
-    async *streamSignetEvents(contractAddress) {
-      streams.push(contractAddress)
+    async *streamSignetEvents(contractAddress, options) {
+      streams.push([contractAddress, options])
       for (;;) {
         const page = await new Promise<IndexedSignetMiscEvent[]>((resolve, reject) => {
           pages.push({ resolve, reject })
@@ -97,6 +98,26 @@ async function waitForStatus(store: SignetEventStore, status: SignetEventLoad['s
   })
 }
 
+test('a location with a starting block streams from it, and is a location of its own', async () => {
+  const held = heldSource()
+  const store = new SignetEventStore()
+  const fromBlock = 873495
+  store.select({ ...LOCATION, fromBlock }, held.source)
+  await vi.waitFor(() => {
+    expect(held.pages).toHaveLength(1)
+  })
+  expect(held.streams).toEqual([[LOCATION.signetContractAddress, { fromBlock }]])
+  held.pages[0]?.resolve([])
+  await waitForStatus(store, 'loaded')
+
+  store.select(LOCATION, held.source)
+  expect(loadOf(store)).toMatchObject({ status: 'loading', location: LOCATION })
+  await vi.waitFor(() => {
+    expect(held.streams).toHaveLength(2)
+  })
+  expect(held.streams[1]).toEqual([LOCATION.signetContractAddress, undefined])
+})
+
 test('a location loads page by page and completes when the stream ends', async () => {
   const held = heldSource()
   const store = new SignetEventStore()
@@ -114,7 +135,7 @@ test('a location loads page by page and completes when the stream ends', async (
   await vi.waitFor(() => {
     expect(held.pages).toHaveLength(1)
   })
-  expect(held.streams).toEqual([LOCATION.signetContractAddress])
+  expect(held.streams).toEqual([[LOCATION.signetContractAddress, undefined]])
 
   held.pages[0]?.resolve(eventsFrom(1, 100))
   await vi.waitFor(() => {

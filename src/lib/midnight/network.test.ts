@@ -15,6 +15,7 @@ import {
   parseMidnightEvmRpcEnv,
   parseMidnightNetwork,
   parseMidnightStagenetEnv,
+  parseSignetEventsFromBlock,
   parseMidnightUndeployedEnv,
   parseMpcRootPublicKey,
   parseSignetContractAddress,
@@ -114,14 +115,14 @@ test('stagenet env values replace what the SDK publishes, which stands while uns
     signetContractAddress: getSignetContractAddress(MidnightNetwork.Stagenet),
     mpcOutputCacheUrl: getMpcOutputCacheUrl(MidnightNetwork.Stagenet),
   }
-  expect(parseMidnightStagenetEnv({})).toEqual(published)
+  expect(parseMidnightStagenetEnv({})).toMatchObject(published)
   expect(
     parseMidnightStagenetEnv({
       VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY: LOCAL_MPC_ROOT_PUBLIC_KEY,
       VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS: ' ',
       VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL: ' https://cache.example/v1/stagenet ',
     }),
-  ).toEqual({
+  ).toMatchObject({
     mpcRootPublicKey: LOCAL_MPC_ROOT_PUBLIC_KEY,
     signetContractAddress: published.signetContractAddress,
     mpcOutputCacheUrl: 'https://cache.example/v1/stagenet',
@@ -131,6 +132,45 @@ test('stagenet env values replace what the SDK publishes, which stands while uns
       VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS: `0x${LOCAL_SIGNET_CONTRACT_ADDRESS}`,
     }).signetContractAddress,
   ).toBe(LOCAL_SIGNET_CONTRACT_ADDRESS)
+})
+
+test('the stagenet starting block follows the contract address in use, unless the env names one', () => {
+  expect(
+    parseMidnightStagenetEnv({
+      VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS:
+        '49605c93a7f602bd3c4750f013615ee3e4bd4be02a201b051c2c220ece6a32f5',
+    }).signetEventsFromBlock,
+  ).toBe('874309')
+  expect(
+    parseMidnightStagenetEnv({
+      VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS:
+        'd2a2419b5f296dae40c5681840b660f5ebab6cbd21c107e05e0464045b589517',
+    }).signetEventsFromBlock,
+  ).toBe('866975')
+  expect(
+    parseMidnightStagenetEnv({
+      VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS: LOCAL_SIGNET_CONTRACT_ADDRESS,
+    }).signetEventsFromBlock,
+  ).toBe('')
+  expect(
+    parseMidnightStagenetEnv({
+      VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS: LOCAL_SIGNET_CONTRACT_ADDRESS,
+      VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK: ' 1200 ',
+    }).signetEventsFromBlock,
+  ).toBe('1200')
+  expect(() =>
+    parseMidnightStagenetEnv({ VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK: '12.5' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK')
+})
+
+test('a typed starting block parses to a height, to the whole history, or to null', () => {
+  expect(parseSignetEventsFromBlock(' 873495 ')).toEqual({ fromBlock: 873495 })
+  expect(parseSignetEventsFromBlock('0')).toEqual({ fromBlock: 0 })
+  expect(parseSignetEventsFromBlock('')).toEqual({ fromBlock: null })
+  expect(parseSignetEventsFromBlock(' ')).toEqual({ fromBlock: null })
+  expect(parseSignetEventsFromBlock('-1')).toBeNull()
+  expect(parseSignetEventsFromBlock('12.5')).toBeNull()
+  expect(parseSignetEventsFromBlock('latest')).toBeNull()
 })
 
 test('an invalid stagenet env value names its variable', () => {

@@ -33,7 +33,7 @@ export const STAGENET_REQUEST: SignBidirectionalEvent = {
     accessListEntryCount: 0n,
     accessList: [],
   },
-  executionDest: asciiPadded('eip155:1', 32),
+  executionDest: asciiPadded('eip155:1', 64),
   signatureDest: 0,
   params: new Uint8Array(64),
   outputDeserializationSchema: asciiPadded('[{"name":"success","type":"bool"}]', 64),

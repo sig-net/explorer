@@ -87,8 +87,8 @@ export function RespondBidirectionalEventDetails({
     <DetailList>
       <RequestIdLine requestId={record.requestId} />
       <DetailLine
-        label="Destination Block"
-        info="Height of the finalised block on the destination chain that holds the attested transaction."
+        label="Target Block"
+        info="Height of the finalised target-chain block holding the transaction the verdict describes: the requested one, or for an unviable verdict the one that used its nonce."
       >
         <span className="tabular-nums">{record.blockHeight.toString()}</span>
       </DetailLine>
@@ -100,9 +100,15 @@ export function RespondBidirectionalEventDetails({
       </DetailLine>
       <DetailLine
         label="Output Length"
-        info="Byte width of the serialised output the digest commits to. The bytes themselves travel off chain."
+        info="Byte width of the serialised output, signed into the digest."
       >
         <span className="tabular-nums">{record.serializedOutputLength.toString()}</span>
+      </DetailLine>
+      <DetailLine
+        label="Output Hash"
+        info="Hash of the serialised output, signed into the digest. The bytes themselves travel off chain."
+      >
+        <CopyableHex value={bytesToHex(record.outputHash)} label="output hash" />
       </DetailLine>
       <DetailLine label="Digest" info="The attestation digest the signature is over.">
         <CopyableHex value={bytesToHex(record.digest)} label="attestation digest" />

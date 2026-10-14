@@ -31,6 +31,54 @@ export interface MidnightNetworkConfig {
    * before a transaction is traced. Empty for a network with none.
    */
   mpcOutputCacheUrl: string
+  /**
+   * The lowest block height the Signet contract's events are read from, as typed: a whole number,
+   * or empty for the whole history. It belongs with `signetContractAddress`: a block above the
+   * contract's deployment hides events.
+   */
+  signetEventsFromBlock: string
+}
+
+/**
+ * The block each known Signet contract's events are read from, as read off the stagenet indexer:
+ * the contract's deployment block, the first height its `contract(address, offset: { height })`
+ * query answers for, unless its earliest events answer requests of a predecessor contract.
+ */
+const SIGNET_EVENTS_FROM_BLOCKS: Readonly<Record<string, number>> = {
+  // The block of the first request notified on it. The MPC devnet posted responses for 26 requests
+  // of its predecessor, 838778d2..., on this contract between blocks 873704 and 873963.
+  '49605c93a7f602bd3c4750f013615ee3e4bd4be02a201b051c2c220ece6a32f5': 874309,
+  // The deployment block.
+  d2a2419b5f296dae40c5681840b660f5ebab6cbd21c107e05e0464045b589517: 866975,
+}
+
+/** The listed starting block of `signetContractAddress` as typed, or empty for a contract not listed. */
+function listedSignetEventsFromBlock(signetContractAddress: string): string {
+  const block = SIGNET_EVENTS_FROM_BLOCKS[signetContractAddress]
+  return block === undefined ? '' : String(block)
+}
+
+/**
+ * The block height a typed `signetEventsFromBlock` names, as `fromBlock`, which is null for an
+ * empty value, meaning the whole history. Null for a value that is not a whole number.
+ */
+export function parseSignetEventsFromBlock(
+  value: string,
+): { readonly fromBlock: number | null } | null {
+  const trimmed = value.trim()
+  if (trimmed === '') {
+    return { fromBlock: null }
+  }
+  return /^\d{1,15}$/u.test(trimmed) ? { fromBlock: Number(trimmed) } : null
+}
+
+/** @throws {Error} When the value is not a whole number. */
+function normaliseSignetEventsFromBlock(value: string): string {
+  const parsed = parseSignetEventsFromBlock(value)
+  if (parsed === null || parsed.fromBlock === null) {
+    throw new Error('expected a block height, a whole number')
+  }
+  return String(parsed.fromBlock)
 }
 
 /** Keyless public endpoints that accept cross-origin calls from a browser. */
@@ -161,17 +209,28 @@ export type MidnightStagenetEnv = Pick<
   | 'VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY'
   | 'VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS'
   | 'VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL'
+  | 'VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK'
 >
 
 /**
- * Reads stagenet's MPC root public key, Signet contract address and MPC output cache URL. An unset
- * or empty variable yields the value the SDK publishes for stagenet.
+ * Reads stagenet's MPC root public key, Signet contract address, MPC output cache URL and the block
+ * its events are read from. An unset or empty variable yields the value the SDK publishes for
+ * stagenet, and for the block the one listed for the contract address in use, where known.
  *
- * @throws {Error} When a set variable is not a valid key, address or http URL.
+ * @throws {Error} When a set variable is not a valid key, address, http URL or block height.
  */
 export function parseMidnightStagenetEnv(
   env: MidnightStagenetEnv,
-): Pick<MidnightNetworkConfig, 'mpcRootPublicKey' | 'signetContractAddress' | 'mpcOutputCacheUrl'> {
+): Pick<
+  MidnightNetworkConfig,
+  'mpcRootPublicKey' | 'signetContractAddress' | 'mpcOutputCacheUrl' | 'signetEventsFromBlock'
+> {
+  const signetContractAddress =
+    readOptionalEnv(
+      env,
+      'VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS',
+      normaliseSignetContractAddress,
+    ) || getSignetContractAddress(MidnightNetwork.Stagenet)
   return {
     mpcRootPublicKey:
       readOptionalEnv(
@@ -179,15 +238,16 @@ export function parseMidnightStagenetEnv(
         'VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY',
         normaliseSecp256k1PublicKey,
       ) || getMpcRootPublicKey(MidnightNetwork.Stagenet),
-    signetContractAddress:
-      readOptionalEnv(
-        env,
-        'VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS',
-        normaliseSignetContractAddress,
-      ) || getSignetContractAddress(MidnightNetwork.Stagenet),
+    signetContractAddress,
     mpcOutputCacheUrl:
       readOptionalEnv(env, 'VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL', normaliseHttpUrl) ||
       getMpcOutputCacheUrl(MidnightNetwork.Stagenet),
+    signetEventsFromBlock:
+      readOptionalEnv(
+        env,
+        'VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK',
+        normaliseSignetEventsFromBlock,
+      ) || listedSignetEventsFromBlock(signetContractAddress),
   }
 }
 
@@ -199,6 +259,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     ...parseMidnightUndeployedEnv(import.meta.env),
     ...EVM_RPC_DEFAULTS,
     mpcOutputCacheUrl: '',
+    signetEventsFromBlock: '',
   },
   [MidnightNetwork.Stagenet]: {
     indexerUrl: 'https://indexer.stagenet.shielded.tools/api/v4/graphql',
@@ -216,6 +277,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     signetContractAddress: '',
     ...EVM_RPC_DEFAULTS,
     mpcOutputCacheUrl: '',
+    signetEventsFromBlock: '',
   },
   // TODO: populate for this network once released to these networks
   [MidnightNetwork.Preprod]: {
@@ -226,6 +288,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     signetContractAddress: '',
     ...EVM_RPC_DEFAULTS,
     mpcOutputCacheUrl: '',
+    signetEventsFromBlock: '',
   },
   // TODO: populate for this network once released to these networks
   [MidnightNetwork.Mainnet]: {
@@ -236,6 +299,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     signetContractAddress: '',
     ...EVM_RPC_DEFAULTS,
     mpcOutputCacheUrl: '',
+    signetEventsFromBlock: '',
   },
 }
 
