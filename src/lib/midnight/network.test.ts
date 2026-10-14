@@ -1,4 +1,9 @@
-import { MidnightNetwork } from '@sig-net/midnight'
+import {
+  getMpcOutputCacheUrl,
+  getMpcRootPublicKey,
+  getSignetContractAddress,
+  MidnightNetwork,
+} from '@sig-net/midnight'
 import { expect, test } from 'vitest'
 
 import {
@@ -7,7 +12,10 @@ import {
   MIDNIGHT_NETWORKS,
   isMidnightNetwork,
   parseMidnightDefaultNetworkEnv,
+  parseMidnightEvmRpcEnv,
   parseMidnightNetwork,
+  parseMidnightStagenetEnv,
+  parseSignetEventsFromBlock,
   parseMidnightUndeployedEnv,
   parseMpcRootPublicKey,
   parseSignetContractAddress,
@@ -38,6 +46,30 @@ test('the default network env value is a network id, and stagenet while unset', 
   expect(() => parseMidnightDefaultNetworkEnv({ VITE_MIDNIGHT_DEFAULT_NETWORK: 'devnet' })).toThrow(
     'Invalid VITE_MIDNIGHT_DEFAULT_NETWORK',
   )
+})
+
+test('EVM RPC env values replace the public endpoints, which stand while unset', () => {
+  const publicEndpoints = parseMidnightEvmRpcEnv({})
+  expect(publicEndpoints.ethereumMainnetRpcUrl).toMatch(/^https:\/\//)
+  expect(publicEndpoints.ethereumSepoliaRpcUrl).toMatch(/^https:\/\//)
+  expect(
+    parseMidnightEvmRpcEnv({
+      VITE_MIDNIGHT_ETHEREUM_MAINNET_RPC_URL: ' ',
+      VITE_MIDNIGHT_ETHEREUM_SEPOLIA_RPC_URL: ' https://sepolia.example/v3/key ',
+    }),
+  ).toEqual({
+    ethereumMainnetRpcUrl: publicEndpoints.ethereumMainnetRpcUrl,
+    ethereumSepoliaRpcUrl: 'https://sepolia.example/v3/key',
+  })
+})
+
+test('an EVM RPC env value that is not an http or https URL names its variable', () => {
+  expect(() =>
+    parseMidnightEvmRpcEnv({ VITE_MIDNIGHT_ETHEREUM_SEPOLIA_RPC_URL: 'sepolia.example' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_ETHEREUM_SEPOLIA_RPC_URL')
+  expect(() =>
+    parseMidnightEvmRpcEnv({ VITE_MIDNIGHT_ETHEREUM_MAINNET_RPC_URL: 'wss://mainnet.example' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_ETHEREUM_MAINNET_RPC_URL')
 })
 
 const LOCAL_MPC_ROOT_PUBLIC_KEY =
@@ -75,6 +107,82 @@ test('an invalid undeployed env value names its variable', () => {
   expect(() =>
     parseMidnightUndeployedEnv({ VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS: '380b' }),
   ).toThrow('Invalid VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS')
+})
+
+test('stagenet env values replace what the SDK publishes, which stands while unset', () => {
+  const published = {
+    mpcRootPublicKey: getMpcRootPublicKey(MidnightNetwork.Stagenet),
+    signetContractAddress: getSignetContractAddress(MidnightNetwork.Stagenet),
+    mpcOutputCacheUrl: getMpcOutputCacheUrl(MidnightNetwork.Stagenet),
+  }
+  expect(parseMidnightStagenetEnv({})).toMatchObject(published)
+  expect(
+    parseMidnightStagenetEnv({
+      VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY: LOCAL_MPC_ROOT_PUBLIC_KEY,
+      VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS: ' ',
+      VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL: ' https://cache.example/v1/stagenet ',
+    }),
+  ).toMatchObject({
+    mpcRootPublicKey: LOCAL_MPC_ROOT_PUBLIC_KEY,
+    signetContractAddress: published.signetContractAddress,
+    mpcOutputCacheUrl: 'https://cache.example/v1/stagenet',
+  })
+  expect(
+    parseMidnightStagenetEnv({
+      VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS: `0x${LOCAL_SIGNET_CONTRACT_ADDRESS}`,
+    }).signetContractAddress,
+  ).toBe(LOCAL_SIGNET_CONTRACT_ADDRESS)
+})
+
+test('the stagenet starting block follows the contract address in use, unless the env names one', () => {
+  expect(
+    parseMidnightStagenetEnv({
+      VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS:
+        '49605c93a7f602bd3c4750f013615ee3e4bd4be02a201b051c2c220ece6a32f5',
+    }).signetEventsFromBlock,
+  ).toBe('874309')
+  expect(
+    parseMidnightStagenetEnv({
+      VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS:
+        'd2a2419b5f296dae40c5681840b660f5ebab6cbd21c107e05e0464045b589517',
+    }).signetEventsFromBlock,
+  ).toBe('866975')
+  expect(
+    parseMidnightStagenetEnv({
+      VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS: LOCAL_SIGNET_CONTRACT_ADDRESS,
+    }).signetEventsFromBlock,
+  ).toBe('')
+  expect(
+    parseMidnightStagenetEnv({
+      VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS: LOCAL_SIGNET_CONTRACT_ADDRESS,
+      VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK: ' 1200 ',
+    }).signetEventsFromBlock,
+  ).toBe('1200')
+  expect(() =>
+    parseMidnightStagenetEnv({ VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK: '12.5' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK')
+})
+
+test('a typed starting block parses to a height, to the whole history, or to null', () => {
+  expect(parseSignetEventsFromBlock(' 873495 ')).toEqual({ fromBlock: 873495 })
+  expect(parseSignetEventsFromBlock('0')).toEqual({ fromBlock: 0 })
+  expect(parseSignetEventsFromBlock('')).toEqual({ fromBlock: null })
+  expect(parseSignetEventsFromBlock(' ')).toEqual({ fromBlock: null })
+  expect(parseSignetEventsFromBlock('-1')).toBeNull()
+  expect(parseSignetEventsFromBlock('12.5')).toBeNull()
+  expect(parseSignetEventsFromBlock('latest')).toBeNull()
+})
+
+test('an invalid stagenet env value names its variable', () => {
+  expect(() =>
+    parseMidnightStagenetEnv({ VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY: '0x04abc' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY')
+  expect(() =>
+    parseMidnightStagenetEnv({ VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS: '380b' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS')
+  expect(() =>
+    parseMidnightStagenetEnv({ VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL: 'gs://bucket' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL')
 })
 
 test('a typed contract address parses to its canonical form or to null', () => {

@@ -1,0 +1,29 @@
+# Build context for the image. Mirrors .gitignore, then drops what the image does not build from.
+.git
+node_modules
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+dist
+*.local
+coverage
+__screenshots__
+.vitest
+logs
+*.log
+.vscode
+.idea
+
+# Environment files carry a machine's configuration, which the image takes from its runtime
+# environment.
+.env*
+
+# Not part of the application build.
+.claude
+.github
+Dockerfile
+.dockerignore

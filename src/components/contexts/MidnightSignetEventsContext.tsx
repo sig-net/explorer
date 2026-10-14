@@ -8,7 +8,7 @@ import {
 } from 'react'
 
 import { useMidnight } from '@/components/contexts/MidnightContext'
-import { parseSignetContractAddress } from '@/lib/midnight/network'
+import { parseSignetContractAddress, parseSignetEventsFromBlock } from '@/lib/midnight/network'
 import { SignetEventStore, type SignetEventStoreSnapshot } from '@/lib/midnight/signet-event-store'
 
 export type MidnightSignetEventsContextValue = SignetEventStoreSnapshot & {
@@ -25,9 +25,10 @@ const MidnightSignetEventsContext = createContext<MidnightSignetEventsContextVal
 export function MidnightSignetEventsProvider({ children }: { children: ReactNode }) {
   const { indexerServices, config } = useMidnight()
   const { indexerUrl } = config
-  // The configuration holds the address as typed. The canonical form keys the cache, so a `0x`
-  // prefix or upper case names the same contract, and a half-typed address starts no load.
+  // The configuration holds the address and block as typed. The canonical forms key the cache, so
+  // a `0x` prefix or upper case names the same contract, and a half-typed value starts no load.
   const signetContractAddress = parseSignetContractAddress(config.signetContractAddress)
+  const fromBlock = parseSignetEventsFromBlock(config.signetEventsFromBlock)?.fromBlock
   const eventSource = indexerServices?.signetEventSource ?? null
   const [store] = useState(() => new SignetEventStore())
 
@@ -35,12 +36,12 @@ export function MidnightSignetEventsProvider({ children }: { children: ReactNode
   // so the effect needs no cleanup: a repeated run with the same location and event source keeps the
   // in-flight load.
   useEffect(() => {
-    if (eventSource === null || signetContractAddress === null) {
+    if (eventSource === null || signetContractAddress === null || fromBlock === undefined) {
       store.deselect()
     } else {
-      store.select({ indexerUrl, signetContractAddress }, eventSource)
+      store.select({ indexerUrl, signetContractAddress, fromBlock }, eventSource)
     }
-  }, [store, eventSource, indexerUrl, signetContractAddress])
+  }, [store, eventSource, indexerUrl, signetContractAddress, fromBlock])
 
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot)
 
