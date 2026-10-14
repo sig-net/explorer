@@ -41,6 +41,42 @@ yarn playwright install chromium
 | `yarn test:watch`   | Run the test suite in watch mode                               |
 | `yarn check`        | Typecheck, lint, format check and test in sequence             |
 
+## Docker image
+
+The root `Dockerfile` builds the explorer into a standalone image: the production build, served by
+nginx on port 8080 as a single page application, with no build step at run time. Build and run it
+locally with:
+
+```bash
+docker build -t explorer .
+```
+
+```bash
+docker run --rm -p 8080:8080 --env-file .env.local explorer
+```
+
+The image takes the same `VITE_MIDNIGHT_*` variables as `.env.local` (see
+[Midnight configuration](#midnight-configuration)) from its runtime environment, so one image serves
+every configuration. At start, `docker/30-explorer-env.sh` writes every `VITE_MIDNIGHT_*` variable
+it finds into `env.js`, which `index.html` loads before the app. `src/lib/explorer-env.ts` reads
+that object over the values inlined at build time, so a variable set on the container wins over one
+an env file held when the image was built, and an unset one leaves the build's value in place. The
+`env.js` in `public` sets nothing, so the dev server and GitHub Pages take the build's values alone. Any value a
+browser can read is public: a keyed RPC URL given to the container is served to its visitors.
+
+The `docker-publish` workflow publishes the image to GitHub Packages on a release tag:
+
+```bash
+git tag v1.2.0-rc.1 && git push origin v1.2.0-rc.1
+```
+
+gives `ghcr.io/sig-net/explorer:v1.2.0-rc.1`, also tagged with the commit hash and, for every
+publish, `latest`. A stable tag (`v1.2.0`) must point at a commit on `main`, while `-rc` tags may
+come from any branch. The workflow builds linux/amd64 and linux/arm64 on native runners and
+combines them into one multi-architecture manifest, passing the tag to the build as
+`EXPLORER_VERSION` for the footer. The arm64 build runs without credentials and hands its image
+over as a run artifact, which only the publishing job pushes.
+
 ## GitHub Pages
 
 The `pages-deploy` workflow builds the app and deploys it to GitHub Pages, at

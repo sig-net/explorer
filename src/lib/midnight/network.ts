@@ -8,6 +8,8 @@ import {
   normaliseSecp256k1PublicKey,
 } from '@sig-net/midnight'
 
+import { EXPLORER_ENV } from '@/lib/explorer-env'
+
 export const MIDNIGHT_NETWORKS: readonly MidnightNetwork[] = [
   MidnightNetwork.Undeployed,
   MidnightNetwork.Stagenet,
@@ -173,7 +175,7 @@ export function parseMidnightEvmRpcEnv(
   }
 }
 
-const EVM_RPC_DEFAULTS = parseMidnightEvmRpcEnv(import.meta.env)
+const EVM_RPC_DEFAULTS = parseMidnightEvmRpcEnv(EXPLORER_ENV)
 
 export type MidnightUndeployedEnv = Pick<
   ImportMetaEnv,
@@ -256,7 +258,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     indexerUrl: 'http://127.0.0.1:8088/api/v4/graphql',
     indexerWsUrl: 'ws://127.0.0.1:8088/api/v4/graphql/ws',
     nodeUrl: 'http://127.0.0.1:9944',
-    ...parseMidnightUndeployedEnv(import.meta.env),
+    ...parseMidnightUndeployedEnv(EXPLORER_ENV),
     ...EVM_RPC_DEFAULTS,
     mpcOutputCacheUrl: '',
     signetEventsFromBlock: '',
@@ -265,7 +267,7 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     indexerUrl: 'https://indexer.stagenet.shielded.tools/api/v4/graphql',
     indexerWsUrl: 'wss://indexer.stagenet.shielded.tools/api/v4/graphql/ws',
     nodeUrl: 'https://rpc.stagenet.shielded.tools',
-    ...parseMidnightStagenetEnv(import.meta.env),
+    ...parseMidnightStagenetEnv(EXPLORER_ENV),
     ...EVM_RPC_DEFAULTS,
   },
   // TODO: populate for this network once released to these networks
@@ -330,9 +332,8 @@ export function parseMidnightDefaultNetworkEnv(env: MidnightDefaultNetworkEnv): 
   return value
 }
 
-export const DEFAULT_MIDNIGHT_NETWORK: MidnightNetwork = parseMidnightDefaultNetworkEnv(
-  import.meta.env,
-)
+export const DEFAULT_MIDNIGHT_NETWORK: MidnightNetwork =
+  parseMidnightDefaultNetworkEnv(EXPLORER_ENV)
 
 /** Narrows a raw search-param value to a network, falling back to the default. */
 export function parseMidnightNetwork(value: unknown): MidnightNetwork {
