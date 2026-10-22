@@ -1,17 +1,18 @@
-import {
-  getMpcRootPublicKey,
-  hexToBytes,
-  MidnightNetwork,
-  type SignatureRespondedEvent,
-} from '@sig-net/midnight'
+import { calculateRequestId, hexToBytes, type SignatureRespondedEvent } from '@sig-net/midnight'
 import { expect, test } from 'vitest'
 
-import { STAGENET_REQUEST as REQUEST } from './sign-bidirectional-event.fixture'
+import {
+  STAGENET_REQUEST as REQUEST,
+  STAGENET_REQUEST_MPC_ROOT_KEY as STAGENET_ROOT_KEY,
+} from './sign-bidirectional-event.fixture'
 import { checkSignature } from './signature-check'
+
+const REQUEST_ID = calculateRequestId(REQUEST)
 
 // Two of the signatures posted for the stagenet request: the first is the MPC's, the second
 // declares the same request id but is by another key.
 const MPC_RESPONSE: SignatureRespondedEvent = {
+  requestId: REQUEST_ID,
   signature: {
     bigR: {
       x: hexToBytes('5399e44261c553b474396726a12b361a1ceec85988dfae3fbfc9935f8b3e20ce'),
@@ -23,6 +24,7 @@ const MPC_RESPONSE: SignatureRespondedEvent = {
 }
 
 const FOREIGN_RESPONSE: SignatureRespondedEvent = {
+  requestId: REQUEST_ID,
   signature: {
     bigR: {
       x: hexToBytes('4fc634397434856b2b4d5bdda98a341c644671871bba483f4e741185add33460'),
@@ -33,7 +35,6 @@ const FOREIGN_RESPONSE: SignatureRespondedEvent = {
   },
 }
 
-const STAGENET_ROOT_KEY = getMpcRootPublicKey(MidnightNetwork.Stagenet)
 const SIGNING_KEY = {
   publicKey:
     '0x043e077b539825060243d0bd86fdc2a5587c0733dfe1bf7fea8bd77206301ba7e11e0c2bcfceb32cd3df17a0597712ea5d9a07ab240f7d1db2529c77473db1bdd6',

@@ -6,6 +6,7 @@ import { useMidnight } from '@/components/contexts/MidnightContext'
 import { CopyButton } from '@/components/copy-button'
 import { CopyableHex } from '@/components/copyable-hex'
 import { ExternalLinkButton } from '@/components/external-link-button'
+import { InfoTooltip } from '@/components/info-tooltip'
 import { AttestationCheck } from '@/components/midnight/attestation-check'
 import {
   RespondBidirectionalEventDetails,
@@ -66,6 +67,21 @@ function Timestamps({ dates, since }: { dates: readonly Date[]; since?: Date }) 
   )
 }
 
+const MISSING_NOTIFICATION_EXPLANATION =
+  "No Sign Bidirectional Event on this contract declares this request id, so the request's time, caller and record are unknown. The responses answer a request the MPC saw elsewhere: notified on another Signet contract, or never notified at all."
+
+/** The cell content of a lifecycle that holds responses and no request notification. */
+function MissingNotification({ children }: { children: ReactNode }) {
+  return (
+    <span className="text-muted-foreground inline-flex items-center gap-1">
+      {children}
+      <InfoTooltip label="About the missing notification">
+        {MISSING_NOTIFICATION_EXPLANATION}
+      </InfoTooltip>
+    </span>
+  )
+}
+
 /** Mounted only while its row is expanded, as it inspects the lifecycle's transactions. */
 function LifecycleDetails({ lifecycle }: { lifecycle: SignBidirectionalLifecycle }) {
   const { signBidirectionalEvents, signatureRespondedEvents, respondBidirectionalEvents } =
@@ -75,7 +91,7 @@ function LifecycleDetails({ lifecycle }: { lifecycle: SignBidirectionalLifecycle
     attestationChecks.status === 'checked'
       ? new Set(
           [...attestationChecks.checks]
-            .filter(([, { status }]) => status === 'valid-success' || status === 'valid-failure')
+            .filter(([, { status }]) => status === 'valid')
             .map(([id]) => id),
         )
       : undefined
@@ -84,6 +100,7 @@ function LifecycleDetails({ lifecycle }: { lifecycle: SignBidirectionalLifecycle
       <SignetEventsSection
         heading="Sign Bidirectional Notification"
         events={signBidirectionalEvents}
+        empty={<p className="text-muted-foreground">{MISSING_NOTIFICATION_EXPLANATION}</p>}
         renderRecord={(event) => (
           <>
             <SignBidirectionalNotificationDetails record={event.record} />
@@ -162,7 +179,13 @@ function LifecycleRow({
           </Button>
         </TableCell>
         <TableCell>
-          <Timestamps dates={signBidirectionalEvents.map((event) => event.source.blockTimestamp)} />
+          {signBidirectionalEvents.length === 0 ? (
+            <MissingNotification>no notification</MissingNotification>
+          ) : (
+            <Timestamps
+              dates={signBidirectionalEvents.map((event) => event.source.blockTimestamp)}
+            />
+          )}
         </TableCell>
         <TableCell>
           <span className="inline-flex items-center gap-1">
@@ -177,15 +200,19 @@ function LifecycleRow({
           </span>
         </TableCell>
         <TableCell>
-          <Stacked>
-            {signBidirectionalEvents.map((event) => (
-              <CopyableHex
-                key={event.source.id}
-                value={event.record.callerAddress}
-                label="caller address"
-              />
-            ))}
-          </Stacked>
+          {signBidirectionalEvents.length === 0 ? (
+            <MissingNotification>unknown</MissingNotification>
+          ) : (
+            <Stacked>
+              {signBidirectionalEvents.map((event) => (
+                <CopyableHex
+                  key={event.source.id}
+                  value={event.record.callerAddress}
+                  label="caller address"
+                />
+              ))}
+            </Stacked>
+          )}
         </TableCell>
         <TableCell>Bidirectional</TableCell>
         <TableCell>
@@ -207,7 +234,15 @@ function LifecycleRow({
             />
           )}
         </TableCell>
-        <TableCell>{durationMs === null ? <PendingIcon /> : formatDuration(durationMs)}</TableCell>
+        <TableCell>
+          {signBidirectionalEvents.length === 0 ? (
+            <MissingNotification>unknown</MissingNotification>
+          ) : durationMs === null ? (
+            <PendingIcon />
+          ) : (
+            formatDuration(durationMs)
+          )}
+        </TableCell>
       </TableRow>
       {expanded && (
         <TableRow id={detailsId} className="hover:bg-transparent">

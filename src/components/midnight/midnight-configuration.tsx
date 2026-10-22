@@ -26,6 +26,7 @@ import {
   type MidnightNetworkConfig,
   parseMpcRootPublicKey,
   parseSignetContractAddress,
+  parseSignetEventsFromBlock,
 } from '@/lib/midnight/network'
 
 interface ConfigField {
@@ -52,6 +53,14 @@ const CONFIG_FIELDS: readonly ConfigField[] = [
     label: 'Signet Contract Address',
     problem: (value) =>
       parseSignetContractAddress(value) === null ? 'Expected 32 bytes of hex (64 digits).' : null,
+  },
+  {
+    key: 'signetEventsFromBlock',
+    label: 'Signet Events From Block',
+    problem: (value) =>
+      parseSignetEventsFromBlock(value) === null
+        ? 'Expected a block height (a whole number, 0 for the whole history), or nothing for the default window.'
+        : null,
   },
   { key: 'ethereumMainnetRpcUrl', label: 'Ethereum Mainnet RPC URL' },
   { key: 'ethereumSepoliaRpcUrl', label: 'Ethereum Sepolia RPC URL' },

@@ -123,3 +123,16 @@ test('the first successful event is selected until a tab is picked by hand', asy
     .element(screen.getByRole('tab', { name: '4' }))
     .toHaveAttribute('aria-selected', 'true')
 })
+
+test('an empty section shows what it is given in place of the pending clock', async () => {
+  const screen = await render(
+    <SignetEventsSection
+      heading="Sign Bidirectional Notification"
+      events={[]}
+      renderRecord={() => null}
+      empty={<p>nothing declares this request id</p>}
+    />,
+  )
+  await expect.element(screen.getByText('nothing declares this request id')).toBeVisible()
+  expect(screen.container.querySelector('[aria-label="Pending"]')).toBeNull()
+})

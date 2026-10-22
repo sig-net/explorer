@@ -7,7 +7,9 @@ import {
   type MidnightSignetEventsContextValue,
   useMidnightSignetEvents,
 } from '@/components/contexts/MidnightSignetEventsContext'
+import { useMidnight } from '@/components/contexts/MidnightContext'
 import { SignBidirectionalLifecycleTable } from '@/components/midnight/sign-bidirectional-lifecycle-table'
+import { SignetEventsStartingBlock } from '@/components/midnight/signet-events-starting-block'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -64,7 +66,20 @@ function loadStatusText(
   matching: readonly SignBidirectionalLifecycle[],
 ): string {
   if (events.status === 'unconfigured') {
-    return 'No valid Signet contract address configured'
+    switch (events.startingBlock.status) {
+      case 'resolving':
+        return 'Reading the chain tip for the starting block'
+      case 'unavailable':
+        return `Could not read the chain tip for the starting block: ${events.startingBlock.error}`
+      case 'invalid':
+        return 'The starting block is not a block height'
+      case 'resolved':
+        return 'No valid Signet contract address configured'
+      default: {
+        const exhaustive: never = events.startingBlock
+        throw new Error(`unhandled starting block ${String(exhaustive)}`)
+      }
+    }
   }
   const matchingEvents = matching.reduce(
     (count, lifecycle) => count + signBidirectionalLifecycleEventCount(lifecycle),
@@ -89,6 +104,7 @@ function loadStatusText(
 
 function ExplorerPage() {
   const events = useMidnightSignetEvents()
+  const { setConfig } = useMidnight()
   const { requestId } = Route.useSearch()
   const navigate = Route.useNavigate()
   const [search, setSearch] = useState<string>(requestId ?? '')
@@ -127,6 +143,10 @@ function ExplorerPage() {
           </Button>
         </div>
         <p className="text-muted-foreground ml-auto text-sm">{loadStatusText(events, matching)}</p>
+        <SignetEventsStartingBlock
+          startingBlock={events.startingBlock}
+          onChange={(signetEventsFromBlock) => setConfig({ signetEventsFromBlock })}
+        />
         <Button
           variant="outline"
           size="icon"

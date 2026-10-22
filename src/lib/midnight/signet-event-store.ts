@@ -8,10 +8,12 @@ import { decodeSignetContractEvent, type SignetContractEvent } from '@/lib/midni
 
 export type IndexedSignetEventSource = SignetEventSource<IndexedSignetMiscEvent>
 
-/** The contract one set of events belongs to. Both fields together key the store's cache. */
+/** The contract one set of events belongs to. The three fields together key the store's cache. */
 export interface SignetContractLocation {
   readonly indexerUrl: string
   readonly signetContractAddress: string
+  /** The lowest block height events are read from, 0 for the whole history. */
+  readonly fromBlock: number
 }
 
 export type SignetEventLoadStatus = 'loading' | 'loaded' | 'error'
@@ -42,7 +44,7 @@ interface StoreEntry {
 const UNCONFIGURED: SignetEventStoreSnapshot = { status: 'unconfigured' }
 
 function locationKey(location: SignetContractLocation): string {
-  return JSON.stringify([location.indexerUrl, location.signetContractAddress])
+  return JSON.stringify([location.indexerUrl, location.signetContractAddress, location.fromBlock])
 }
 
 /**
@@ -178,7 +180,9 @@ export class SignetEventStore {
       }, 0)
     }
     try {
-      for await (const event of eventSource.streamSignetEvents(location.signetContractAddress)) {
+      const { signetContractAddress, fromBlock } = location
+      const stream = eventSource.streamSignetEvents(signetContractAddress, { fromBlock })
+      for await (const event of stream) {
         if (!this.#isLive(key, generation)) {
           return
         }

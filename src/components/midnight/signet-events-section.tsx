@@ -16,7 +16,8 @@ const SUCCESSFUL_TAB_CLASS_NAME =
 
 /**
  * The events of one kind, one tab per event in the order given: where on chain the event was
- * emitted, then whatever `renderRecord` makes of it. An empty `events` shows as pending.
+ * emitted, then whatever `renderRecord` makes of it. An empty `events` shows `empty`, pending by
+ * default.
  *
  * The tabs of the events in `successfulEventIds`, by source id, are green. Until a tab is picked by
  * hand, the first of them is the selected one, and the first event while there is none.
@@ -26,11 +27,13 @@ export function SignetEventsSection<TEvent extends { readonly source: IndexedSig
   events,
   renderRecord,
   successfulEventIds,
+  empty = <PendingIcon />,
 }: {
   heading: string
   events: readonly TEvent[]
   renderRecord: (event: TEvent) => ReactNode
   successfulEventIds?: ReadonlySet<number>
+  empty?: ReactNode
 }) {
   const [pickedEventId, setPickedEventId] = useState<number | null>(null)
   const firstSuccessfulEvent = events.find(({ source }) => successfulEventIds?.has(source.id))
@@ -39,7 +42,7 @@ export function SignetEventsSection<TEvent extends { readonly source: IndexedSig
     <section className="flex min-w-0 flex-col gap-2 p-3">
       <h3 className="font-bold">{heading}</h3>
       {events.length === 0 ? (
-        <PendingIcon />
+        empty
       ) : (
         <Tabs
           value={selectedEventId}
