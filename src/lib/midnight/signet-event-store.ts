@@ -12,8 +12,8 @@ export type IndexedSignetEventSource = SignetEventSource<IndexedSignetMiscEvent>
 export interface SignetContractLocation {
   readonly indexerUrl: string
   readonly signetContractAddress: string
-  /** The lowest block height events are read from, or null for the whole history. */
-  readonly fromBlock: number | null
+  /** The lowest block height events are read from, 0 for the whole history. */
+  readonly fromBlock: number
 }
 
 export type SignetEventLoadStatus = 'loading' | 'loaded' | 'error'
@@ -181,10 +181,7 @@ export class SignetEventStore {
     }
     try {
       const { signetContractAddress, fromBlock } = location
-      const stream = eventSource.streamSignetEvents(
-        signetContractAddress,
-        fromBlock === null ? undefined : { fromBlock },
-      )
+      const stream = eventSource.streamSignetEvents(signetContractAddress, { fromBlock })
       for await (const event of stream) {
         if (!this.#isLive(key, generation)) {
           return

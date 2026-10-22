@@ -59,7 +59,7 @@ const CONFIG_FIELDS: readonly ConfigField[] = [
     label: 'Signet Events From Block',
     problem: (value) =>
       parseSignetEventsFromBlock(value) === null
-        ? 'Expected a block height (a whole number), or nothing for the whole history.'
+        ? 'Expected a block height (a whole number, 0 for the whole history), or nothing for the default window.'
         : null,
   },
   { key: 'ethereumMainnetRpcUrl', label: 'Ethereum Mainnet RPC URL' },

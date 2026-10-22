@@ -12,7 +12,7 @@ import {
 const LOCATION: SignetContractLocation = {
   indexerUrl: 'https://indexer.example/api/v4/graphql',
   signetContractAddress: '380b1348271af7dc5a18e199aa90483830342f16267025699b940ee4bfd35193',
-  fromBlock: null,
+  fromBlock: 0,
 }
 const OTHER_LOCATION: SignetContractLocation = {
   ...LOCATION,
@@ -115,7 +115,7 @@ test('a location with a starting block streams from it, and is a location of its
   await vi.waitFor(() => {
     expect(held.streams).toHaveLength(2)
   })
-  expect(held.streams[1]).toEqual([LOCATION.signetContractAddress, undefined])
+  expect(held.streams[1]).toEqual([LOCATION.signetContractAddress, { fromBlock: 0 }])
 })
 
 test('a location loads page by page and completes when the stream ends', async () => {
@@ -135,7 +135,7 @@ test('a location loads page by page and completes when the stream ends', async (
   await vi.waitFor(() => {
     expect(held.pages).toHaveLength(1)
   })
-  expect(held.streams).toEqual([[LOCATION.signetContractAddress, undefined]])
+  expect(held.streams).toEqual([[LOCATION.signetContractAddress, { fromBlock: 0 }]])
 
   held.pages[0]?.resolve(eventsFrom(1, 100))
   await vi.waitFor(() => {

@@ -210,9 +210,8 @@ VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK=874309
 
 Each is optional, and an unset variable keeps the SDK's value. They become the `stagenet`
 defaults, so Reset Defaults returns to them. The last names the block the Signet contract's events
-are read from (see [Signet contract events](#signet-contract-events)). Unset, it is the block
-`src/lib/midnight/network.ts` lists for the contract address in use, and the whole history for a
-contract it does not list.
+are read from (see [Signet contract events](#signet-contract-events)): a block height, 0 for the
+whole history. Unset, the explorer reads from the default window before the chain tip.
 
 The EVM RPC endpoints default to keyless public nodes, which do not serve `debug_traceTransaction`.
 To default to endpoints of your own on every network, name them in the same file:
@@ -275,14 +274,20 @@ requests one indexer page of 100 events at a time, yields that page's events bef
 next, and pins the indexer tip at the first page so a page-boundary insert can neither duplicate nor
 skip an event.
 
-The starting block is the Signet Events From Block field of the configuration popover: a block
-height, or empty for the whole history. Its default is the block `src/lib/midnight/network.ts`
-lists for the network's Signet contract: the contract's deployment block, since the indexer walks
-every block from the starting block to the tip and a contract has no events before it was deployed,
-or a later block where the contract's earliest events answer requests made on a predecessor
-contract, as the MPC posts in-flight responses on its new contract after a switch. The block belongs
-with the address beside it: an address of another contract needs its own block, and a block above
-the one listed hides events without any error.
+The starting block is shown beside the load status, as Starting Block, and is the Signet Events
+From Block field of the configuration popover: a block height, 0 for the whole history, or empty
+for the default. The default is a window of two days of blocks before the chain tip, read from the
+indexer's latest block once per page load, and never before the earliest block
+`src/lib/midnight/network.ts` lists for the contract: its deployment block, as a contract has no
+events before it, or a later block where the contract's earliest events answer requests made on a
+predecessor contract, as the MPC posts in-flight responses on its new contract after a switch.
+`src/lib/midnight/signet-events-window.ts` holds the arithmetic: stagenet's block time was
+measured at 7.0 seconds over the 100,000 blocks before block 973415, so a day is 12,343 blocks and
+the window 24,686. Editing the Starting Block field (Enter or leaving it) and the button beside
+it, which reads from half a day of blocks (6,172) earlier, both set the configuration's value, so
+Reset Defaults returns to the window. The block belongs with the address beside it: an address of
+another contract needs its own block, and a block above the one wanted hides events without any
+error.
 
 A lifecycle can hold responses and no request notification: the MPC answering a request notified
 on another Signet contract, or anyone posting a response for a request that never was. Its row says
