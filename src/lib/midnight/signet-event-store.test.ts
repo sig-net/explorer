@@ -12,76 +12,77 @@ import {
 const LOCATION: SignetContractLocation = {
   indexerUrl: 'https://indexer.example/api/v4/graphql',
   signetContractAddress: '380b1348271af7dc5a18e199aa90483830342f16267025699b940ee4bfd35193',
-  fromBlock: 0,
 }
 const OTHER_LOCATION: SignetContractLocation = {
   ...LOCATION,
   signetContractAddress: 'ab0b1348271af7dc5a18e199aa90483830342f16267025699b940ee4bfd35193',
 }
-const TIP_ID = 500
+const TIP = 10000
+/** A slice is an eighth of a day of blocks. */
+const SLICE = 1543
 const BLOCK_START = DateTime.fromISO('2026-09-09T05:46:00Z')
 
-function signetEvent(id: number): IndexedSignetMiscEvent {
+function signetEvent(id: number, blockHeight = TIP - 5): IndexedSignetMiscEvent {
   return {
     name: 'SomethingElse',
     payload: new Uint8Array(256),
     id,
-    maxId: TIP_ID,
+    maxId: 500,
     transactionId: id,
     transactionHash: 'e5'.repeat(32),
-    blockHeight: 1000 + id,
+    blockHeight,
     blockHash: 'c0'.repeat(32),
     blockTimestamp: BLOCK_START.plus({ milliseconds: id }).toJSDate(),
   }
 }
 
-function eventsFrom(first: number, count: number): IndexedSignetMiscEvent[] {
-  return Array.from({ length: count }, (_, index) => signetEvent(first + index))
+function eventsFrom(first: number, count: number, blockHeight = TIP - 5): IndexedSignetMiscEvent[] {
+  return Array.from({ length: count }, (_, index) => signetEvent(first + index, blockHeight))
 }
 
-interface HeldPage {
+/** The block range one stream request named. */
+type Requested = [string, SignetEventStreamOptions | undefined]
+
+interface HeldStream {
   resolve: (events: IndexedSignetMiscEvent[]) => void
   reject: (error: Error) => void
 }
 
 /**
- * An event source whose stream waits for the test to release each page. A released empty page
- * ends the stream.
+ * An event source whose every stream waits for the test to release it, as one page holding the
+ * whole slice.
  */
 function heldSource(): {
   source: IndexedSignetEventSource
-  pages: HeldPage[]
-  streams: [string, SignetEventStreamOptions | undefined][]
+  streams: HeldStream[]
+  requested: Requested[]
 } {
-  const pages: HeldPage[] = []
-  const streams: [string, SignetEventStreamOptions | undefined][] = []
+  const streams: HeldStream[] = []
+  const requested: Requested[] = []
   const source: IndexedSignetEventSource = {
     async *streamSignetEvents(contractAddress, options) {
-      streams.push([contractAddress, options])
-      for (;;) {
-        const page = await new Promise<IndexedSignetMiscEvent[]>((resolve, reject) => {
-          pages.push({ resolve, reject })
-        })
-        if (page.length === 0) {
-          return
-        }
-        yield* page
-      }
+      requested.push([contractAddress, options])
+      yield* await new Promise<IndexedSignetMiscEvent[]>((resolve, reject) => {
+        streams.push({ resolve, reject })
+      })
     },
   }
-  return { source, pages, streams }
+  return { source, streams, requested }
 }
 
-/** An event source streaming `count` events straight away. */
-function servingSource(count: number): { source: IndexedSignetEventSource; streams: string[] } {
-  const streams: string[] = []
+/** An event source answering every slice straight away with `perSlice` events, ids by slice. */
+function servingSource(perSlice: number): {
+  source: IndexedSignetEventSource
+  requested: Requested[]
+} {
+  const requested: Requested[] = []
   const source: IndexedSignetEventSource = {
-    async *streamSignetEvents(contractAddress) {
-      streams.push(contractAddress)
-      yield* eventsFrom(1, count)
+    async *streamSignetEvents(contractAddress, options) {
+      requested.push([contractAddress, options])
+      yield* eventsFrom(requested.length * 100, perSlice)
     },
   }
-  return { source, streams }
+  return { source, requested }
 }
 
 function loadOf(store: SignetEventStore): SignetEventLoad {
@@ -98,103 +99,127 @@ async function waitForStatus(store: SignetEventStore, status: SignetEventLoad['s
   })
 }
 
-test('a location with a starting block streams from it, and is a location of its own', async () => {
-  const held = heldSource()
-  const store = new SignetEventStore()
-  const fromBlock = 873495
-  store.select({ ...LOCATION, fromBlock }, held.source)
+async function waitForStreams(held: { streams: HeldStream[] }, count: number) {
   await vi.waitFor(() => {
-    expect(held.pages).toHaveLength(1)
+    expect(held.streams).toHaveLength(count)
   })
-  expect(held.streams).toEqual([[LOCATION.signetContractAddress, { fromBlock }]])
-  held.pages[0]?.resolve([])
-  await waitForStatus(store, 'loaded')
+}
 
-  store.select(LOCATION, held.source)
-  expect(loadOf(store)).toMatchObject({ status: 'loading', location: LOCATION })
-  await vi.waitFor(() => {
-    expect(held.streams).toHaveLength(2)
-  })
-  expect(held.streams[1]).toEqual([LOCATION.signetContractAddress, { fromBlock: 0 }])
-})
-
-test('a location loads page by page and completes when the stream ends', async () => {
+test('a range is read newest slice first, each published as it lands, oldest events first', async () => {
   const held = heldSource()
   const store = new SignetEventStore()
   const listener = vi.fn<() => void>()
   store.subscribe(listener)
 
   expect(store.getSnapshot()).toEqual({ status: 'unconfigured' })
-  store.select(LOCATION, held.source)
+  store.select(LOCATION, held.source, TIP - 2 * SLICE - 10, TIP)
   expect(loadOf(store)).toMatchObject({
     status: 'loading',
     location: LOCATION,
+    read: { fromBlock: TIP + 1, toBlock: TIP },
+    targetFromBlock: TIP - 2 * SLICE - 10,
     events: [],
-    lifecycles: [],
   })
-  await vi.waitFor(() => {
-    expect(held.pages).toHaveLength(1)
-  })
-  expect(held.streams).toEqual([[LOCATION.signetContractAddress, { fromBlock: 0 }]])
+  await waitForStreams(held, 1)
+  expect(held.requested).toEqual([
+    [LOCATION.signetContractAddress, { fromBlock: TIP - SLICE + 1, toBlock: TIP }],
+  ])
 
-  held.pages[0]?.resolve(eventsFrom(1, 100))
-  await vi.waitFor(() => {
-    expect(loadOf(store).events).toHaveLength(100)
-  })
-  expect(loadOf(store)).toMatchObject({ status: 'loading', lastId: 100, tipId: TIP_ID })
-  await vi.waitFor(() => {
-    expect(held.pages).toHaveLength(2)
-  })
+  held.streams[0]?.resolve(eventsFrom(201, 2))
+  await waitForStreams(held, 2)
+  expect(loadOf(store)).toMatchObject({ status: 'loading', read: { fromBlock: TIP - SLICE + 1 } })
+  expect(loadOf(store).events.map((event) => event.source.id)).toEqual([201, 202])
+  expect(held.requested[1]).toEqual([
+    LOCATION.signetContractAddress,
+    { fromBlock: TIP - 2 * SLICE + 1, toBlock: TIP - SLICE },
+  ])
 
-  held.pages[1]?.resolve(eventsFrom(101, 30))
-  await vi.waitFor(() => {
-    expect(held.pages).toHaveLength(3)
-  })
-  held.pages[2]?.resolve([])
+  held.streams[1]?.resolve(eventsFrom(101, 3, TIP - SLICE))
+  await waitForStreams(held, 3)
+  expect(loadOf(store).events.map((event) => event.source.id)).toEqual([101, 102, 103, 201, 202])
+  // The last slice is cut at the target.
+  expect(held.requested[2]).toEqual([
+    LOCATION.signetContractAddress,
+    { fromBlock: TIP - 2 * SLICE - 10, toBlock: TIP - 2 * SLICE },
+  ])
+
+  held.streams[2]?.resolve([])
   await waitForStatus(store, 'loaded')
-  expect(loadOf(store)).toMatchObject({ lastId: 130, tipId: TIP_ID, error: null })
-  expect(loadOf(store).events).toHaveLength(130)
-  expect(loadOf(store).events[0]).toMatchObject({
-    kind: 'unrecognised',
-    source: { id: 1, transactionId: 1 },
+  expect(loadOf(store)).toMatchObject({
+    read: { fromBlock: TIP - 2 * SLICE - 10, toBlock: TIP },
+    error: null,
   })
-  // select, page one, page two, completion
-  expect(listener).toHaveBeenCalledTimes(4)
+  // select, three slices, completion
+  expect(listener).toHaveBeenCalledTimes(5)
 })
 
-test('a loaded location is reused across re-selection and other locations', async () => {
-  const first = servingSource(3)
-  const second = servingSource(2)
+test('a loaded range at the same tip is kept, and extended when a lower block is selected', async () => {
+  const held = heldSource()
   const store = new SignetEventStore()
 
-  store.select(LOCATION, first.source)
+  store.select(LOCATION, held.source, TIP - 10, TIP)
+  await waitForStreams(held, 1)
+  held.streams[0]?.resolve(eventsFrom(201, 1))
   await waitForStatus(store, 'loaded')
   const loaded = store.getSnapshot()
 
-  store.select(LOCATION, first.source)
+  store.select(LOCATION, held.source, TIP - 5, TIP)
   expect(store.getSnapshot()).toBe(loaded)
 
-  store.select(OTHER_LOCATION, second.source)
+  store.select(LOCATION, held.source, TIP - 10 - SLICE, TIP)
+  expect(loadOf(store)).toMatchObject({ status: 'loading', targetFromBlock: TIP - 10 - SLICE })
+  await waitForStreams(held, 2)
+  expect(held.requested[1]).toEqual([
+    LOCATION.signetContractAddress,
+    { fromBlock: TIP - 10 - SLICE, toBlock: TIP - 11 },
+  ])
+  held.streams[1]?.resolve(eventsFrom(101, 1, TIP - 11))
+  await waitForStatus(store, 'loaded')
+  expect(loadOf(store).events.map((event) => event.source.id)).toEqual([101, 201])
+  expect(loadOf(store).read).toEqual({ fromBlock: TIP - 10 - SLICE, toBlock: TIP })
+})
+
+test('a lower block selected while a load runs extends that load without a second loop', async () => {
+  const held = heldSource()
+  const store = new SignetEventStore()
+
+  store.select(LOCATION, held.source, TIP - 10, TIP)
+  await waitForStreams(held, 1)
+  store.select(LOCATION, held.source, TIP - 10 - SLICE, TIP)
+  held.streams[0]?.resolve(eventsFrom(201, 1))
+  await waitForStreams(held, 2)
+  held.streams[1]?.resolve([])
+  await waitForStatus(store, 'loaded')
+  expect(held.requested).toHaveLength(2)
+  expect(loadOf(store).read.fromBlock).toBe(TIP - 10 - SLICE)
+})
+
+test('a new tip, event source or location starts afresh, and loaded locations are reused', async () => {
+  const first = servingSource(1)
+  const second = servingSource(2)
+  const store = new SignetEventStore()
+
+  store.select(LOCATION, first.source, TIP - 10, TIP)
+  await waitForStatus(store, 'loaded')
+  const loaded = store.getSnapshot()
+  expect(first.requested).toHaveLength(1)
+
+  store.select(OTHER_LOCATION, second.source, TIP - 10, TIP)
   await waitForStatus(store, 'loaded')
   expect(loadOf(store).events).toHaveLength(2)
 
-  store.select(LOCATION, first.source)
+  store.select(LOCATION, first.source, TIP - 10, TIP)
   expect(store.getSnapshot()).toBe(loaded)
-  expect(first.streams).toHaveLength(1)
-  expect(second.streams).toHaveLength(1)
-})
+  expect(first.requested).toHaveLength(1)
 
-test('refresh re-runs the backfill from an empty loading state', async () => {
-  const { source, streams } = servingSource(3)
-  const store = new SignetEventStore()
-  store.select(LOCATION, source)
+  store.select(LOCATION, first.source, TIP - 10, TIP + 5)
+  expect(loadOf(store)).toMatchObject({ status: 'loading', events: [], read: { toBlock: TIP + 5 } })
   await waitForStatus(store, 'loaded')
+  expect(first.requested).toHaveLength(2)
 
-  store.refresh()
-  expect(loadOf(store)).toMatchObject({ status: 'loading', events: [] })
+  store.select(LOCATION, second.source, TIP - 10, TIP + 5)
   await waitForStatus(store, 'loaded')
-  expect(loadOf(store).events).toHaveLength(3)
-  expect(streams).toHaveLength(2)
+  expect(second.requested).toHaveLength(2)
 })
 
 test('a load that stops matching the current location is abandoned', async () => {
@@ -202,47 +227,27 @@ test('a load that stops matching the current location is abandoned', async () =>
   const other = servingSource(1)
   const store = new SignetEventStore()
 
-  store.select(LOCATION, held.source)
-  await vi.waitFor(() => {
-    expect(held.pages).toHaveLength(1)
-  })
+  store.select(LOCATION, held.source, TIP - 10, TIP)
+  await waitForStreams(held, 1)
 
-  store.select(OTHER_LOCATION, other.source)
+  store.select(OTHER_LOCATION, other.source, TIP - 10, TIP)
   await waitForStatus(store, 'loaded')
 
-  held.pages[0]?.resolve(eventsFrom(1, 100))
+  held.streams[0]?.resolve(eventsFrom(1, 100))
   await new Promise((resolve) => setTimeout(resolve, 10))
-  expect(held.pages).toHaveLength(1)
+  expect(held.streams).toHaveLength(1)
   expect(loadOf(store).location).toEqual(OTHER_LOCATION)
 
-  store.select(LOCATION, held.source)
+  store.select(LOCATION, held.source, TIP - 10, TIP)
   expect(loadOf(store)).toMatchObject({ status: 'loading', location: LOCATION, events: [] })
-  await vi.waitFor(() => {
-    expect(held.streams).toHaveLength(2)
-  })
+  await waitForStreams(held, 2)
 })
 
-test('a loading location restarts through a replacement event source', async () => {
-  const first = heldSource()
-  const second = heldSource()
-  const store = new SignetEventStore()
-
-  store.select(LOCATION, first.source)
-  store.select(LOCATION, first.source)
-  await vi.waitFor(() => {
-    expect(first.streams).toHaveLength(1)
-  })
-
-  store.select(LOCATION, second.source)
-  await vi.waitFor(() => {
-    expect(second.streams).toHaveLength(1)
-  })
-  expect(loadOf(store)).toMatchObject({ status: 'loading', events: [] })
-})
-
-test('a stream that fails, before or after yielding, yields an error state', async () => {
+test('a stream that fails, before or after yielding, yields an error state, and a reselect retries', async () => {
+  let attempts = 0
   const failingLate: IndexedSignetEventSource = {
     async *streamSignetEvents() {
+      attempts += 1
       yield* eventsFrom(1, 2)
       await Promise.reject(new Error('indexer unreachable'))
     },
@@ -254,14 +259,30 @@ test('a stream that fails, before or after yielding, yields an error state', asy
   }
   const store = new SignetEventStore()
 
-  store.select(LOCATION, failingLate)
+  store.select(LOCATION, failingLate, TIP - 10, TIP)
   await waitForStatus(store, 'error')
-  expect(loadOf(store)).toMatchObject({ error: 'indexer unreachable', lastId: 2 })
-  expect(loadOf(store).events).toHaveLength(2)
+  expect(loadOf(store)).toMatchObject({ error: 'indexer unreachable', events: [] })
 
-  store.select(OTHER_LOCATION, failingEarly)
+  store.select(LOCATION, failingLate, TIP - 10, TIP)
+  await vi.waitFor(() => {
+    expect(attempts).toBe(2)
+  })
+
+  store.select(OTHER_LOCATION, failingEarly, TIP - 10, TIP)
   await waitForStatus(store, 'error')
   expect(loadOf(store)).toMatchObject({ error: 'invalid contract address', events: [] })
+})
+
+test('an event outside the slice it was asked for is an error, as it would be read twice', async () => {
+  const source: IndexedSignetEventSource = {
+    async *streamSignetEvents() {
+      yield signetEvent(1, TIP + 1)
+    },
+  }
+  const store = new SignetEventStore()
+  store.select(LOCATION, source, TIP - 10, TIP)
+  await waitForStatus(store, 'error')
+  expect(loadOf(store).error).toContain(`block ${String(TIP + 1)} outside the slice`)
 })
 
 test('deselect returns to unconfigured and drops an unfinished load', async () => {
@@ -270,15 +291,13 @@ test('deselect returns to unconfigured and drops an unfinished load', async () =
   const listener = vi.fn<() => void>()
   store.subscribe(listener)
 
-  store.select(LOCATION, held.source)
+  store.select(LOCATION, held.source, TIP - 10, TIP)
   store.deselect()
   expect(store.getSnapshot()).toEqual({ status: 'unconfigured' })
   expect(listener).toHaveBeenCalledTimes(2)
 
-  store.select(LOCATION, held.source)
-  await vi.waitFor(() => {
-    expect(held.streams).toHaveLength(2)
-  })
+  store.select(LOCATION, held.source, TIP - 10, TIP)
+  await waitForStreams(held, 2)
 })
 
 test('each published snapshot carries the lifecycles of its events', async () => {
@@ -292,7 +311,7 @@ test('each published snapshot carries the lifecycles of its events', async () =>
     },
   }
   const store = new SignetEventStore()
-  store.select(LOCATION, source)
+  store.select(LOCATION, source, TIP - 10, TIP)
   await waitForStatus(store, 'loaded')
 
   expect(loadOf(store).events).toHaveLength(2)

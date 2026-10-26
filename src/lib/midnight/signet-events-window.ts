@@ -12,6 +12,12 @@ export const DEFAULT_SIGNET_EVENTS_WINDOW_DAYS = 2
 /** How much earlier one step back of the starting block reads from, in days. */
 export const SIGNET_EVENTS_STEP_BACK_DAYS = 0.5
 
+/**
+ * The span of blocks one indexer read covers, in days: a window is read in slices of this size,
+ * newest first, so the latest requests show before the rest of the window arrives.
+ */
+export const SIGNET_EVENTS_SLICE_DAYS = 1 / 8
+
 /** The number of blocks `days` of stagenet blocks take. */
 export function midnightBlocksIn(days: number): number {
   return Math.round(days * MIDNIGHT_BLOCKS_PER_DAY)

@@ -15,13 +15,16 @@ import {
   signetEventsEarliestBlock,
 } from '@/lib/midnight/network'
 import { SignetEventStore, type SignetEventStoreSnapshot } from '@/lib/midnight/signet-event-store'
-import { defaultSignetEventsFromBlock } from '@/lib/midnight/signet-events-window'
+import {
+  defaultSignetEventsFromBlock,
+  signetEventsFromBlockSteppedBack,
+} from '@/lib/midnight/signet-events-window'
 
 /** The block the Signet contract's events are read from, as the configuration resolves it. */
 export type SignetStartingBlock =
   /** The configured value is not a block height. */
   | { readonly status: 'invalid' }
-  /** The configuration asks for the default window, and the chain tip it hangs off is being read. */
+  /** The chain tip, which the load reads down from, is being read. */
   | { readonly status: 'resolving' }
   /** The chain tip could not be read, and why. */
   | { readonly status: 'unavailable'; readonly error: string }
@@ -30,19 +33,27 @@ export type SignetStartingBlock =
       readonly block: number
       /** True when the block is the default window's start, false for a configured block. */
       readonly automatic: boolean
+      /** The lowest block worth reading from: the contract's listed earliest block, or zero. */
+      readonly floor: number
     }
 
 export type MidnightSignetEventsContextValue = SignetEventStoreSnapshot & {
   startingBlock: SignetStartingBlock
-  /** Re-runs the backfill for the current location, and the chain tip read when it failed. */
+  /**
+   * Moves the starting block half a day of blocks earlier, as a configured value, and reads the
+   * added blocks. False when it is resolved at its floor, or not resolved.
+   */
+  stepStartingBlockBack: () => boolean
+  /** Re-reads the chain tip, which reloads the range up to the new tip. */
   refresh: () => void
 }
 
 const MidnightSignetEventsContext = createContext<MidnightSignetEventsContextValue | null>(null)
 
-/** The chain tip of one indexer, read once per page load, or why it could not be read. */
+/** The chain tip of one indexer, or why it could not be read, from one numbered read. */
 interface IndexerTip {
   readonly indexerUrl: string
+  readonly read: number
   readonly result: { readonly height: number } | { readonly error: string }
 }
 
@@ -52,49 +63,45 @@ interface IndexerTip {
  * the application.
  */
 export function MidnightSignetEventsProvider({ children }: { children: ReactNode }) {
-  const { indexerServices, config } = useMidnight()
+  const { indexerServices, config, setConfig } = useMidnight()
   const { indexerUrl } = config
   // The configuration holds the address and block as typed. The canonical forms key the cache, so
   // a `0x` prefix or upper case names the same contract, and a half-typed value starts no load.
   const signetContractAddress = parseSignetContractAddress(config.signetContractAddress)
   const configuredBlock = parseSignetEventsFromBlock(config.signetEventsFromBlock)
-  const automatic = configuredBlock !== null && configuredBlock.fromBlock === null
   const eventSource = indexerServices?.signetEventSource ?? null
   const [store] = useState(() => new SignetEventStore())
   const [tip, setTip] = useState<IndexerTip | null>(null)
 
-  // The default window hangs off the tip at page load, read once per indexer: a window that
-  // moved with the chain would reload the events on every render.
-  const tipIsCurrent = tip?.indexerUrl === indexerUrl
+  // Every load reads down from the tip, which is read once per indexer and again on refresh: a
+  // tip that moved with the chain would reload the events on every render.
+  const [tipReads, setTipReads] = useState(0)
   useEffect(() => {
-    if (!automatic || tipIsCurrent) {
-      return undefined
-    }
     let current = true
     fetchIndexerBlockHeight(indexerUrl).then(
       (height) => {
         if (current) {
-          setTip({ indexerUrl, result: { height } })
+          setTip({ indexerUrl, read: tipReads, result: { height } })
         }
       },
       (error: unknown) => {
         if (current) {
           const message = error instanceof Error ? error.message : String(error)
-          setTip({ indexerUrl, result: { error: message } })
+          setTip({ indexerUrl, read: tipReads, result: { error: message } })
         }
       },
     )
     return () => {
       current = false
     }
-  }, [automatic, indexerUrl, tipIsCurrent])
+  }, [indexerUrl, tipReads])
+  const tipIsCurrent = tip?.indexerUrl === indexerUrl
 
+  const floor =
+    signetContractAddress === null ? 0 : (signetEventsEarliestBlock(signetContractAddress) ?? 0)
   const startingBlock = ((): SignetStartingBlock => {
     if (configuredBlock === null) {
       return { status: 'invalid' }
-    }
-    if (configuredBlock.fromBlock !== null) {
-      return { status: 'resolved', block: configuredBlock.fromBlock, automatic: false }
     }
     if (tip === null || !tipIsCurrent) {
       return { status: 'resolving' }
@@ -102,37 +109,54 @@ export function MidnightSignetEventsProvider({ children }: { children: ReactNode
     if ('error' in tip.result) {
       return { status: 'unavailable', error: tip.result.error }
     }
-    const earliestBlock =
-      signetContractAddress === null ? null : signetEventsEarliestBlock(signetContractAddress)
+    if (configuredBlock.fromBlock !== null) {
+      return { status: 'resolved', block: configuredBlock.fromBlock, automatic: false, floor }
+    }
     return {
       status: 'resolved',
-      block: defaultSignetEventsFromBlock(tip.result.height, earliestBlock),
+      block: defaultSignetEventsFromBlock(tip.result.height, floor),
       automatic: true,
+      floor,
     }
   })()
   const fromBlock = startingBlock.status === 'resolved' ? startingBlock.block : null
+  const tipHeight =
+    tip !== null && tipIsCurrent && 'height' in tip.result ? tip.result.height : null
 
   // The store holds no connection of its own (MidnightProvider owns and disposes the provider),
-  // so the effect needs no cleanup: a repeated run with the same location and event source keeps the
-  // in-flight load.
+  // so the effect needs no cleanup: a repeated run with the same arguments keeps the in-flight
+  // load.
   useEffect(() => {
-    if (eventSource === null || signetContractAddress === null || fromBlock === null) {
+    if (
+      eventSource === null ||
+      signetContractAddress === null ||
+      fromBlock === null ||
+      tipHeight === null
+    ) {
       store.deselect()
     } else {
-      store.select({ indexerUrl, signetContractAddress, fromBlock }, eventSource)
+      store.select({ indexerUrl, signetContractAddress }, eventSource, fromBlock, tipHeight)
     }
-  }, [store, eventSource, indexerUrl, signetContractAddress, fromBlock])
+  }, [store, eventSource, indexerUrl, signetContractAddress, fromBlock, tipHeight])
 
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot)
 
   const value: MidnightSignetEventsContextValue = {
     ...snapshot,
     startingBlock,
-    refresh: () => {
-      if (startingBlock.status === 'unavailable') {
-        setTip(null)
+    stepStartingBlockBack: () => {
+      if (startingBlock.status !== 'resolved' || startingBlock.block <= startingBlock.floor) {
+        return false
       }
-      store.refresh()
+      const block = Math.max(
+        startingBlock.floor,
+        signetEventsFromBlockSteppedBack(startingBlock.block),
+      )
+      setConfig({ signetEventsFromBlock: String(block) })
+      return true
+    },
+    refresh: () => {
+      setTipReads((reads) => reads + 1)
     },
   }
 
