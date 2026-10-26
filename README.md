@@ -269,10 +269,11 @@ current page.
 Once the indexer services exist and the selected network names a Signet contract address,
 `MidnightSignetEventsProvider` in `src/components/contexts/MidnightSignetEventsContext.tsx`,
 mounted at the root inside `MidnightProvider`, loads every event the contract has emitted from the
-configured starting block on. It consumes the SDK's `streamSignetEvents`, an async generator that
-requests one indexer page of 100 events at a time, yields that page's events before requesting the
-next, and pins the indexer tip at the first page so a page-boundary insert can neither duplicate nor
-skip an event.
+configured starting block up to the chain tip read at page load. It reads that range in slices of
+an eighth of a day of blocks, newest slice first, so the latest requests show while the rest of the
+window is still arriving, and each slice goes through the SDK's `streamSignetEvents` with
+`fromBlock` and `toBlock` bounds, an async generator that requests one indexer page of 100 events
+at a time. Refresh reads the tip again and reloads the range up to it.
 
 The starting block is shown beside the load status, as Starting Block, and is the Signet Events
 From Block field of the configuration popover: a block height, 0 for the whole history, or empty
@@ -285,9 +286,12 @@ predecessor contract, as the MPC posts in-flight responses on its new contract a
 measured at 7.0 seconds over the 100,000 blocks before block 973415, so a day is 12,343 blocks and
 the window 24,686. Editing the Starting Block field (Enter or leaving it) and the button beside
 it, which reads from half a day of blocks (6,172) earlier, both set the configuration's value, so
-Reset Defaults returns to the window. The block belongs with the address beside it: an address of
-another contract needs its own block, and a block above the one wanted hides events without any
-error.
+Reset Defaults returns to the window. Stepping back extends the loaded range downwards without
+reading the newer blocks again, and stops at the contract's listed earliest block, or zero. A link
+to a request (`?requestId=`) whose notification is not in the window steps the block back the same
+way, once the window is read, until the notification is found or the floor is reached. The block
+belongs with the address beside it: an address of another contract needs its own block, and a
+block above the one wanted hides events without any error.
 
 A lifecycle can hold responses and no request notification: the MPC answering a request notified
 on another Signet contract, or anyone posting a response for a request that never was. Its row says
@@ -304,11 +308,11 @@ entry that keeps the error. Every entry carries `source`, the event as the index
 event id, the transaction hash, and the block height, hash and timestamp.
 
 The events live in memory in `src/lib/midnight/signet-event-store.ts`, so switching tabs or moving
-between the Midnight and Solana pages does not reload them. Each page is published as it arrives,
-together with the id of the last loaded event and the indexer tip id (both are the indexer's global
-event cursor, not counts). Loads are cached per indexer URL, contract address and starting block: switching networks and
-back reuses the completed set, while changing any of the three starts a fresh load and abandons
-any load that no longer matches. Only completed loads are kept. The address typed into
+between the Midnight and Solana pages does not reload them. Each slice is published as it arrives,
+with the range of blocks read so far. Loads are cached per indexer URL and contract address:
+switching networks and back reuses the completed set, a lower starting block extends a load
+downwards, and a new tip, address or indexer starts a fresh load and abandons any load that no
+longer matches. Only completed loads are kept. The address typed into
 the configuration popover reaches the store only once it is 32 bytes of hex, in canonical form
 (lowercase, `0x` prefix dropped), and the starting block once it is a whole number or empty, so a
 half-typed value starts no load and the popover marks the field invalid. The popover checks the MPC root public key the same way: any spelling the SDK

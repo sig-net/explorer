@@ -1,7 +1,7 @@
 import { parseRequestIdHex, type RequestIdHex } from '@sig-net/midnight'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { RefreshCw, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import {
   type MidnightSignetEventsContextValue,
@@ -90,7 +90,7 @@ function loadStatusText(
     `${String(matching.length)}/${String(events.lifecycles.length)} requests`
   switch (events.status) {
     case 'loading':
-      return `${counts}, loading (last id ${String(events.lastId ?? '-')} of tip ${String(events.tipId ?? '-')})`
+      return `${counts}, reading back from block ${String(events.read.toBlock)}, at ${String(events.read.fromBlock)} of ${String(events.targetFromBlock)}`
     case 'loaded':
       return counts
     case 'error':
@@ -119,6 +119,21 @@ function ExplorerPage() {
   const matching = lifecycles.filter((lifecycle) =>
     signBidirectionalLifecycleMatches(lifecycle, search),
   )
+  const { status, stepStartingBlockBack } = events
+  // A linked request may be older than the window. Once the window is read without the request's
+  // notification, the starting block steps back until the notification is found or the floor is
+  // reached, so a link to any request resolves.
+  const linkedRequestNotified =
+    requestId === undefined ||
+    lifecycles.some(
+      (lifecycle) =>
+        lifecycle.requestId === requestId && lifecycle.signBidirectionalEvents.length > 0,
+    )
+  useEffect(() => {
+    if (status === 'loaded' && !linkedRequestNotified) {
+      stepStartingBlockBack()
+    }
+  }, [status, linkedRequestNotified, stepStartingBlockBack])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -145,7 +160,12 @@ function ExplorerPage() {
         <p className="text-muted-foreground ml-auto text-sm">{loadStatusText(events, matching)}</p>
         <SignetEventsStartingBlock
           startingBlock={events.startingBlock}
+          canStepBack={
+            events.startingBlock.status === 'resolved' &&
+            events.startingBlock.block > events.startingBlock.floor
+          }
           onChange={(signetEventsFromBlock) => setConfig({ signetEventsFromBlock })}
+          onStepBack={stepStartingBlockBack}
         />
         <Button
           variant="outline"

@@ -12,7 +12,6 @@ import {
   DEFAULT_SIGNET_EVENTS_WINDOW_DAYS,
   midnightBlocksIn,
   SIGNET_EVENTS_STEP_BACK_DAYS,
-  signetEventsFromBlockSteppedBack,
 } from '@/lib/midnight/signet-events-window'
 
 const WINDOW_BLOCKS = midnightBlocksIn(DEFAULT_SIGNET_EVENTS_WINDOW_DAYS).toLocaleString('en-GB')
@@ -20,15 +19,19 @@ const STEP_BLOCKS = midnightBlocksIn(SIGNET_EVENTS_STEP_BACK_DAYS).toLocaleStrin
 
 /**
  * The block the Signet contract's events are read from: shown as resolved, editable, and with a
- * step half a day of blocks back. An edit reaches `onChange` on Enter or blur, as the typed text,
- * once it is a block height or empty.
+ * button for `onStepBack`, enabled by `canStepBack`. An edit reaches `onChange` on Enter or blur,
+ * as the typed text, once it is a block height or empty.
  */
 export function SignetEventsStartingBlock({
   startingBlock,
+  canStepBack,
   onChange,
+  onStepBack,
 }: {
   startingBlock: SignetStartingBlock
+  canStepBack: boolean
   onChange: (value: string) => void
+  onStepBack: () => void
 }) {
   const id = useId()
   const resolved = startingBlock.status === 'resolved' ? startingBlock.block : null
@@ -79,12 +82,10 @@ export function SignetEventsStartingBlock({
               variant="outline"
               size="icon"
               aria-label="Read from half a day of blocks earlier"
-              disabled={resolved === null || resolved === 0}
+              disabled={!canStepBack}
               onClick={() => {
-                if (resolved !== null) {
-                  setDraft(null)
-                  onChange(String(signetEventsFromBlockSteppedBack(resolved)))
-                }
+                setDraft(null)
+                onStepBack()
               }}
             />
           }

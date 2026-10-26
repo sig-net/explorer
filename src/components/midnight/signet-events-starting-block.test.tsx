@@ -7,20 +7,22 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 
 import { SignetEventsStartingBlock } from './signet-events-starting-block'
 
-test('the resolved block is shown, and a step back reads from half a day earlier', async () => {
-  const onChange = vi.fn<(value: string) => void>()
+test('the resolved block is shown, and the button steps back', async () => {
+  const onStepBack = vi.fn<() => void>()
   const screen = await render(
     <TooltipProvider>
       <SignetEventsStartingBlock
-        startingBlock={{ status: 'resolved', block: 948729, automatic: true }}
-        onChange={onChange}
+        startingBlock={{ status: 'resolved', block: 948729, automatic: true, floor: 0 }}
+        canStepBack
+        onChange={() => {}}
+        onStepBack={onStepBack}
       />
     </TooltipProvider>,
   )
   const field = screen.getByLabelText('Starting Block')
   await expect.element(field).toHaveValue('948729')
   await screen.getByRole('button', { name: 'Read from half a day of blocks earlier' }).click()
-  expect(onChange).toHaveBeenCalledWith(String(948729 - 6172))
+  expect(onStepBack).toHaveBeenCalledTimes(1)
 })
 
 test('an edit reaches the change handler on Enter once it is a block height, and marks itself invalid otherwise', async () => {
@@ -28,8 +30,10 @@ test('an edit reaches the change handler on Enter once it is a block height, and
   const screen = await render(
     <TooltipProvider>
       <SignetEventsStartingBlock
-        startingBlock={{ status: 'resolved', block: 948729, automatic: false }}
+        startingBlock={{ status: 'resolved', block: 948729, automatic: false, floor: 0 }}
+        canStepBack
         onChange={onChange}
+        onStepBack={() => {}}
       />
     </TooltipProvider>,
   )
@@ -46,7 +50,12 @@ test('an edit reaches the change handler on Enter once it is a block height, and
 test('while the tip is being read the field is empty and the step back is off', async () => {
   const screen = await render(
     <TooltipProvider>
-      <SignetEventsStartingBlock startingBlock={{ status: 'resolving' }} onChange={() => {}} />
+      <SignetEventsStartingBlock
+        startingBlock={{ status: 'resolving' }}
+        canStepBack={false}
+        onChange={() => {}}
+        onStepBack={() => {}}
+      />
     </TooltipProvider>,
   )
   await expect.element(screen.getByLabelText('Starting Block')).toHaveValue('')
