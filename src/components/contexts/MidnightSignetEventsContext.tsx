@@ -39,6 +39,8 @@ export type SignetStartingBlock =
 
 export type MidnightSignetEventsContextValue = SignetEventStoreSnapshot & {
   startingBlock: SignetStartingBlock
+  /** True while the starting block is resolved above its floor, so a step back moves it. */
+  canStepStartingBlockBack: boolean
   /**
    * Moves the starting block half a day of blocks earlier, as a configured value, and reads the
    * added blocks. False when it is resolved at its floor, or not resolved.
@@ -141,18 +143,21 @@ export function MidnightSignetEventsProvider({ children }: { children: ReactNode
 
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot)
 
+  // The block a step back moves to: null at the floor, or while the block is not resolved.
+  const steppedBackBlock =
+    startingBlock.status === 'resolved' && startingBlock.block > startingBlock.floor
+      ? Math.max(startingBlock.floor, signetEventsFromBlockSteppedBack(startingBlock.block))
+      : null
+
   const value: MidnightSignetEventsContextValue = {
     ...snapshot,
     startingBlock,
+    canStepStartingBlockBack: steppedBackBlock !== null,
     stepStartingBlockBack: () => {
-      if (startingBlock.status !== 'resolved' || startingBlock.block <= startingBlock.floor) {
+      if (steppedBackBlock === null) {
         return false
       }
-      const block = Math.max(
-        startingBlock.floor,
-        signetEventsFromBlockSteppedBack(startingBlock.block),
-      )
-      setConfig({ signetEventsFromBlock: String(block) })
+      setConfig({ signetEventsFromBlock: String(steppedBackBlock) })
       return true
     },
     refresh: () => {

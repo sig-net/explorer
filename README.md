@@ -289,14 +289,24 @@ it, which reads from half a day of blocks (6,172) earlier, both set the configur
 Reset Defaults returns to the window. Stepping back extends the loaded range downwards without
 reading the newer blocks again, and stops at the contract's listed earliest block, or zero. A link
 to a request (`?requestId=`) whose notification is not in the window steps the block back the same
-way, once the window is read, until the notification is found or the floor is reached. The block
+way, once the window is read, until the notification is found or the floor is reached. While that
+search runs and no row matches, the table shows a searching splash (a spinner and "Looking back
+through Sig Network events for this request") in place of "No requests match the search", which
+appears only once the search is over: the window is read and either the request was found or the
+floor leaves no step back. `SearchingSplash` in `src/components/searching-splash.tsx` is the
+splash, built from the shadcn `Empty` and `Spinner` components. The block
 belongs with the address beside it: an address of another contract needs its own block, and a
 block above the one wanted hides events without any error.
 
 A lifecycle can hold responses and no request notification: the MPC answering a request notified
 on another Signet contract, or anyone posting a response for a request that never was. Its row says
 so in place of the request time, caller and duration, and the expanded notification section says
-what is missing. The SDK queries
+what is missing. Those are verdicts, so they wait for the search: the window is read newest first
+and a response is posted about 15 minutes of foreign-chain finality after its request, so a linked
+request's response lands slices before its signature and notification do. While the search for the
+linked request continues, the row's request time, caller, signature and duration cells say
+"searching" beside a spinner, and the expanded notification and signature sections show the splash
+with "Still searching for event data". The SDK queries
 the indexer's GraphQL endpoint itself and selects each event's transaction, so every event arrives
 with its transaction hash and the height, hash and time of its block. Each event goes
 through the SDK's `tryDecodeSignetEvent`, which yields a union over the three Signet event names
@@ -345,7 +355,9 @@ what gives the table a height to fill. Times are block times as
 `DD-MM-YY HH:MM:SS` in the browser's time zone, a cell lists at most three entries before an ellipsis, each signature
 time carries how long after the request it came, a clock marks a signature or response that has
 not arrived (hovering it says what is being waited for), and Duration runs from the first request
-to the first response. Hovering a truncated request id or caller shows the full value, and the copy button
+to the first response. A row of the request a link points at shows "searching" in place of a
+missing request time, caller, signature or duration while older blocks are still being read for
+them. Hovering a truncated request id or caller shows the full value, and the copy button
 beside it puts the full value on the clipboard. The link button beside a request id copies a URL
 to share, naming the selected network and that request, which opens the explorer on that request
 alone, and the button after it opens that URL in a new tab. The search box filters
@@ -354,7 +366,9 @@ formatters live in `src/lib/format.ts`.
 
 Expanding a row shows one section per event kind, with a numbered tab per event: where the event
 was emitted (transaction hash, block hash, block height, block time), then every field of its
-decoded record.
+decoded record. A kind with no event shows a clock, the notification section its explanation of
+what is missing, and, while the search for a linked request continues, both the notification and
+signature sections the searching splash instead.
 
 ### Transaction inspection
 

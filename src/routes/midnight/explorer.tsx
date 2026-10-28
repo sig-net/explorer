@@ -119,7 +119,7 @@ function ExplorerPage() {
   const matching = lifecycles.filter((lifecycle) =>
     signBidirectionalLifecycleMatches(lifecycle, search),
   )
-  const { status, stepStartingBlockBack } = events
+  const { status, canStepStartingBlockBack, stepStartingBlockBack } = events
   // A linked request may be older than the window. Once the window is read without the request's
   // notification, the starting block steps back until the notification is found or the floor is
   // reached, so a link to any request resolves.
@@ -134,6 +134,13 @@ function ExplorerPage() {
       stepStartingBlockBack()
     }
   }, [status, linkedRequestNotified, stepStartingBlockBack])
+  // The search for the linked request runs from the tip read until the window is read with no step
+  // back left, or the load fails.
+  const searchingLinkedRequest =
+    !linkedRequestNotified &&
+    (events.startingBlock.status === 'resolving' ||
+      status === 'loading' ||
+      (status === 'loaded' && canStepStartingBlockBack))
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -160,10 +167,7 @@ function ExplorerPage() {
         <p className="text-muted-foreground ml-auto text-sm">{loadStatusText(events, matching)}</p>
         <SignetEventsStartingBlock
           startingBlock={events.startingBlock}
-          canStepBack={
-            events.startingBlock.status === 'resolved' &&
-            events.startingBlock.block > events.startingBlock.floor
-          }
+          canStepBack={canStepStartingBlockBack}
           onChange={(signetEventsFromBlock) => setConfig({ signetEventsFromBlock })}
           onStepBack={stepStartingBlockBack}
         />
@@ -180,6 +184,7 @@ function ExplorerPage() {
       <SignBidirectionalLifecycleTable
         lifecycles={matching}
         emptyText={lifecycles.length === 0 ? 'No requests yet' : 'No requests match the search'}
+        searching={searchingLinkedRequest}
         // Only a search singles a request out: while the page loads, the first request to arrive
         // is briefly the only row.
         expandSoleRow={search.trim() !== ''}
