@@ -48,6 +48,7 @@ function renderWithRows(lifecycles: readonly SignBidirectionalLifecycle[], searc
             expandSoleRow
             searching={searching}
             loading={false}
+            filterPanel={null}
           />
         </TooltipProvider>
       </MidnightProvider>
@@ -65,6 +66,7 @@ test('an empty body shows the search while it runs, and the empty text once it i
       expandSoleRow
       searching
       loading
+      filterPanel={null}
     />,
   )
   await expect.element(screen.getByText(SPLASH_TITLE)).toBeVisible()
@@ -79,6 +81,7 @@ test('an empty body shows the search while it runs, and the empty text once it i
       expandSoleRow
       searching={false}
       loading={false}
+      filterPanel={null}
     />,
   )
   await expect.element(screen.getByText('No requests match the search')).toBeVisible()
@@ -94,6 +97,7 @@ test('an empty body shows the load while the events are read, and the empty text
       expandSoleRow
       searching={false}
       loading
+      filterPanel={null}
     />,
   )
   await expect.element(screen.getByText(LOADING_TITLE)).toBeVisible()
@@ -107,6 +111,7 @@ test('an empty body shows the load while the events are read, and the empty text
       expandSoleRow
       searching={false}
       loading={false}
+      filterPanel={null}
     />,
   )
   await expect.element(screen.getByText('No requests yet')).toBeVisible()
@@ -147,4 +152,27 @@ test('once the search is over the missing notification is a verdict and the sign
   ).toHaveLength(3)
   await expect.element(screen.getByRole('button', { name: 'Pending' })).toBeVisible()
   await expect.element(screen.getByRole('img', { name: 'Pending' })).toBeVisible()
+})
+
+test('the filter button opens the filter panel under the header and shows as pressed', async () => {
+  const screen = await render(
+    <SignBidirectionalLifecycleTable
+      lifecycles={[]}
+      emptyText="No requests yet"
+      expandSoleRow={false}
+      searching={false}
+      loading={false}
+      filterPanel={<p>the filters</p>}
+    />,
+  )
+  const button = screen.getByRole('button', { name: 'Filters' })
+  await expect.element(button).toHaveAttribute('aria-pressed', 'false')
+  expect(screen.getByText('the filters').elements()).toHaveLength(0)
+  await button.click()
+  await expect.element(button).toHaveAttribute('aria-pressed', 'true')
+  await expect.element(screen.getByText('the filters')).toBeVisible()
+  await expect.element(screen.getByText('No requests yet')).toBeVisible()
+  await button.click()
+  await expect.element(button).toHaveAttribute('aria-pressed', 'false')
+  expect(screen.getByText('the filters').elements()).toHaveLength(0)
 })

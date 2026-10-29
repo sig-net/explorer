@@ -3,6 +3,8 @@ import { expect, test } from 'vitest'
 
 import {
   aggregateSignBidirectionalLifecycles,
+  signBidirectionalLifecycleCalledBy,
+  signBidirectionalLifecycleCallers,
   signBidirectionalLifecycleDurationMs,
   signBidirectionalLifecycleEventCount,
   signBidirectionalLifecycleMatches,
@@ -103,4 +105,25 @@ test('search matches a fragment of the request id or of a caller address', () =>
   expect(signBidirectionalLifecycleMatches(lifecycle, '  AAAA ')).toBe(true)
   expect(signBidirectionalLifecycleMatches(lifecycle, '0x1111')).toBe(true)
   expect(signBidirectionalLifecycleMatches(lifecycle, 'bbbb')).toBe(false)
+})
+
+test('the callers are the distinct addresses named, and a lifecycle is called by any it names', () => {
+  // Newest first: the orphan response, then the lifecycle of request B, then of request A.
+  const [orphan, two, one] = aggregateSignBidirectionalLifecycles([
+    notificationEvent(1, REQUEST_A, CALLER_ONE, 0),
+    notificationEvent(2, REQUEST_B, CALLER_TWO, 1),
+    notificationEvent(3, REQUEST_B, CALLER_ONE, 2),
+    responseEvent(4, SignetEventName.RespondBidirectionalEvent, new Uint8Array(32).fill(0xcc), 3),
+  ])
+  if (one === undefined || two === undefined || orphan === undefined) {
+    throw new Error('expected three lifecycles')
+  }
+  const callerOne = bytesToHex(CALLER_ONE)
+  const callerTwo = bytesToHex(CALLER_TWO)
+  expect(signBidirectionalLifecycleCallers([orphan, two, one])).toEqual([callerTwo, callerOne])
+  expect(signBidirectionalLifecycleCalledBy(two, [callerOne])).toBe(true)
+  expect(signBidirectionalLifecycleCalledBy(two, [callerTwo])).toBe(true)
+  expect(signBidirectionalLifecycleCalledBy(one, [callerTwo])).toBe(false)
+  expect(signBidirectionalLifecycleCalledBy(orphan, [callerOne, callerTwo])).toBe(false)
+  expect(signBidirectionalLifecycleCalledBy(one, [])).toBe(false)
 })

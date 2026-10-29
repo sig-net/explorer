@@ -1,5 +1,5 @@
 import { useRouter } from '@tanstack/react-router'
-import { ChevronDown, ChevronUp, Link } from 'lucide-react'
+import { ChevronDown, ChevronUp, Link, ListFilter } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
 
 import { useMidnight } from '@/components/contexts/MidnightContext'
@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Toggle } from '@/components/ui/toggle'
 import { formatDuration, formatLocalTimestamp } from '@/lib/format'
 import {
   type SignBidirectionalLifecycle,
@@ -284,6 +285,7 @@ function LifecycleRow({
             formatDuration(durationMs)
           )}
         </TableCell>
+        <TableCell />
       </TableRow>
       {expanded && (
         <TableRow id={detailsId} className="hover:bg-transparent">
@@ -306,12 +308,13 @@ const COLUMNS = [
   'Duration',
 ] as const
 
-/** The named columns and the leading expand control's column. */
-const COLUMN_COUNT = COLUMNS.length + 1
+/** The named columns, the leading expand control's column and the trailing filter control's. */
+const COLUMN_COUNT = COLUMNS.length + 2
 
 /**
  * The given lifecycles, one expandable row each. `emptyText` fills the body when there are none.
- * With `expandSoleRow`, a row that is the only one starts expanded.
+ * With `expandSoleRow`, a row that is the only one starts expanded. `filterPanel` opens under the
+ * header from the button at its end.
  *
  * `searching` is true while the request the rows are filtered to is still being searched for in
  * older blocks: an empty body shows the search in place of `emptyText`, and a row's missing
@@ -325,13 +328,16 @@ export function SignBidirectionalLifecycleTable({
   expandSoleRow,
   searching,
   loading,
+  filterPanel,
 }: {
   lifecycles: readonly SignBidirectionalLifecycle[]
   emptyText: string
   expandSoleRow: boolean
   searching: boolean
   loading: boolean
+  filterPanel: ReactNode
 }) {
+  const [filtersOpen, setFiltersOpen] = useState(false)
   // This wrapper fills the height the page has left. The table component scrolls inside its own
   // container, which shrinks to the wrapper and keeps the header stuck to its top, and an empty
   // body's notice takes the height below it.
@@ -349,7 +355,25 @@ export function SignBidirectionalLifecycleTable({
             {COLUMNS.map((column) => (
               <TableHead key={column}>{column}</TableHead>
             ))}
+            <TableHead className="w-10 text-right">
+              <Toggle
+                size="sm"
+                aria-label="Filters"
+                pressed={filtersOpen}
+                onPressedChange={setFiltersOpen}
+                className="text-muted-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/90"
+              >
+                <ListFilter />
+              </Toggle>
+            </TableHead>
           </TableRow>
+          {filtersOpen && (
+            <TableRow className="bg-card border-t hover:bg-card">
+              <TableCell colSpan={COLUMN_COUNT} className="whitespace-normal">
+                {filterPanel}
+              </TableCell>
+            </TableRow>
+          )}
         </TableHeader>
         <TableBody className="[&_tr:last-child]:border-b">
           {lifecycles.map((lifecycle) => (

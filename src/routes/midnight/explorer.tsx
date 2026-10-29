@@ -8,12 +8,15 @@ import {
   useMidnightSignetEvents,
 } from '@/components/contexts/MidnightSignetEventsContext'
 import { useMidnight } from '@/components/contexts/MidnightContext'
+import { ExcludedCallersFilter } from '@/components/midnight/excluded-callers-filter'
 import { SignBidirectionalLifecycleTable } from '@/components/midnight/sign-bidirectional-lifecycle-table'
 import { SignetEventsStartingBlock } from '@/components/midnight/signet-events-starting-block'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   type SignBidirectionalLifecycle,
+  signBidirectionalLifecycleCalledBy,
+  signBidirectionalLifecycleCallers,
   signBidirectionalLifecycleEventCount,
   signBidirectionalLifecycleMatches,
 } from '@/lib/midnight/sign-bidirectional-lifecycle'
@@ -115,9 +118,12 @@ function ExplorerPage() {
       void navigate({ search: ({ requestId: _dropped, ...rest }) => rest, replace: true })
     }
   }
+  const [excludedCallers, setExcludedCallers] = useState<readonly string[]>([])
   const lifecycles = events.status === 'unconfigured' ? [] : events.lifecycles
-  const matching = lifecycles.filter((lifecycle) =>
-    signBidirectionalLifecycleMatches(lifecycle, search),
+  const matching = lifecycles.filter(
+    (lifecycle) =>
+      signBidirectionalLifecycleMatches(lifecycle, search) &&
+      !signBidirectionalLifecycleCalledBy(lifecycle, excludedCallers),
   )
   const { status, canStepStartingBlockBack, stepStartingBlockBack } = events
   // A linked request may be older than the window. Once the window is read without the request's
@@ -181,9 +187,22 @@ function ExplorerPage() {
       </div>
       <SignBidirectionalLifecycleTable
         lifecycles={matching}
-        emptyText={lifecycles.length === 0 ? 'No requests yet' : 'No requests match the search'}
+        emptyText={
+          lifecycles.length === 0
+            ? 'No requests yet'
+            : excludedCallers.length === 0
+              ? 'No requests match the search'
+              : 'No requests match the search and filters'
+        }
         searching={searchingLinkedRequest}
         loading={loading}
+        filterPanel={
+          <ExcludedCallersFilter
+            callers={signBidirectionalLifecycleCallers(lifecycles)}
+            excluded={excludedCallers}
+            onChange={setExcludedCallers}
+          />
+        }
         // Only a search singles a request out: while the page loads, the first request to arrive
         // is briefly the only row.
         expandSoleRow={search.trim() !== ''}

@@ -366,6 +366,16 @@ alone, and the button after it opens that URL in a new tab. The search box filte
 rows as you type by a fragment of the request id or of a caller contract address. The display
 formatters live in `src/lib/format.ts`.
 
+The filter button at the end of the header row opens a panel under the header, and shows as
+pressed while the panel is open. Its Exclude callers box takes a caller contract address, typed in
+full or picked from the callers seen so far as the typed fragment narrows them (a `0x` prefix and
+letter case are ignored), and Enter, the button beside the box or a pick excludes it. Each excluded
+caller is a chip whose cross lets it back in. A request from an excluded caller is left out of the
+rows and of the status line's matching counts. The panel is `ExcludedCallersFilter` in
+`src/components/midnight/excluded-callers-filter.tsx`, built from the shadcn `Combobox`, `Badge`
+and `Toggle` components, and `signBidirectionalLifecycleCalledBy` in the lifecycle module decides
+the exclusion.
+
 Expanding a row shows one section per event kind, with a numbered tab per event: where the event
 was emitted (transaction hash, block hash, block height, block time), then every field of its
 decoded record. A kind with no event shows a clock, the notification section its explanation of
