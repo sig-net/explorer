@@ -86,12 +86,12 @@ export function ExcludedCallersFilter({
             aria-invalid={invalid || undefined}
             showTrigger={false}
           />
-          <ComboboxContent className="w-max">
+          <ComboboxContent>
             <ComboboxEmpty>No seen caller matches</ComboboxEmpty>
             <ComboboxList>
               {(caller: string) => (
-                <ComboboxItem key={caller} value={caller} className="font-mono text-xs">
-                  {caller}
+                <ComboboxItem key={caller} value={caller} className="font-mono">
+                  {truncateMiddle(caller)}
                 </ComboboxItem>
               )}
             </ComboboxList>

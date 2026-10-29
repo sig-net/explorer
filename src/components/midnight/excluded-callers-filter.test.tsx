@@ -29,14 +29,15 @@ test('a seen caller is offered as the typed fragment narrows them, and a pick ex
   const screen = await render(<Harness callers={[ONE, TWO]} />)
   const box = screen.getByRole('combobox', { name: 'Exclude callers' })
   await box.fill('22')
-  await expect.element(screen.getByRole('option', { name: TWO })).toBeVisible()
-  expect(screen.getByRole('option', { name: ONE }).elements()).toHaveLength(0)
-  await screen.getByRole('option', { name: TWO }).click()
+  // An option shows the truncated address, and the full one is the chip's button label.
+  await expect.element(screen.getByRole('option', { name: '2222...2222' })).toBeVisible()
+  expect(screen.getByRole('option', { name: '1111...1111' }).elements()).toHaveLength(0)
+  await screen.getByRole('option', { name: '2222...2222' }).click()
   await expect.element(screen.getByRole('button', { name: `Stop excluding ${TWO}` })).toBeVisible()
   await expect.element(box).toHaveValue('')
   // An excluded caller is not offered again.
   await box.fill('2')
-  expect(screen.getByRole('option', { name: TWO }).elements()).toHaveLength(0)
+  expect(screen.getByRole('option', { name: '2222...2222' }).elements()).toHaveLength(0)
 })
 
 test('Enter picks the highlighted caller, and excludes a typed address when none is offered', async () => {

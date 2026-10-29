@@ -19,6 +19,7 @@ import { SignetEventsSection } from '@/components/midnight/signet-events-section
 import { useLifecycleVerification } from '@/components/midnight/use-lifecycle-verification'
 import { PendingIcon } from '@/components/pending-icon'
 import { SpinnerSplash } from '@/components/spinner-splash'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription } from '@/components/ui/empty'
 import { Separator } from '@/components/ui/separator'
@@ -342,11 +343,19 @@ const COLUMNS = [
 /** The named columns, the leading expand control's column and the trailing filter control's. */
 const COLUMN_COUNT = COLUMNS.length + 2
 
+/** The filter toggle's tooltip: the active filter count, or an invitation when there is none. */
+function activeFiltersText(count: number): string {
+  if (count === 0) {
+    return 'Show more filters'
+  }
+  return count === 1 ? '1 filter active' : `${String(count)} filters active`
+}
+
 /**
  * The given lifecycles, one expandable row each. `emptyText` fills the body when there are none.
  * With `expandSoleRow`, a row that is the only one starts expanded. `filterPanel` opens under the
- * header from the button at its end, and `onExcludeCaller` receives the caller whose hide button
- * in a row is pressed.
+ * header from the button at its end, which carries `activeFilterCount` in a bubble while it is above
+ * zero, and `onExcludeCaller` receives the caller whose hide button in a row is pressed.
  *
  * `searching` is true while the request the rows are filtered to is still being searched for in
  * older blocks: an empty body shows the search in place of `emptyText`, and a row's missing
@@ -361,6 +370,7 @@ export function SignBidirectionalLifecycleTable({
   searching,
   loading,
   filterPanel,
+  activeFilterCount,
   onExcludeCaller,
 }: {
   lifecycles: readonly SignBidirectionalLifecycle[]
@@ -369,6 +379,7 @@ export function SignBidirectionalLifecycleTable({
   searching: boolean
   loading: boolean
   filterPanel: ReactNode
+  activeFilterCount: number
   onExcludeCaller: (caller: string) => void
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -390,15 +401,32 @@ export function SignBidirectionalLifecycleTable({
               <TableHead key={column}>{column}</TableHead>
             ))}
             <TableHead className="w-10 text-right">
-              <Toggle
-                size="sm"
-                aria-label="Filters"
-                pressed={filtersOpen}
-                onPressedChange={setFiltersOpen}
-                className="text-muted-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/90"
-              >
-                <ListFilter />
-              </Toggle>
+              <span className="relative inline-flex">
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Toggle
+                        size="sm"
+                        aria-label="Filters"
+                        pressed={filtersOpen}
+                        onPressedChange={setFiltersOpen}
+                        className="text-muted-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/90"
+                      />
+                    }
+                  >
+                    <ListFilter />
+                  </TooltipTrigger>
+                  <TooltipContent>{activeFiltersText(activeFilterCount)}</TooltipContent>
+                </Tooltip>
+                {activeFilterCount > 0 && (
+                  // Outside the theme's palette on purpose, so the count stands out from the header
+                  // whether or not the toggle is pressed.
+                  <Badge className="pointer-events-none absolute -top-1.5 -right-1.5 h-4 min-w-4 bg-orange-500 px-1 text-[10px] text-white">
+                    {activeFilterCount}
+                    <span className="sr-only">active filters</span>
+                  </Badge>
+                )}
+              </span>
             </TableHead>
           </TableRow>
           {/* The row's background covers the header's inset divider, so the cell paints its own. */}

@@ -68,6 +68,7 @@ function renderWithRows(
             searching={searching}
             loading={false}
             filterPanel={null}
+            activeFilterCount={0}
             onExcludeCaller={onExcludeCaller}
           />
         </TooltipProvider>
@@ -87,6 +88,7 @@ test('an empty body shows the search while it runs, and the empty text once it i
       searching
       loading
       filterPanel={null}
+      activeFilterCount={0}
       onExcludeCaller={() => undefined}
     />,
   )
@@ -103,6 +105,7 @@ test('an empty body shows the search while it runs, and the empty text once it i
       searching={false}
       loading={false}
       filterPanel={null}
+      activeFilterCount={0}
       onExcludeCaller={() => undefined}
     />,
   )
@@ -120,6 +123,7 @@ test('an empty body shows the load while the events are read, and the empty text
       searching={false}
       loading
       filterPanel={null}
+      activeFilterCount={0}
       onExcludeCaller={() => undefined}
     />,
   )
@@ -135,6 +139,7 @@ test('an empty body shows the load while the events are read, and the empty text
       searching={false}
       loading={false}
       filterPanel={null}
+      activeFilterCount={0}
       onExcludeCaller={() => undefined}
     />,
   )
@@ -187,12 +192,15 @@ test('the filter button opens the filter panel under the header and shows as pre
       searching={false}
       loading={false}
       filterPanel={<p>the filters</p>}
+      activeFilterCount={0}
       onExcludeCaller={() => undefined}
     />,
   )
   const button = screen.getByRole('button', { name: 'Filters' })
   await expect.element(button).toHaveAttribute('aria-pressed', 'false')
   expect(screen.getByText('the filters').elements()).toHaveLength(0)
+  await button.hover()
+  await expect.element(screen.getByText('Show more filters')).toBeVisible()
   await button.click()
   await expect.element(button).toHaveAttribute('aria-pressed', 'true')
   await expect.element(screen.getByText('the filters')).toBeVisible()
@@ -210,4 +218,36 @@ test('the hide button beside a caller hands that caller over, and says what it d
   await expect.element(screen.getByText('Hide all requests from this caller')).toBeVisible()
   await button.click()
   expect(onExcludeCaller).toHaveBeenCalledWith('11'.repeat(32))
+})
+
+test('the filter button carries the number of active filters while there are any', async () => {
+  const screen = await render(
+    <SignBidirectionalLifecycleTable
+      lifecycles={[]}
+      emptyText="No requests yet"
+      expandSoleRow={false}
+      searching={false}
+      loading={false}
+      filterPanel={null}
+      activeFilterCount={3}
+      onExcludeCaller={() => undefined}
+    />,
+  )
+  await expect.element(screen.getByText('3active filters')).toBeVisible()
+  await screen.getByRole('button', { name: 'Filters' }).hover()
+  await expect.element(screen.getByText('3 filters active')).toBeVisible()
+
+  await screen.rerender(
+    <SignBidirectionalLifecycleTable
+      lifecycles={[]}
+      emptyText="No requests yet"
+      expandSoleRow={false}
+      searching={false}
+      loading={false}
+      filterPanel={null}
+      activeFilterCount={0}
+      onExcludeCaller={() => undefined}
+    />,
+  )
+  expect(screen.getByText('active filters').elements()).toHaveLength(0)
 })

@@ -367,12 +367,16 @@ alone, and the button after it opens that URL in a new tab. The search box filte
 rows as you type by a fragment of the request id or of a caller contract address. The display
 formatters live in `src/lib/format.ts`.
 
-The filter button at the end of the header row opens a panel under the header, and shows as
-pressed while the panel is open. Its Exclude callers box takes a caller contract address, typed in
+The filter button at the end of the header row opens a panel under the header, shows as pressed
+while the panel is open, and carries a bright bubble with the number of active filters (the
+excluded callers) while there are any. Hovering it says how many filters are active, or "Show more
+filters" when none is. Its Exclude callers box takes a caller contract address, typed in
 full or picked from the callers seen so far as the typed fragment narrows them (a `0x` prefix and
 letter case are ignored), and Enter, the button beside the box or a pick excludes it. Each excluded
 caller is a chip whose cross lets it back in. A request from an excluded caller is left out of the
-rows and of the status line's matching counts. The panel is `ExcludedCallersFilter` in
+rows and of the status line's matching counts. The page opens with the Sig pinger contract
+excluded, listed in `DEFAULT_EXCLUDED_CALLERS` in `src/lib/midnight/excluded-callers.ts`, since
+its request a minute would otherwise fill the table. The panel is `ExcludedCallersFilter` in
 `src/components/midnight/excluded-callers-filter.tsx`, built from the shadcn `Combobox`, `Badge`
 and `Toggle` components, and `signBidirectionalLifecycleCalledBy` in the lifecycle module decides
 the exclusion.

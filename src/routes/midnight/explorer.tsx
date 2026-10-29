@@ -13,6 +13,7 @@ import { SignBidirectionalLifecycleTable } from '@/components/midnight/sign-bidi
 import { SignetEventsStartingBlock } from '@/components/midnight/signet-events-starting-block'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DEFAULT_EXCLUDED_CALLERS } from '@/lib/midnight/excluded-callers'
 import {
   type SignBidirectionalLifecycle,
   signBidirectionalLifecycleCalledBy,
@@ -118,7 +119,8 @@ function ExplorerPage() {
       void navigate({ search: ({ requestId: _dropped, ...rest }) => rest, replace: true })
     }
   }
-  const [excludedCallers, setExcludedCallers] = useState<readonly string[]>([])
+  const [excludedCallers, setExcludedCallers] =
+    useState<readonly string[]>(DEFAULT_EXCLUDED_CALLERS)
   const excludeCaller = (caller: string) => {
     setExcludedCallers((excluded) => (excluded.includes(caller) ? excluded : [...excluded, caller]))
   }
@@ -210,6 +212,7 @@ function ExplorerPage() {
             onRestore={restoreCaller}
           />
         }
+        activeFilterCount={excludedCallers.length}
         onExcludeCaller={excludeCaller}
         // Only a search singles a request out: while the page loads, the first request to arrive
         // is briefly the only row.
