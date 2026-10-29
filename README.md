@@ -374,9 +374,9 @@ filters" when none is. Its Exclude callers box takes a caller contract address, 
 full or picked from the callers seen so far as the typed fragment narrows them (a `0x` prefix and
 letter case are ignored), and Enter, the button beside the box or a pick excludes it. Each excluded
 caller is a chip whose cross lets it back in. A request from an excluded caller is left out of the
-rows and of the status line's matching counts. The page opens with the Sig pinger contract
-excluded, listed in `DEFAULT_EXCLUDED_CALLERS` in `src/lib/midnight/excluded-callers.ts`, since
-its request a minute would otherwise fill the table. The panel is `ExcludedCallersFilter` in
+rows and of the status line's matching counts. The excluded callers are the `excludeCallers` query
+parameter, a comma-separated list of addresses, so the page opens with the filter a link names
+and every change to the filter rewrites the address bar. The panel is `ExcludedCallersFilter` in
 `src/components/midnight/excluded-callers-filter.tsx`, built from the shadcn `Combobox`, `Badge`
 and `Toggle` components, and `signBidirectionalLifecycleCalledBy` in the lifecycle module decides
 the exclusion.
@@ -598,6 +598,13 @@ filters the table to that request and opens its row. The parameter is a link tar
 searches caller addresses, so the first edit to the box removes the parameter from the address bar.
 A value that is not a request id is dropped from the URL, and one spelled with `0x` or capitals is
 rewritten in canonical form.
+
+The page also takes an optional `excludeCallers` query parameter, a comma-separated list of caller
+contract addresses whose requests the filter panel hides:
+`/midnight/explorer?networkId=stagenet&excludeCallers=<64 hex digits>,<64 hex digits>`. The
+parameter is the filter's value: the panel opens with those callers excluded, and excluding or
+restoring a caller rewrites it. Entries that are not contract addresses are dropped, duplicates are
+kept once, and `0x`, capitals and spaces are rewritten in canonical form.
 
 A row that is the only result of a search starts expanded, whether the search came from a link or
 was typed, and it collapses again when the search widens. A row toggled by hand keeps that choice.
