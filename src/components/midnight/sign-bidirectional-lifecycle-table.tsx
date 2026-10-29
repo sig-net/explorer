@@ -367,9 +367,13 @@ export function SignBidirectionalLifecycleTable({
               </Toggle>
             </TableHead>
           </TableRow>
+          {/* The row's background covers the header's inset divider, so the cell paints its own. */}
           {filtersOpen && (
             <TableRow className="bg-card border-t hover:bg-card">
-              <TableCell colSpan={COLUMN_COUNT} className="whitespace-normal">
+              <TableCell
+                colSpan={COLUMN_COUNT}
+                className="whitespace-normal shadow-[inset_0_-1px_0_var(--border)]"
+              >
                 {filterPanel}
               </TableCell>
             </TableRow>
