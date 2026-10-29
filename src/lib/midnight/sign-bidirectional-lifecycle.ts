@@ -137,3 +137,26 @@ export function signBidirectionalLifecycleMatches(
     lifecycle.signBidirectionalEvents.some((event) => event.record.callerAddress.includes(fragment))
   )
 }
+
+/** The distinct caller contract addresses the lifecycles name, in first-seen order. */
+export function signBidirectionalLifecycleCallers(
+  lifecycles: readonly SignBidirectionalLifecycle[],
+): string[] {
+  const callers = new Set<string>()
+  for (const lifecycle of lifecycles) {
+    for (const event of lifecycle.signBidirectionalEvents) {
+      callers.add(event.record.callerAddress)
+    }
+  }
+  return [...callers]
+}
+
+/** Whether the lifecycle names any of `callers`. A lifecycle that names no caller never does. */
+export function signBidirectionalLifecycleCalledBy(
+  lifecycle: SignBidirectionalLifecycle,
+  callers: readonly string[],
+): boolean {
+  return lifecycle.signBidirectionalEvents.some((event) =>
+    callers.includes(event.record.callerAddress),
+  )
+}

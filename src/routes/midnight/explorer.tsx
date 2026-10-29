@@ -8,12 +8,16 @@ import {
   useMidnightSignetEvents,
 } from '@/components/contexts/MidnightSignetEventsContext'
 import { useMidnight } from '@/components/contexts/MidnightContext'
+import { ExcludedCallersFilter } from '@/components/midnight/excluded-callers-filter'
 import { SignBidirectionalLifecycleTable } from '@/components/midnight/sign-bidirectional-lifecycle-table'
 import { SignetEventsStartingBlock } from '@/components/midnight/signet-events-starting-block'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { parseContractAddressesHex } from '@/lib/midnight/contract-address'
 import {
   type SignBidirectionalLifecycle,
+  signBidirectionalLifecycleCalledBy,
+  signBidirectionalLifecycleCallers,
   signBidirectionalLifecycleEventCount,
   signBidirectionalLifecycleMatches,
 } from '@/lib/midnight/sign-bidirectional-lifecycle'
@@ -21,6 +25,20 @@ import {
 interface ExplorerSearch {
   /** The request a link points at. It seeds the search box, and editing the box drops it. */
   requestId?: RequestIdHex | undefined
+  /**
+   * The excluded callers, as a comma-separated list of canonical contract addresses. The filter
+   * panel reads them from here and writes every change back, so a link carries the filter.
+   */
+  excludeCallers?: string | undefined
+}
+
+/** An `excludeCallers` query value as the canonical list, or undefined when it names no address. */
+function parseExcludeCallersParam(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+  const callers = parseContractAddressesHex(value)
+  return callers.length === 0 ? undefined : callers.join(',')
 }
 
 /** A `requestId` query value as a request id, or undefined when it is not one. */
@@ -40,18 +58,28 @@ export const Route = createFileRoute('/midnight/explorer')({
   // key would let an invalid value through.
   validateSearch: (search: Record<string, unknown>): ExplorerSearch => ({
     requestId: parseRequestIdParam(search.requestId),
+    excludeCallers: parseExcludeCallersParam(search.excludeCallers),
   }),
-  // Rewrites the URL when the raw `requestId` is not the validated one (invalid, or spelled with
-  // `0x` or capitals), so the address bar and the state agree.
+  // Rewrites the URL when a raw value is not the validated one (invalid, or spelled with `0x`,
+  // capitals or spaces), so the address bar and the state agree.
   beforeLoad: ({ search, location }) => {
     const query = new URLSearchParams(location.searchStr)
-    if ((query.get('requestId') ?? undefined) !== search.requestId) {
-      if (search.requestId === undefined) {
-        query.delete('requestId')
-      } else {
-        query.set('requestId', search.requestId)
+    let differs = false
+    for (const [key, value] of Object.entries(search)) {
+      if ((query.get(key) ?? undefined) === value) {
+        continue
       }
-      throw redirect({ href: `${location.pathname}?${query.toString()}`, replace: true })
+      differs = true
+      if (value === undefined) {
+        query.delete(key)
+      } else {
+        query.set(key, value)
+      }
+    }
+    if (differs) {
+      // The router writes a list's commas unencoded, and this href must match what it writes.
+      const href = `${location.pathname}?${query.toString().replaceAll('%2C', ',')}`
+      throw redirect({ href, replace: true })
     }
   },
   component: ExplorerPage,
@@ -105,7 +133,7 @@ function loadStatusText(
 function ExplorerPage() {
   const events = useMidnightSignetEvents()
   const { setConfig } = useMidnight()
-  const { requestId } = Route.useSearch()
+  const { requestId, excludeCallers } = Route.useSearch()
   const navigate = Route.useNavigate()
   const [search, setSearch] = useState<string>(requestId ?? '')
   // An edited box no longer shows the linked request, so the address bar stops naming it.
@@ -115,11 +143,31 @@ function ExplorerPage() {
       void navigate({ search: ({ requestId: _dropped, ...rest }) => rest, replace: true })
     }
   }
+  // The address bar holds the excluded callers, so the filter is read from it and written to it.
+  const excludedCallers: readonly string[] =
+    excludeCallers === undefined ? [] : excludeCallers.split(',')
+  const setExcludedCallers = (next: readonly string[]) => {
+    void navigate({
+      search: ({ excludeCallers: _previous, ...rest }) =>
+        next.length === 0 ? rest : { ...rest, excludeCallers: next.join(',') },
+      replace: true,
+    })
+  }
+  const excludeCaller = (caller: string) => {
+    if (!excludedCallers.includes(caller)) {
+      setExcludedCallers([...excludedCallers, caller])
+    }
+  }
+  const restoreCaller = (caller: string) => {
+    setExcludedCallers(excludedCallers.filter((other) => other !== caller))
+  }
   const lifecycles = events.status === 'unconfigured' ? [] : events.lifecycles
-  const matching = lifecycles.filter((lifecycle) =>
-    signBidirectionalLifecycleMatches(lifecycle, search),
+  const matching = lifecycles.filter(
+    (lifecycle) =>
+      signBidirectionalLifecycleMatches(lifecycle, search) &&
+      !signBidirectionalLifecycleCalledBy(lifecycle, excludedCallers),
   )
-  const { status, stepStartingBlockBack } = events
+  const { status, canStepStartingBlockBack, stepStartingBlockBack } = events
   // A linked request may be older than the window. Once the window is read without the request's
   // notification, the starting block steps back until the notification is found or the floor is
   // reached, so a link to any request resolves.
@@ -134,6 +182,11 @@ function ExplorerPage() {
       stepStartingBlockBack()
     }
   }, [status, linkedRequestNotified, stepStartingBlockBack])
+  // The search for the linked request runs from the tip read until the window is read with no step
+  // back left, or the load fails.
+  const loading = events.startingBlock.status === 'resolving' || status === 'loading'
+  const searchingLinkedRequest =
+    !linkedRequestNotified && (loading || (status === 'loaded' && canStepStartingBlockBack))
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -160,10 +213,7 @@ function ExplorerPage() {
         <p className="text-muted-foreground ml-auto text-sm">{loadStatusText(events, matching)}</p>
         <SignetEventsStartingBlock
           startingBlock={events.startingBlock}
-          canStepBack={
-            events.startingBlock.status === 'resolved' &&
-            events.startingBlock.block > events.startingBlock.floor
-          }
+          canStepBack={canStepStartingBlockBack}
           onChange={(signetEventsFromBlock) => setConfig({ signetEventsFromBlock })}
           onStepBack={stepStartingBlockBack}
         />
@@ -179,7 +229,25 @@ function ExplorerPage() {
       </div>
       <SignBidirectionalLifecycleTable
         lifecycles={matching}
-        emptyText={lifecycles.length === 0 ? 'No requests yet' : 'No requests match the search'}
+        emptyText={
+          lifecycles.length === 0
+            ? 'No requests yet'
+            : excludedCallers.length === 0
+              ? 'No requests match the search'
+              : 'No requests match the search and filters'
+        }
+        searching={searchingLinkedRequest}
+        loading={loading}
+        filterPanel={
+          <ExcludedCallersFilter
+            callers={signBidirectionalLifecycleCallers(lifecycles)}
+            excluded={excludedCallers}
+            onExclude={excludeCaller}
+            onRestore={restoreCaller}
+          />
+        }
+        activeFilterCount={excludedCallers.length}
+        onExcludeCaller={excludeCaller}
         // Only a search singles a request out: while the page loads, the first request to arrive
         // is briefly the only row.
         expandSoleRow={search.trim() !== ''}

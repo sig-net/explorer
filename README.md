@@ -289,14 +289,26 @@ it, which reads from half a day of blocks (6,172) earlier, both set the configur
 Reset Defaults returns to the window. Stepping back extends the loaded range downwards without
 reading the newer blocks again, and stops at the contract's listed earliest block, or zero. A link
 to a request (`?requestId=`) whose notification is not in the window steps the block back the same
-way, once the window is read, until the notification is found or the floor is reached. The block
+way, once the window is read, until the notification is found or the floor is reached. While that
+search runs and no row matches, the table shows a searching splash (a spinner and "Looking back
+through Sig Network events for this request") in place of "No requests match the search", which
+appears only once the search is over: the window is read and either the request was found or the
+floor leaves no step back. Before that, while the events are read and no row has arrived, the table
+shows a loading splash ("Loading Sig Network events") in place of "No requests yet", so the empty
+texts appear only once the read is over. `SpinnerSplash` in `src/components/spinner-splash.tsx` is
+the splash behind both, built from the shadcn `Empty` and `Spinner` components. The block
 belongs with the address beside it: an address of another contract needs its own block, and a
 block above the one wanted hides events without any error.
 
 A lifecycle can hold responses and no request notification: the MPC answering a request notified
 on another Signet contract, or anyone posting a response for a request that never was. Its row says
 so in place of the request time, caller and duration, and the expanded notification section says
-what is missing. The SDK queries
+what is missing. Those are verdicts, so they wait for the search: the window is read newest first
+and a response is posted about 15 minutes of foreign-chain finality after its request, so a linked
+request's response lands slices before its signature and notification do. While the search for the
+linked request continues, the row's request time, caller, signature and duration cells say
+"searching" beside a spinner, and the expanded notification and signature sections show the splash
+with "Still searching for event data". The SDK queries
 the indexer's GraphQL endpoint itself and selects each event's transaction, so every event arrives
 with its transaction hash and the height, hash and time of its block. Each event goes
 through the SDK's `tryDecodeSignetEvent`, which yields a union over the three Signet event names
@@ -345,16 +357,35 @@ what gives the table a height to fill. Times are block times as
 `DD-MM-YY HH:MM:SS` in the browser's time zone, a cell lists at most three entries before an ellipsis, each signature
 time carries how long after the request it came, a clock marks a signature or response that has
 not arrived (hovering it says what is being waited for), and Duration runs from the first request
-to the first response. Hovering a truncated request id or caller shows the full value, and the copy button
-beside it puts the full value on the clipboard. The link button beside a request id copies a URL
+to the first response. A row of the request a link points at shows "searching" in place of a
+missing request time, caller, signature or duration while older blocks are still being read for
+them. Hovering a truncated request id or caller shows the full value, and the copy button
+beside it puts the full value on the clipboard. The eye button after a caller's copy button hides
+all requests from that caller, which adds it to the excluded callers in the filter panel. The link button beside a request id copies a URL
 to share, naming the selected network and that request, which opens the explorer on that request
 alone, and the button after it opens that URL in a new tab. The search box filters
 rows as you type by a fragment of the request id or of a caller contract address. The display
 formatters live in `src/lib/format.ts`.
 
+The filter button at the end of the header row opens a panel under the header, shows as pressed
+while the panel is open, and carries a bright bubble with the number of active filters (the
+excluded callers) while there are any. Hovering it says how many filters are active, or "Show more
+filters" when none is. Its Exclude callers box takes a caller contract address, typed in
+full or picked from the callers seen so far as the typed fragment narrows them (a `0x` prefix and
+letter case are ignored), and Enter, the button beside the box or a pick excludes it. Each excluded
+caller is a chip whose cross lets it back in. A request from an excluded caller is left out of the
+rows and of the status line's matching counts. The excluded callers are the `excludeCallers` query
+parameter, a comma-separated list of addresses, so the page opens with the filter a link names
+and every change to the filter rewrites the address bar. The panel is `ExcludedCallersFilter` in
+`src/components/midnight/excluded-callers-filter.tsx`, built from the shadcn `Combobox`, `Badge`
+and `Toggle` components, and `signBidirectionalLifecycleCalledBy` in the lifecycle module decides
+the exclusion.
+
 Expanding a row shows one section per event kind, with a numbered tab per event: where the event
 was emitted (transaction hash, block hash, block height, block time), then every field of its
-decoded record.
+decoded record. A kind with no event shows a clock, the notification section its explanation of
+what is missing, and, while the search for a linked request continues, both the notification and
+signature sections the searching splash instead.
 
 ### Transaction inspection
 
@@ -567,6 +598,13 @@ filters the table to that request and opens its row. The parameter is a link tar
 searches caller addresses, so the first edit to the box removes the parameter from the address bar.
 A value that is not a request id is dropped from the URL, and one spelled with `0x` or capitals is
 rewritten in canonical form.
+
+The page also takes an optional `excludeCallers` query parameter, a comma-separated list of caller
+contract addresses whose requests the filter panel hides:
+`/midnight/explorer?networkId=stagenet&excludeCallers=<64 hex digits>,<64 hex digits>`. The
+parameter is the filter's value: the panel opens with those callers excluded, and excluding or
+restoring a caller rewrites it. Entries that are not contract addresses are dropped, duplicates are
+kept once, and `0x`, capitals and spaces are rewritten in canonical form.
 
 A row that is the only result of a search starts expanded, whether the search came from a link or
 was typed, and it collapses again when the search widens. A row toggled by hand keeps that choice.
