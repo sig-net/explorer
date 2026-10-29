@@ -119,6 +119,12 @@ function ExplorerPage() {
     }
   }
   const [excludedCallers, setExcludedCallers] = useState<readonly string[]>([])
+  const excludeCaller = (caller: string) => {
+    setExcludedCallers((excluded) => (excluded.includes(caller) ? excluded : [...excluded, caller]))
+  }
+  const restoreCaller = (caller: string) => {
+    setExcludedCallers((excluded) => excluded.filter((other) => other !== caller))
+  }
   const lifecycles = events.status === 'unconfigured' ? [] : events.lifecycles
   const matching = lifecycles.filter(
     (lifecycle) =>
@@ -200,9 +206,11 @@ function ExplorerPage() {
           <ExcludedCallersFilter
             callers={signBidirectionalLifecycleCallers(lifecycles)}
             excluded={excludedCallers}
-            onChange={setExcludedCallers}
+            onExclude={excludeCaller}
+            onRestore={restoreCaller}
           />
         }
+        onExcludeCaller={excludeCaller}
         // Only a search singles a request out: while the page loads, the first request to arrive
         // is briefly the only row.
         expandSoleRow={search.trim() !== ''}

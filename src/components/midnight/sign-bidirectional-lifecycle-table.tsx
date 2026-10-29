@@ -1,5 +1,5 @@
 import { useRouter } from '@tanstack/react-router'
-import { ChevronDown, ChevronUp, Link, ListFilter } from 'lucide-react'
+import { ChevronDown, ChevronUp, EyeOff, Link, ListFilter } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
 
 import { useMidnight } from '@/components/contexts/MidnightContext'
@@ -32,6 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Toggle } from '@/components/ui/toggle'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatDuration, formatLocalTimestamp } from '@/lib/format'
 import {
   type SignBidirectionalLifecycle,
@@ -173,14 +174,45 @@ function LifecycleDetails({
   )
 }
 
+/** Hands `caller` to `onHide`, with the tooltip saying what that does. */
+function HideCallerButton({
+  caller,
+  onHide,
+}: {
+  caller: string
+  onHide: (caller: string) => void
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={HIDE_CALLER_TEXT}
+            onClick={() => onHide(caller)}
+          />
+        }
+      >
+        <EyeOff />
+      </TooltipTrigger>
+      <TooltipContent>{HIDE_CALLER_TEXT}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+const HIDE_CALLER_TEXT = 'Hide all requests from this caller'
+
 function LifecycleRow({
   lifecycle,
   expandedByDefault,
   searching,
+  onExcludeCaller,
 }: {
   lifecycle: SignBidirectionalLifecycle
   expandedByDefault: boolean
   searching: boolean
+  onExcludeCaller: (caller: string) => void
 }) {
   const { signBidirectionalEvents, signatureRespondedEvents, respondBidirectionalEvents } =
     lifecycle
@@ -243,11 +275,10 @@ function LifecycleRow({
           ) : (
             <Stacked>
               {signBidirectionalEvents.map((event) => (
-                <CopyableHex
-                  key={event.source.id}
-                  value={event.record.callerAddress}
-                  label="caller address"
-                />
+                <span key={event.source.id} className="inline-flex items-center gap-1">
+                  <CopyableHex value={event.record.callerAddress} label="caller address" />
+                  <HideCallerButton caller={event.record.callerAddress} onHide={onExcludeCaller} />
+                </span>
               ))}
             </Stacked>
           )}
@@ -314,7 +345,8 @@ const COLUMN_COUNT = COLUMNS.length + 2
 /**
  * The given lifecycles, one expandable row each. `emptyText` fills the body when there are none.
  * With `expandSoleRow`, a row that is the only one starts expanded. `filterPanel` opens under the
- * header from the button at its end.
+ * header from the button at its end, and `onExcludeCaller` receives the caller whose hide button
+ * in a row is pressed.
  *
  * `searching` is true while the request the rows are filtered to is still being searched for in
  * older blocks: an empty body shows the search in place of `emptyText`, and a row's missing
@@ -329,6 +361,7 @@ export function SignBidirectionalLifecycleTable({
   searching,
   loading,
   filterPanel,
+  onExcludeCaller,
 }: {
   lifecycles: readonly SignBidirectionalLifecycle[]
   emptyText: string
@@ -336,6 +369,7 @@ export function SignBidirectionalLifecycleTable({
   searching: boolean
   loading: boolean
   filterPanel: ReactNode
+  onExcludeCaller: (caller: string) => void
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false)
   // This wrapper fills the height the page has left. The table component scrolls inside its own
@@ -386,6 +420,7 @@ export function SignBidirectionalLifecycleTable({
               lifecycle={lifecycle}
               expandedByDefault={expandSoleRow && lifecycles.length === 1}
               searching={searching}
+              onExcludeCaller={onExcludeCaller}
             />
           ))}
         </TableBody>

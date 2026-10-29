@@ -360,7 +360,8 @@ not arrived (hovering it says what is being waited for), and Duration runs from 
 to the first response. A row of the request a link points at shows "searching" in place of a
 missing request time, caller, signature or duration while older blocks are still being read for
 them. Hovering a truncated request id or caller shows the full value, and the copy button
-beside it puts the full value on the clipboard. The link button beside a request id copies a URL
+beside it puts the full value on the clipboard. The eye button after a caller's copy button hides
+all requests from that caller, which adds it to the excluded callers in the filter panel. The link button beside a request id copies a URL
 to share, naming the selected network and that request, which opens the explorer on that request
 alone, and the button after it opens that URL in a new tab. The search box filters
 rows as you type by a fragment of the request id or of a caller contract address. The display

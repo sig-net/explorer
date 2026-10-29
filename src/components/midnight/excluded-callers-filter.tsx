@@ -28,20 +28,20 @@ function normaliseHexQuery(query: string): string {
 export function ExcludedCallersFilter({
   callers,
   excluded,
-  onChange,
+  onExclude,
+  onRestore,
 }: {
   callers: readonly string[]
   excluded: readonly string[]
-  onChange: (excluded: readonly string[]) => void
+  onExclude: (caller: string) => void
+  onRestore: (caller: string) => void
 }) {
   const [inputValue, setInputValue] = useState('')
   const [invalid, setInvalid] = useState(false)
   const inputId = useId()
   const candidates = callers.filter((caller) => !excluded.includes(caller))
   const exclude = (caller: string) => {
-    if (!excluded.includes(caller)) {
-      onChange([...excluded, caller])
-    }
+    onExclude(caller)
     setInputValue('')
     setInvalid(false)
   }
@@ -111,7 +111,7 @@ export function ExcludedCallersFilter({
                   variant="ghost"
                   size="icon-xs"
                   aria-label={`Stop excluding ${caller}`}
-                  onClick={() => onChange(excluded.filter((other) => other !== caller))}
+                  onClick={() => onRestore(caller)}
                 >
                   <X />
                 </Button>

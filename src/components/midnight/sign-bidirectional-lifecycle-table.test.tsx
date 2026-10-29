@@ -5,7 +5,7 @@ import {
   createRootRoute,
   createRouter,
 } from '@tanstack/react-router'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 
 import '@/index.css'
@@ -15,11 +15,15 @@ import {
   aggregateSignBidirectionalLifecycles,
   type SignBidirectionalLifecycle,
 } from '@/lib/midnight/sign-bidirectional-lifecycle'
-import { responseEvent } from '@/lib/midnight/sign-bidirectional-lifecycle.fixture'
+import {
+  notificationEvent,
+  responseEvent,
+} from '@/lib/midnight/sign-bidirectional-lifecycle.fixture'
 
 import { SignBidirectionalLifecycleTable } from './sign-bidirectional-lifecycle-table'
 
 const REQUEST = new Uint8Array(32).fill(0xaa)
+const CALLER = new Uint8Array(32).fill(0x11)
 
 const SPLASH_TITLE = 'Looking back through Sig Network events for this request'
 const LOADING_TITLE = 'Loading Sig Network events'
@@ -36,8 +40,23 @@ function attestedOnly(): SignBidirectionalLifecycle {
   return lifecycle
 }
 
+/** A lifecycle with its notification, so its row names a caller. */
+function notified(): SignBidirectionalLifecycle {
+  const [lifecycle] = aggregateSignBidirectionalLifecycles([
+    notificationEvent(1, REQUEST, CALLER, 0),
+  ])
+  if (lifecycle === undefined) {
+    throw new Error('expected a lifecycle')
+  }
+  return lifecycle
+}
+
 /** A row's link button builds its href through the router, so rows render inside one. */
-function renderWithRows(lifecycles: readonly SignBidirectionalLifecycle[], searching: boolean) {
+function renderWithRows(
+  lifecycles: readonly SignBidirectionalLifecycle[],
+  searching: boolean,
+  onExcludeCaller: (caller: string) => void = () => undefined,
+) {
   const routeTree = createRootRoute({
     component: () => (
       <MidnightProvider>
@@ -49,6 +68,7 @@ function renderWithRows(lifecycles: readonly SignBidirectionalLifecycle[], searc
             searching={searching}
             loading={false}
             filterPanel={null}
+            onExcludeCaller={onExcludeCaller}
           />
         </TooltipProvider>
       </MidnightProvider>
@@ -67,6 +87,7 @@ test('an empty body shows the search while it runs, and the empty text once it i
       searching
       loading
       filterPanel={null}
+      onExcludeCaller={() => undefined}
     />,
   )
   await expect.element(screen.getByText(SPLASH_TITLE)).toBeVisible()
@@ -82,6 +103,7 @@ test('an empty body shows the search while it runs, and the empty text once it i
       searching={false}
       loading={false}
       filterPanel={null}
+      onExcludeCaller={() => undefined}
     />,
   )
   await expect.element(screen.getByText('No requests match the search')).toBeVisible()
@@ -98,6 +120,7 @@ test('an empty body shows the load while the events are read, and the empty text
       searching={false}
       loading
       filterPanel={null}
+      onExcludeCaller={() => undefined}
     />,
   )
   await expect.element(screen.getByText(LOADING_TITLE)).toBeVisible()
@@ -112,6 +135,7 @@ test('an empty body shows the load while the events are read, and the empty text
       searching={false}
       loading={false}
       filterPanel={null}
+      onExcludeCaller={() => undefined}
     />,
   )
   await expect.element(screen.getByText('No requests yet')).toBeVisible()
@@ -163,6 +187,7 @@ test('the filter button opens the filter panel under the header and shows as pre
       searching={false}
       loading={false}
       filterPanel={<p>the filters</p>}
+      onExcludeCaller={() => undefined}
     />,
   )
   const button = screen.getByRole('button', { name: 'Filters' })
@@ -175,4 +200,14 @@ test('the filter button opens the filter panel under the header and shows as pre
   await button.click()
   await expect.element(button).toHaveAttribute('aria-pressed', 'false')
   expect(screen.getByText('the filters').elements()).toHaveLength(0)
+})
+
+test('the hide button beside a caller hands that caller over, and says what it does on hover', async () => {
+  const onExcludeCaller = vi.fn<(caller: string) => void>()
+  const screen = await renderWithRows([notified()], false, onExcludeCaller)
+  const button = screen.getByRole('button', { name: 'Hide all requests from this caller' })
+  await button.hover()
+  await expect.element(screen.getByText('Hide all requests from this caller')).toBeVisible()
+  await button.click()
+  expect(onExcludeCaller).toHaveBeenCalledWith('11'.repeat(32))
 })

@@ -13,7 +13,16 @@ const THREE = '33'.repeat(32)
 /** The filter with the excluded callers held as the page holds them. */
 function Harness({ callers }: { callers: readonly string[] }) {
   const [excluded, setExcluded] = useState<readonly string[]>([])
-  return <ExcludedCallersFilter callers={callers} excluded={excluded} onChange={setExcluded} />
+  return (
+    <ExcludedCallersFilter
+      callers={callers}
+      excluded={excluded}
+      onExclude={(caller) =>
+        setExcluded((current) => (current.includes(caller) ? current : [...current, caller]))
+      }
+      onRestore={(caller) => setExcluded((current) => current.filter((other) => other !== caller))}
+    />
+  )
 }
 
 test('a seen caller is offered as the typed fragment narrows them, and a pick excludes it', async () => {
