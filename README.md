@@ -293,8 +293,10 @@ way, once the window is read, until the notification is found or the floor is re
 search runs and no row matches, the table shows a searching splash (a spinner and "Looking back
 through Sig Network events for this request") in place of "No requests match the search", which
 appears only once the search is over: the window is read and either the request was found or the
-floor leaves no step back. `SearchingSplash` in `src/components/searching-splash.tsx` is the
-splash, built from the shadcn `Empty` and `Spinner` components. The block
+floor leaves no step back. Before that, while the events are read and no row has arrived, the table
+shows a loading splash ("Loading Sig Network events") in place of "No requests yet", so the empty
+texts appear only once the read is over. `SpinnerSplash` in `src/components/spinner-splash.tsx` is
+the splash behind both, built from the shadcn `Empty` and `Spinner` components. The block
 belongs with the address beside it: an address of another contract needs its own block, and a
 block above the one wanted hides events without any error.
 

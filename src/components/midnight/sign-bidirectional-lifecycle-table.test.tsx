@@ -22,6 +22,7 @@ import { SignBidirectionalLifecycleTable } from './sign-bidirectional-lifecycle-
 const REQUEST = new Uint8Array(32).fill(0xaa)
 
 const SPLASH_TITLE = 'Looking back through Sig Network events for this request'
+const LOADING_TITLE = 'Loading Sig Network events'
 const MISSING_NOTIFICATION = /No Sign Bidirectional Event on this contract declares this request id/
 
 /** A lifecycle found by its attestation alone, as the newest-first read finds an old request. */
@@ -46,6 +47,7 @@ function renderWithRows(lifecycles: readonly SignBidirectionalLifecycle[], searc
             emptyText="No requests match the search"
             expandSoleRow
             searching={searching}
+            loading={false}
           />
         </TooltipProvider>
       </MidnightProvider>
@@ -62,10 +64,12 @@ test('an empty body shows the search while it runs, and the empty text once it i
       emptyText="No requests match the search"
       expandSoleRow
       searching
+      loading
     />,
   )
   await expect.element(screen.getByText(SPLASH_TITLE)).toBeVisible()
   await expect.element(screen.getByRole('status', { name: 'Searching' })).toBeVisible()
+  expect(screen.getByText(LOADING_TITLE).elements()).toHaveLength(0)
   expect(screen.getByText('No requests match the search').elements()).toHaveLength(0)
 
   await screen.rerender(
@@ -74,11 +78,40 @@ test('an empty body shows the search while it runs, and the empty text once it i
       emptyText="No requests match the search"
       expandSoleRow
       searching={false}
+      loading={false}
     />,
   )
   await expect.element(screen.getByText('No requests match the search')).toBeVisible()
   expect(screen.getByText(SPLASH_TITLE).elements()).toHaveLength(0)
   expect(screen.getByRole('status', { name: 'Searching' }).elements()).toHaveLength(0)
+})
+
+test('an empty body shows the load while the events are read, and the empty text once they are', async () => {
+  const screen = await render(
+    <SignBidirectionalLifecycleTable
+      lifecycles={[]}
+      emptyText="No requests yet"
+      expandSoleRow
+      searching={false}
+      loading
+    />,
+  )
+  await expect.element(screen.getByText(LOADING_TITLE)).toBeVisible()
+  await expect.element(screen.getByRole('status', { name: 'Loading' })).toBeVisible()
+  expect(screen.getByText('No requests yet').elements()).toHaveLength(0)
+
+  await screen.rerender(
+    <SignBidirectionalLifecycleTable
+      lifecycles={[]}
+      emptyText="No requests yet"
+      expandSoleRow
+      searching={false}
+      loading={false}
+    />,
+  )
+  await expect.element(screen.getByText('No requests yet')).toBeVisible()
+  expect(screen.getByText(LOADING_TITLE).elements()).toHaveLength(0)
+  expect(screen.getByRole('status', { name: 'Loading' }).elements()).toHaveLength(0)
 })
 
 test('a lifecycle found without its notification shows as still searching while the search runs', async () => {

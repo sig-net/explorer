@@ -136,11 +136,9 @@ function ExplorerPage() {
   }, [status, linkedRequestNotified, stepStartingBlockBack])
   // The search for the linked request runs from the tip read until the window is read with no step
   // back left, or the load fails.
+  const loading = events.startingBlock.status === 'resolving' || status === 'loading'
   const searchingLinkedRequest =
-    !linkedRequestNotified &&
-    (events.startingBlock.status === 'resolving' ||
-      status === 'loading' ||
-      (status === 'loaded' && canStepStartingBlockBack))
+    !linkedRequestNotified && (loading || (status === 'loaded' && canStepStartingBlockBack))
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -185,6 +183,7 @@ function ExplorerPage() {
         lifecycles={matching}
         emptyText={lifecycles.length === 0 ? 'No requests yet' : 'No requests match the search'}
         searching={searchingLinkedRequest}
+        loading={loading}
         // Only a search singles a request out: while the page loads, the first request to arrive
         // is briefly the only row.
         expandSoleRow={search.trim() !== ''}

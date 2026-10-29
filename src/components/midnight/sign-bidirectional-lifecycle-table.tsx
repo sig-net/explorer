@@ -18,7 +18,7 @@ import { SignatureCheck } from '@/components/midnight/signature-check'
 import { SignetEventsSection } from '@/components/midnight/signet-events-section'
 import { useLifecycleVerification } from '@/components/midnight/use-lifecycle-verification'
 import { PendingIcon } from '@/components/pending-icon'
-import { SearchingSplash } from '@/components/searching-splash'
+import { SpinnerSplash } from '@/components/spinner-splash'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription } from '@/components/ui/empty'
 import { Separator } from '@/components/ui/separator'
@@ -123,7 +123,7 @@ function LifecycleDetails({
   // The notification and the signature precede the response, so the search back may still find
   // them. The response is the latest event, so it is never still to come from older blocks.
   const stillSearching = searching ? (
-    <SearchingSplash title="Still searching for event data" />
+    <SpinnerSplash spinnerLabel="Searching" title="Still searching for event data" />
   ) : undefined
   return (
     <div className="grid grid-cols-3 divide-x">
@@ -315,18 +315,22 @@ const COLUMN_COUNT = COLUMNS.length + 1
  *
  * `searching` is true while the request the rows are filtered to is still being searched for in
  * older blocks: an empty body shows the search in place of `emptyText`, and a row's missing
- * notification and signature show as searching rather than missing.
+ * notification and signature show as searching rather than missing. `loading` is true while the
+ * events are still being read: an empty body that is not searching shows the load in place of
+ * `emptyText`.
  */
 export function SignBidirectionalLifecycleTable({
   lifecycles,
   emptyText,
   expandSoleRow,
   searching,
+  loading,
 }: {
   lifecycles: readonly SignBidirectionalLifecycle[]
   emptyText: string
   expandSoleRow: boolean
   searching: boolean
+  loading: boolean
 }) {
   // This wrapper fills the height the page has left. The table component scrolls inside its own
   // container, which shrinks to the wrapper and keeps the header stuck to its top, and an empty
@@ -360,11 +364,18 @@ export function SignBidirectionalLifecycleTable({
       </Table>
       {lifecycles.length === 0 &&
         (searching ? (
-          <SearchingSplash title="Looking back through Sig Network events for this request">
+          <SpinnerSplash
+            spinnerLabel="Searching"
+            title="Looking back through Sig Network events for this request"
+          >
             Responses are posted some time after a request, so a request's own events sit in older
             blocks than its responses. The starting block steps back until the request is found or
             the contract's earliest block is reached.
-          </SearchingSplash>
+          </SpinnerSplash>
+        ) : loading ? (
+          <SpinnerSplash spinnerLabel="Loading" title="Loading Sig Network events">
+            Requests appear as their blocks are read, newest first.
+          </SpinnerSplash>
         ) : (
           <Empty>
             <EmptyDescription>{emptyText}</EmptyDescription>

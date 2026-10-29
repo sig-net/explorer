@@ -4,15 +4,23 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Spinner } from '@/components/ui/spinner'
 
 /**
- * A spinner over `title`, centred in the space it is given, for a search still under way. `children`
- * explain the search below the title.
+ * A spinner over `title`, centred in the space it is given, for work still under way. `spinnerLabel`
+ * names the spinner to assistive technology, and `children` explain the work below the title.
  */
-export function SearchingSplash({ title, children }: { title: string; children?: ReactNode }) {
+export function SpinnerSplash({
+  spinnerLabel,
+  title,
+  children,
+}: {
+  spinnerLabel: string
+  title: string
+  children?: ReactNode
+}) {
   return (
     <Empty>
       <EmptyHeader>
         <EmptyMedia variant="icon">
-          <Spinner aria-label="Searching" />
+          <Spinner aria-label={spinnerLabel} />
         </EmptyMedia>
         <EmptyTitle>{title}</EmptyTitle>
         {children !== undefined && <EmptyDescription>{children}</EmptyDescription>}
