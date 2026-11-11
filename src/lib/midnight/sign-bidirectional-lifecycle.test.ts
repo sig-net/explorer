@@ -66,8 +66,14 @@ test('a response with no request still forms a lifecycle', () => {
 
 test('events that did not decode join no lifecycle', () => {
   const lifecycles = aggregateSignBidirectionalLifecycles([
-    indexedSignetContractEvent(1, 'SomethingElse', [0xff], 0),
-    indexedSignetContractEvent(2, SignetEventName.SignBidirectionalEvent, [2, ...REQUEST_A], 1),
+    indexedSignetContractEvent(1, 'responder', 'SomethingElse', [0xff], 0),
+    indexedSignetContractEvent(
+      2,
+      'signer',
+      SignetEventName.SignBidirectionalEvent,
+      [2, ...REQUEST_A],
+      1,
+    ),
   ])
   expect(lifecycles).toEqual([])
 })

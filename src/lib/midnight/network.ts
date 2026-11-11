@@ -1,18 +1,17 @@
 import {
-  bytesToHex,
-  contractAddressFromHex,
   getMpcOutputCacheUrl,
   getMpcRootPublicKey,
-  getSignetContractAddress,
+  getResponderContractAddress,
+  getSignerContractAddress,
   MidnightNetwork,
   normaliseSecp256k1PublicKey,
 } from '@sig-net/midnight'
 
 import { EXPLORER_ENV } from '@/lib/explorer-env'
+import { normaliseContractAddressHex } from '@/lib/midnight/contract-address'
 
 export const MIDNIGHT_NETWORKS: readonly MidnightNetwork[] = [
   MidnightNetwork.Undeployed,
-  MidnightNetwork.Stagenet,
   MidnightNetwork.Preview,
   MidnightNetwork.Preprod,
   MidnightNetwork.Mainnet,
@@ -23,7 +22,10 @@ export interface MidnightNetworkConfig {
   indexerWsUrl: string
   nodeUrl: string
   mpcRootPublicKey: string
-  signetContractAddress: string
+  /** The signet signer, which requester contracts notify of their requests. */
+  signerContractAddress: string
+  /** The signet responder, which the MPC posts its responses through. */
+  responderContractAddress: string
   /** JSON-RPC endpoint asked about requested transactions that target Ethereum mainnet. */
   ethereumMainnetRpcUrl: string
   /** JSON-RPC endpoint asked about requested transactions that target Sepolia. */
@@ -34,30 +36,35 @@ export interface MidnightNetworkConfig {
    */
   mpcOutputCacheUrl: string
   /**
-   * The lowest block height the Signet contract's events are read from, as typed: a whole number
-   * (0 for the whole history), or empty for the default window before the chain tip. It belongs
-   * with `signetContractAddress`: a block above the contract's deployment hides events.
+   * The lowest block height the events of both the signer and the responder are read from, as
+   * typed: a whole number (0 for the whole history), or empty for the default window before the
+   * chain tip. A block above either contract's deployment hides that contract's earliest events.
    */
   signetEventsFromBlock: string
 }
 
 /**
- * The earliest block worth reading each known Signet contract's events from, as read off the
- * stagenet indexer: the contract's deployment block, the first height its
- * `contract(address, offset: { height })` query answers for, unless its earliest events answer
- * requests of a predecessor contract.
+ * The deployment block of each known signet contract, read off the preprod indexer as the first
+ * height its `contract(address, offset: { height })` query answers for.
  */
 const SIGNET_EVENTS_EARLIEST_BLOCKS: Readonly<Record<string, number>> = {
-  // The block of the first request notified on it. The MPC devnet posted responses for 26 requests
-  // of its predecessor, 838778d2..., on this contract between blocks 873704 and 873963.
-  '49605c93a7f602bd3c4750f013615ee3e4bd4be02a201b051c2c220ece6a32f5': 874309,
-  // The deployment block.
-  d2a2419b5f296dae40c5681840b660f5ebab6cbd21c107e05e0464045b589517: 866975,
+  // The preprod signer.
+  '798e602d58ca65bae159464f43091bd790b3ef23f10abb49d962bc0efeb00c5e': 3363610,
+  // The preprod responder.
+  '825841d7bef91956fc4fdefe4edb7ecf9c2b985f0b4ddae7d0f1b35d9267ca2b': 3363762,
 }
 
-/** The listed earliest block of a canonical contract address, or null for a contract not listed. */
-export function signetEventsEarliestBlock(signetContractAddress: string): number | null {
-  return SIGNET_EVENTS_EARLIEST_BLOCKS[signetContractAddress] ?? null
+/**
+ * The lower of the listed earliest blocks of a signer and a responder in canonical form, or null
+ * unless both are listed.
+ */
+export function signetEventsEarliestBlock(
+  signerContractAddress: string,
+  responderContractAddress: string,
+): number | null {
+  const signer = SIGNET_EVENTS_EARLIEST_BLOCKS[signerContractAddress]
+  const responder = SIGNET_EVENTS_EARLIEST_BLOCKS[responderContractAddress]
+  return signer === undefined || responder === undefined ? null : Math.min(signer, responder)
 }
 
 /**
@@ -90,25 +97,6 @@ const PUBLIC_EVM_RPC_URLS: Pick<
 > = {
   ethereumMainnetRpcUrl: 'https://ethereum-rpc.publicnode.com',
   ethereumSepoliaRpcUrl: 'https://ethereum-sepolia-rpc.publicnode.com',
-}
-
-/**
- * Renders a contract address in the form the indexer takes: 64 lowercase hex digits with the `0x`
- * prefix dropped.
- *
- * @throws {Error} When the value is not 32 bytes of hex.
- */
-function normaliseSignetContractAddress(value: string): string {
-  return bytesToHex(contractAddressFromHex(value.trim()).bytes)
-}
-
-/** The canonical form of a typed contract address, or null while it is not a valid address. */
-export function parseSignetContractAddress(value: string): string | null {
-  try {
-    return normaliseSignetContractAddress(value)
-  } catch {
-    return null
-  }
 }
 
 /** The canonical form of a typed MPC root public key, or null while it is not a valid key. */
@@ -180,72 +168,131 @@ const EVM_RPC_DEFAULTS = parseMidnightEvmRpcEnv(EXPLORER_ENV)
 export type MidnightUndeployedEnv = Pick<
   ImportMetaEnv,
   | 'VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY'
-  | 'VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS'
+  | 'VITE_MIDNIGHT_UNDEPLOYED_SIGNER_CONTRACT_ADDRESS'
+  | 'VITE_MIDNIGHT_UNDEPLOYED_RESPONDER_CONTRACT_ADDRESS'
 >
 
 /**
- * Reads the undeployed network's MPC root public key and Signet contract address, which every local
- * stack generates afresh. Unset or empty variables yield empty strings.
+ * Reads the undeployed network's MPC root public key and signet signer and responder addresses,
+ * which every local stack generates afresh. Unset or empty variables yield empty strings.
  *
  * @throws {Error} When a set variable is not a valid key or address.
  */
 export function parseMidnightUndeployedEnv(
   env: MidnightUndeployedEnv,
-): Pick<MidnightNetworkConfig, 'mpcRootPublicKey' | 'signetContractAddress'> {
+): Pick<
+  MidnightNetworkConfig,
+  'mpcRootPublicKey' | 'signerContractAddress' | 'responderContractAddress'
+> {
   return {
     mpcRootPublicKey: readOptionalEnv(
       env,
       'VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY',
       normaliseSecp256k1PublicKey,
     ),
-    signetContractAddress: readOptionalEnv(
+    signerContractAddress: readOptionalEnv(
       env,
-      'VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS',
-      normaliseSignetContractAddress,
+      'VITE_MIDNIGHT_UNDEPLOYED_SIGNER_CONTRACT_ADDRESS',
+      normaliseContractAddressHex,
+    ),
+    responderContractAddress: readOptionalEnv(
+      env,
+      'VITE_MIDNIGHT_UNDEPLOYED_RESPONDER_CONTRACT_ADDRESS',
+      normaliseContractAddressHex,
     ),
   }
 }
 
-export type MidnightStagenetEnv = Pick<
+/**
+ * Preprod's Blockfrost endpoints, each taking a project token as `?project_id=<token>`. They
+ * duplicate `networks.preprod` of `@midnight-ntwrk/midnight-js-utils`, whose dependency on
+ * `@midnight-ntwrk/midnight-js-types` would put the ledger WebAssembly on the first page load.
+ */
+const PREPROD_BLOCKFROST_URLS: Pick<
+  MidnightNetworkConfig,
+  'indexerUrl' | 'indexerWsUrl' | 'nodeUrl'
+> = {
+  indexerUrl: 'https://midnight-preprod.blockfrost.io/api/v0',
+  indexerWsUrl: 'wss://midnight-preprod.blockfrost.io/api/v0/ws',
+  nodeUrl: 'https://rpc.midnight-preprod.blockfrost.io',
+}
+
+/** @throws {Error} When the value holds whitespace. */
+function normaliseBlockfrostProjectId(value: string): string {
+  if (/\s/u.test(value)) {
+    throw new Error('expected a Blockfrost project token without whitespace')
+  }
+  return value
+}
+
+export type MidnightPreprodEnv = Pick<
   ImportMetaEnv,
-  | 'VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY'
-  | 'VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS'
-  | 'VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL'
-  | 'VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK'
+  | 'VITE_MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID'
+  | 'VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY'
+  | 'VITE_MIDNIGHT_PREPROD_SIGNER_CONTRACT_ADDRESS'
+  | 'VITE_MIDNIGHT_PREPROD_RESPONDER_CONTRACT_ADDRESS'
+  | 'VITE_MIDNIGHT_PREPROD_MPC_OUTPUT_CACHE_URL'
+  | 'VITE_MIDNIGHT_PREPROD_SIGNET_EVENTS_FROM_BLOCK'
 >
 
 /**
- * Reads stagenet's MPC root public key, Signet contract address, MPC output cache URL and the block
- * its events are read from. An unset or empty variable yields the value the SDK publishes for
- * stagenet, and for the block the default window (see `signetEventsFromBlock`).
+ * Reads preprod's endpoints, MPC root public key, signet signer and responder addresses, MPC
+ * output cache URL and the block their events are read from. The endpoints are the Blockfrost
+ * ones carrying the project token, or empty strings while it is unset or empty. Any other unset
+ * or empty variable yields the value the SDK publishes for preprod, and for the block the default
+ * window (see `signetEventsFromBlock`).
  *
- * @throws {Error} When a set variable is not a valid key, address, http URL or block height.
+ * @throws {Error} When a set variable is not a valid token, key, address, http URL or block
+ *   height.
  */
-export function parseMidnightStagenetEnv(
-  env: MidnightStagenetEnv,
+export function parseMidnightPreprodEnv(
+  env: MidnightPreprodEnv,
 ): Pick<
   MidnightNetworkConfig,
-  'mpcRootPublicKey' | 'signetContractAddress' | 'mpcOutputCacheUrl' | 'signetEventsFromBlock'
+  | 'indexerUrl'
+  | 'indexerWsUrl'
+  | 'nodeUrl'
+  | 'mpcRootPublicKey'
+  | 'signerContractAddress'
+  | 'responderContractAddress'
+  | 'mpcOutputCacheUrl'
+  | 'signetEventsFromBlock'
 > {
+  const projectId = readOptionalEnv(
+    env,
+    'VITE_MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID',
+    normaliseBlockfrostProjectId,
+  )
+  const withProjectId = (url: string): string =>
+    projectId === '' ? '' : `${url}?project_id=${encodeURIComponent(projectId)}`
   return {
+    indexerUrl: withProjectId(PREPROD_BLOCKFROST_URLS.indexerUrl),
+    indexerWsUrl: withProjectId(PREPROD_BLOCKFROST_URLS.indexerWsUrl),
+    nodeUrl: withProjectId(PREPROD_BLOCKFROST_URLS.nodeUrl),
     mpcRootPublicKey:
       readOptionalEnv(
         env,
-        'VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY',
+        'VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY',
         normaliseSecp256k1PublicKey,
-      ) || getMpcRootPublicKey(MidnightNetwork.Stagenet),
-    signetContractAddress:
+      ) || getMpcRootPublicKey(MidnightNetwork.Preprod),
+    signerContractAddress:
       readOptionalEnv(
         env,
-        'VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS',
-        normaliseSignetContractAddress,
-      ) || getSignetContractAddress(MidnightNetwork.Stagenet),
+        'VITE_MIDNIGHT_PREPROD_SIGNER_CONTRACT_ADDRESS',
+        normaliseContractAddressHex,
+      ) || getSignerContractAddress(MidnightNetwork.Preprod),
+    responderContractAddress:
+      readOptionalEnv(
+        env,
+        'VITE_MIDNIGHT_PREPROD_RESPONDER_CONTRACT_ADDRESS',
+        normaliseContractAddressHex,
+      ) || getResponderContractAddress(MidnightNetwork.Preprod),
     mpcOutputCacheUrl:
-      readOptionalEnv(env, 'VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL', normaliseHttpUrl) ||
-      getMpcOutputCacheUrl(MidnightNetwork.Stagenet),
+      readOptionalEnv(env, 'VITE_MIDNIGHT_PREPROD_MPC_OUTPUT_CACHE_URL', normaliseHttpUrl) ||
+      getMpcOutputCacheUrl(MidnightNetwork.Preprod),
     signetEventsFromBlock: readOptionalEnv(
       env,
-      'VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK',
+      'VITE_MIDNIGHT_PREPROD_SIGNET_EVENTS_FROM_BLOCK',
       normaliseSignetEventsFromBlock,
     ),
   }
@@ -261,34 +308,21 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     mpcOutputCacheUrl: '',
     signetEventsFromBlock: '',
   },
-  [MidnightNetwork.Stagenet]: {
-    indexerUrl: 'https://indexer.stagenet.shielded.tools/api/v4/graphql',
-    indexerWsUrl: 'wss://indexer.stagenet.shielded.tools/api/v4/graphql/ws',
-    nodeUrl: 'https://rpc.stagenet.shielded.tools',
-    ...parseMidnightStagenetEnv(EXPLORER_ENV),
-    ...EVM_RPC_DEFAULTS,
-  },
   // TODO: populate for this network once released to these networks
   [MidnightNetwork.Preview]: {
     indexerUrl: 'https://indexer.preview.midnight.network/api/v4/graphql',
     indexerWsUrl: 'wss://indexer.preview.midnight.network/api/v4/graphql/ws',
     nodeUrl: 'https://rpc.preview.midnight.network',
     mpcRootPublicKey: '',
-    signetContractAddress: '',
+    signerContractAddress: '',
+    responderContractAddress: '',
     ...EVM_RPC_DEFAULTS,
     mpcOutputCacheUrl: '',
     signetEventsFromBlock: '',
   },
-  // TODO: populate for this network once released to these networks
   [MidnightNetwork.Preprod]: {
-    indexerUrl: 'https://indexer.preprod.midnight.network/api/v4/graphql',
-    indexerWsUrl: 'wss://indexer.preprod.midnight.network/api/v4/graphql/ws',
-    nodeUrl: 'https://rpc.preprod.midnight.network',
-    mpcRootPublicKey: '',
-    signetContractAddress: '',
+    ...parseMidnightPreprodEnv(EXPLORER_ENV),
     ...EVM_RPC_DEFAULTS,
-    mpcOutputCacheUrl: '',
-    signetEventsFromBlock: '',
   },
   // TODO: populate for this network once released to these networks
   [MidnightNetwork.Mainnet]: {
@@ -296,7 +330,8 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     indexerWsUrl: 'wss://indexer.mainnet.midnight.network/api/v4/graphql/ws',
     nodeUrl: 'https://rpc.mainnet.midnight.network',
     mpcRootPublicKey: '',
-    signetContractAddress: '',
+    signerContractAddress: '',
+    responderContractAddress: '',
     ...EVM_RPC_DEFAULTS,
     mpcOutputCacheUrl: '',
     signetEventsFromBlock: '',
@@ -313,14 +348,14 @@ export function isMidnightNetwork(value: unknown): value is MidnightNetwork {
 export type MidnightDefaultNetworkEnv = Pick<ImportMetaEnv, 'VITE_MIDNIGHT_DEFAULT_NETWORK'>
 
 /**
- * Reads the network the app opens on. An unset or empty variable yields stagenet.
+ * Reads the network the app opens on. An unset or empty variable yields preprod.
  *
  * @throws {Error} When the variable is set to anything but a network id.
  */
 export function parseMidnightDefaultNetworkEnv(env: MidnightDefaultNetworkEnv): MidnightNetwork {
   const value = env.VITE_MIDNIGHT_DEFAULT_NETWORK?.trim() ?? ''
   if (value === '') {
-    return MidnightNetwork.Stagenet
+    return MidnightNetwork.Preprod
   }
   if (!isMidnightNetwork(value)) {
     throw new Error(

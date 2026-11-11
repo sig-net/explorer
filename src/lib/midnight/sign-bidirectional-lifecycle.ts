@@ -6,18 +6,19 @@ import {
 } from '@sig-net/midnight'
 import { DateTime } from 'luxon'
 
-import type { SignetContractEvent } from '@/lib/midnight/signet-events'
+import type { SignetContractEvent, SignetContractRole } from '@/lib/midnight/signet-events'
 
+/** A decoded event of kind `TName` as the store holds it, with the roles of its emitter. */
 type IndexedSignetEventNamed<TName extends SignetEventName> = DecodedSignetEventNamed<
   TName,
   IndexedSignetMiscEvent
->
+> & { readonly roles: readonly SignetContractRole[] }
 
 /**
- * Every decoded event that declares one request id, grouped by kind in emission order. The
- * contract is unauthenticated and nothing stops a kind being emitted twice, or a response being
- * emitted for a request that never was, so each kind is a list and any of them may be empty. The
- * grouping is by DECLARED id only: it verifies nothing.
+ * Every decoded event that declares one request id, grouped by kind in emission order. The signer
+ * and the responder are unauthenticated and nothing stops a kind being emitted twice, or a
+ * response being emitted for a request that never was, so each kind is a list and any of them may
+ * be empty. The grouping is by DECLARED id only: it verifies nothing.
  */
 export interface SignBidirectionalLifecycle {
   readonly requestId: RequestIdHex
@@ -85,8 +86,8 @@ export function aggregateSignBidirectionalLifecycles(
       }
     }
   }
-  // The indexer's event id ascends in emission order, so it orders lifecycles without comparing
-  // block times, which tie for events in one block.
+  // The indexer's event id ascends in emission order across both contracts, so it orders
+  // lifecycles without comparing block times, which tie for events in one block.
   return Array.from(drafts.values()).sort(
     (a, b) => (firstSource(b)?.id ?? 0) - (firstSource(a)?.id ?? 0),
   )

@@ -74,7 +74,7 @@ function Timestamps({ dates, since }: { dates: readonly Date[]; since?: Date }) 
 }
 
 const MISSING_NOTIFICATION_EXPLANATION =
-  "No Sign Bidirectional Event on this contract declares this request id, so the request's time, caller and record are unknown. The responses answer a request the MPC saw elsewhere: notified on another Signet contract, or never notified at all."
+  "No Sign Bidirectional Event on the configured Signet signer declares this request id, so the request's time, caller and record are unknown. The responses answer a request the MPC saw elsewhere: notified on another Signet signer, or never notified at all."
 
 /** The cell content of an event kind the search for the request may still find. */
 function SearchingCell() {

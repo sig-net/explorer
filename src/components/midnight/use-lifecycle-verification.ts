@@ -79,7 +79,7 @@ async function recoverExecution(
     | 'ethereumMainnetRpcUrl'
     | 'ethereumSepoliaRpcUrl'
     | 'mpcOutputCacheUrl'
-    | 'signetContractAddress'
+    | 'signerContractAddress'
   >,
   networkId: string,
   requestId: RequestIdHex,
@@ -95,7 +95,7 @@ async function recoverExecution(
         {
           cacheUrl: config.mpcOutputCacheUrl,
           networkId,
-          signetContractAddress: config.signetContractAddress,
+          signerContractAddress: config.signerContractAddress,
         },
         requestId,
       )
@@ -141,7 +141,7 @@ export function useLifecycleVerification(
     ethereumMainnetRpcUrl,
     ethereumSepoliaRpcUrl,
     mpcOutputCacheUrl,
-    signetContractAddress,
+    signerContractAddress,
   } = config
   const configKey = JSON.stringify([
     network,
@@ -150,7 +150,7 @@ export function useLifecycleVerification(
     ethereumMainnetRpcUrl,
     ethereumSepoliaRpcUrl,
     mpcOutputCacheUrl,
-    signetContractAddress,
+    signerContractAddress,
   ])
   const [settled, setSettled] = useState<SettledVerification | null>(null)
 
@@ -197,7 +197,7 @@ export function useLifecycleVerification(
             ethereumMainnetRpcUrl,
             ethereumSepoliaRpcUrl,
             mpcOutputCacheUrl,
-            signetContractAddress,
+            signerContractAddress,
           },
           network,
           requestId,
@@ -235,7 +235,7 @@ export function useLifecycleVerification(
     ethereumMainnetRpcUrl,
     ethereumSepoliaRpcUrl,
     mpcOutputCacheUrl,
-    signetContractAddress,
+    signerContractAddress,
     lifecycle,
   ])
 

@@ -27,7 +27,8 @@ const CALLER = new Uint8Array(32).fill(0x11)
 
 const SPLASH_TITLE = 'Looking back through Sig Network events for this request'
 const LOADING_TITLE = 'Loading Sig Network events'
-const MISSING_NOTIFICATION = /No Sign Bidirectional Event on this contract declares this request id/
+const MISSING_NOTIFICATION =
+  /No Sign Bidirectional Event on the configured Signet signer declares this request id/
 
 /** A lifecycle found by its attestation alone, as the newest-first read finds an old request. */
 function attestedOnly(): SignBidirectionalLifecycle {

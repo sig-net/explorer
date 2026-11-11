@@ -112,7 +112,10 @@ release tag and the short commit (`v1.2.0-bc90655`), with `vX.X.X` standing in w
 has no release tag.
 
 Vite inlines `VITE_*` values at build time. The workflow builds from a clean checkout, where no
-`.env.local` exists, so the site serves the SDK's published network defaults.
+`.env.local` exists, and sets no `VITE_` variable, so the site serves the SDK's published network
+defaults. It carries no Blockfrost project token either, so the site opens on preprod with no
+indexer until a visitor enters one in the configuration popover (see
+[Preprod and Blockfrost](#preprod-and-blockfrost)).
 
 ## Canonical Tailwind classes
 
@@ -172,46 +175,86 @@ variants, swapped by the dark class, and Solana uses one icon for both modes.
 
 `src/lib/midnight/network.ts` owns the list of Midnight networks (the `MidnightNetwork` enum
 from `@sig-net/midnight`), the default indexer, indexer websocket and node URLs for each, the MPC
-root public key and Signet contract address where the SDK publishes them, and the
+root public key and the Signet signer and responder addresses where the SDK publishes them, and the
 parser that turns a raw query value into a network.
 
-A local `undeployed` stack generates its own MPC root public key and Signet contract address, so
-the SDK publishes neither. To avoid re-entering them after every reload, put them in `.env.local`
-(ignored by git) and restart `yarn dev`, which also restarts on its own when the file changes:
+Signet runs as two contracts. Requester contracts notify the signer of their requests, and the
+signer emits the Sign Bidirectional Events. The MPC posts its responses through the responder, which
+emits the Signature Responded and Respond Bidirectional Events. The explorer reads both.
+
+A local `undeployed` stack generates its own MPC root public key and Signet signer and responder,
+so the SDK publishes none of them. To avoid re-entering them after every reload, put them in
+`.env.local` (ignored by git) and restart `yarn dev`, which also restarts on its own when the file
+changes:
 
 ```dotenv
 VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY=0x04...
-VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS=380b...
+VITE_MIDNIGHT_UNDEPLOYED_SIGNER_CONTRACT_ADDRESS=380b...
+VITE_MIDNIGHT_UNDEPLOYED_RESPONDER_CONTRACT_ADDRESS=4f1a...
 ```
 
-The app opens on `stagenet`. To open on another network, such as that local stack, name it in the
+The app opens on `preprod`. To open on another network, such as that local stack, name it in the
 same file:
 
 ```dotenv
 VITE_MIDNIGHT_DEFAULT_NETWORK=undeployed
 ```
 
-It takes a network id: `undeployed`, `stagenet`, `preview`, `preprod` or `mainnet`. A `networkId` in
-the URL still wins over it.
+It takes a network id: `undeployed`, `preview`, `preprod` or `mainnet`. A `networkId` in the URL
+still wins over it.
 
-The key and the address become the `undeployed` defaults, so Reset Defaults returns to them. Unset
+The key and the addresses become the `undeployed` defaults, so Reset Defaults returns to them. Unset
 variables leave the fields empty.
 
-Stagenet takes its MPC root public key, Signet contract address and MPC output cache URL from the
-SDK. To point stagenet at another MPC deployment, such as one the SDK does not publish yet, name
-its values in the same file:
+Preprod is the network the explorer is populated for: it takes its MPC root public key, Signet
+signer and responder addresses and MPC output cache URL from the SDK. Preview and mainnet are listed
+with their endpoint defaults and empty Signet values, so they read no events until those are entered
+in the configuration popover.
+
+### Preprod and Blockfrost
+
+Preprod's public indexer and node are served by Blockfrost, and they answer only requests that carry
+a Blockfrost project token in a `project_id` query parameter. To get a token, create a project for
+Midnight Preprod at <https://blockfrost.io> and copy its project id. A token works on its own
+network only. Name it in `.env.local`:
 
 ```dotenv
-VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY=secp256k1:54hU...
-VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS=4960...
-VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL=https://storage.example/v1/stagenet
-VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK=874309
+VITE_MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID=preprod...
 ```
 
-Each is optional, and an unset variable keeps the SDK's value. They become the `stagenet`
-defaults, so Reset Defaults returns to them. The last names the block the Signet contract's events
-are read from (see [Signet contract events](#signet-contract-events)): a block height, 0 for the
-whole history. Unset, the explorer reads from the default window before the chain tip.
+The preprod indexer, indexer websocket and node URLs then default to Blockfrost's, each carrying the
+token:
+
+| Field                 | Default                                                             |
+| --------------------- | ------------------------------------------------------------------- |
+| Indexer URL           | `https://midnight-preprod.blockfrost.io/api/v0?project_id=<token>`  |
+| Indexer WebSocket URL | `wss://midnight-preprod.blockfrost.io/api/v0/ws?project_id=<token>` |
+| Node URL              | `https://rpc.midnight-preprod.blockfrost.io?project_id=<token>`     |
+
+Without the variable those three fields are empty, and the app opens on preprod with no indexer:
+the explorer page says so and reads nothing until an indexer URL is entered in the configuration
+popover. A token holding whitespace stops the app from loading, and the error names the variable.
+
+**Warning:** every `VITE_` value ends up in the browser, inlined into the build or served in the
+Docker image's `env.js`, so anyone who can load the built app can read it, this token included.
+Keep the token to `.env.local` and local use unless publishing it is intended.
+
+To point preprod at another MPC deployment, such as one the SDK does not publish yet, name its
+values in the same file:
+
+```dotenv
+VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY=secp256k1:54hU...
+VITE_MIDNIGHT_PREPROD_SIGNER_CONTRACT_ADDRESS=798e...
+VITE_MIDNIGHT_PREPROD_RESPONDER_CONTRACT_ADDRESS=8258...
+VITE_MIDNIGHT_PREPROD_MPC_OUTPUT_CACHE_URL=https://storage.example/v1
+VITE_MIDNIGHT_PREPROD_SIGNET_EVENTS_FROM_BLOCK=3363610
+```
+
+Each is optional, and an unset variable keeps the SDK's value. They become the `preprod` defaults,
+so Reset Defaults returns to them. The last names the block the events of both contracts are read
+from (see [Signet signer and responder events](#signet-signer-and-responder-events)): a block
+height, 0 for the whole history. Unset, the explorer reads from the default window before the chain
+tip.
 
 The EVM RPC endpoints default to keyless public nodes, which do not serve `debug_traceTransaction`.
 To default to endpoints of your own on every network, name them in the same file:
@@ -225,9 +268,9 @@ Each takes an http or https URL, and an unset variable keeps the public node for
 browser calls the endpoint directly, so a key in the URL is readable by anyone the build is served
 to: keep keyed URLs to `.env.local` and local use.
 
-A value that is not a valid secp256k1 public key, 32-byte hex contract address, network id or http
-URL stops the app from loading, and the error names the variable. Only variables prefixed `VITE_`
-reach the browser, and each one read is declared in `src/vite-env.d.ts`.
+A value that is not a valid secp256k1 public key, 32-byte hex contract address, network id, http URL
+or Blockfrost project token stops the app from loading, and the error names the variable. Only
+variables prefixed `VITE_` reach the browser, and each one read is declared in `src/vite-env.d.ts`.
 
 `@sig-net/midnight` loads the Midnight onchain-runtime WebAssembly module through the Compact
 runtime. Vite's dependency optimizer cannot inline it, so `vite.config.ts` adds `vite-plugin-wasm`
@@ -238,56 +281,66 @@ configuration (defaults plus any edits), the indexer services, and actions to ed
 configuration. Read it with the `useMidnight` hook from the same file. Edits live in memory only
 and are kept per network until the page reloads.
 
-The indexer services hold the Signet event source, which reads the indexer's query URL directly.
-`src/lib/midnight/indexer-services.ts` owns them: they are rebuilt only when the effective indexer
-URL changes, so the same URL always yields the same event source, which is what the event store
-keys its loads on. They are `null` until the first build completes, just after the provider mounts.
+The indexer services hold the Signet event source, which reads any Signet contract's events from
+the indexer's query URL directly. `src/lib/midnight/indexer-services.ts` owns them: they are rebuilt
+only when the effective indexer URL changes, so the same URL always yields the same event source,
+which is what the event store keys its loads on. They are `null` until the first build completes,
+just after the provider mounts, and stay `null` while the indexer URL is empty or blank.
 
 ### WebAssembly and bundle weight
 
-The first page load carries one WebAssembly module, the 1.4MB onchain runtime, inside about
-2.2MB of output. Keep it that way when adding Midnight features. The build also emits the 10.3MB
-Midnight ledger module (`@midnightntwrk/ledger-v9`), which only the lazy transaction inspection
-chunk references: the browser fetches it the first time a lifecycle row is expanded (see
-"Transaction inspection" below). `vite.config.ts` keeps both wasm packages out of the prebundle.
+The first page load carries one WebAssembly module, the 1.6MB onchain runtime
+(`@midnightntwrk/onchain-runtime-v4` 4.0.1), inside about 3.0MB of output. Keep it that way when
+adding Midnight features. The build also emits the 10.8MB Midnight ledger module
+(`@midnightntwrk/ledger-v9`), which only the lazy transaction inspection chunk references: the
+browser fetches it the first time a lifecycle row is expanded (see "Transaction inspection" below).
+`vite.config.ts` keeps both wasm packages out of the prebundle.
 `@midnight-ntwrk/midnight-js-indexer-public-data-provider` is the package to watch. A static import
 of it pulls in `@midnight-ntwrk/midnight-js-types`, which imports the Midnight ledger as runtime
 values. Measured at 5.0.0-beta.6, that added two builds of the ledger WebAssembly (20.8MB, one of
 them never fetched) plus Apollo Client, taking the output to 22.4MB. A feature that needs that
 provider, for example to read contract state, loads it with a dynamic `import()` inside the route
-that needs it, so the weight stays off the first page load. Check the `.wasm` files listed by
-`yarn build` after adding any Midnight dependency.
+that needs it, so the weight stays off the first page load. Check the `.wasm` files listed by `yarn
+build` after adding any Midnight dependency.
 
 The selected network is owned by the URL: every `/midnight` page carries `?networkId=<network>`.
-A missing or unknown value is rewritten to `stagenet` before the page loads, and the route
+A missing or unknown value is rewritten to `preprod` before the page loads, and the route
 layout copies the validated value into the context. The cog at the right of the Midnight bar
 opens the configuration popover, where changing the network rewrites the query string of the
 current page.
 
-## Signet contract events
+## Signet signer and responder events
 
-Once the indexer services exist and the selected network names a Signet contract address,
-`MidnightSignetEventsProvider` in `src/components/contexts/MidnightSignetEventsContext.tsx`,
-mounted at the root inside `MidnightProvider`, loads every event the contract has emitted from the
-configured starting block up to the chain tip read at page load. It reads that range in slices of
-an eighth of a day of blocks, newest slice first, so the latest requests show while the rest of the
-window is still arriving, and each slice goes through the SDK's `streamSignetEvents` with
-`fromBlock` and `toBlock` bounds, an async generator that requests one indexer page of 100 events
-at a time. Refresh reads the tip again and reloads the range up to it.
+Once the indexer services exist and the selected network names a Signet signer and responder
+address, `MidnightSignetEventsProvider` in `src/components/contexts/MidnightSignetEventsContext.tsx`,
+mounted at the root inside `MidnightProvider`, loads every event both contracts have emitted from
+the configured starting block up to the chain tip read at page load. It reads that range in slices
+of an eighth of a day of blocks, newest slice first, so the latest requests show while the rest of
+the window is still arriving. Each slice goes through the SDK's `streamSignetEvents` once per
+contract, with `fromBlock` and `toBlock` bounds, an async generator that requests one indexer page
+of 100 events at a time. The two reads of a slice run side by side, and their events are merged by
+the indexer's event id, which is one cursor across contracts, so the merged list is in emission
+order. A slice joins the loaded events only once both reads of it have finished, and a failure of
+either fails the load. A signer and responder configured at one address are read once. Refresh
+reads the tip again and reloads the range up to it.
+
+With no indexer URL configured (preprod without a Blockfrost token, or a field cleared in the
+popover), no tip is read and nothing loads: the explorer page shows an alert saying how to configure
+one, and the starting block's status is `no-indexer`.
 
 The starting block is shown beside the load status, as Starting Block, and is the Signet Events
 From Block field of the configuration popover: a block height, 0 for the whole history, or empty
 for the default. The default is a window of two days of blocks before the chain tip, read from the
 indexer's latest block once per page load, and never before the earliest block
-`src/lib/midnight/network.ts` lists for the contract: its deployment block, as a contract has no
-events before it, or a later block where the contract's earliest events answer requests made on a
-predecessor contract, as the MPC posts in-flight responses on its new contract after a switch.
-`src/lib/midnight/signet-events-window.ts` holds the arithmetic: stagenet's block time was
-measured at 7.0 seconds over the 100,000 blocks before block 973415, so a day is 12,343 blocks and
-the window 24,686. Editing the Starting Block field (Enter or leaving it) and the button beside
-it, which reads from half a day of blocks (6,172) earlier, both set the configuration's value, so
+`src/lib/midnight/network.ts` lists for the configured pair: the lower of the signer's and the
+responder's deployment blocks, as a contract has no events before it. The floor applies only while
+both addresses are listed, which today means preprod's published pair.
+`src/lib/midnight/signet-events-window.ts` holds the arithmetic: preprod's block time was measured
+at 6.0 seconds over the 100,000 blocks before block 3375000, so a day is 14,400 blocks and the
+window 28,800. Editing the Starting Block field (Enter or leaving it) and the button beside
+it, which reads from half a day of blocks (7,200) earlier, both set the configuration's value, so
 Reset Defaults returns to the window. Stepping back extends the loaded range downwards without
-reading the newer blocks again, and stops at the contract's listed earliest block, or zero. A link
+reading the newer blocks again, and stops at the pair's listed earliest block, or zero. A link
 to a request (`?requestId=`) whose notification is not in the window steps the block back the same
 way, once the window is read, until the notification is found or the floor is reached. While that
 search runs and no row matches, the table shows a searching splash (a spinner and "Looking back
@@ -297,11 +350,11 @@ floor leaves no step back. Before that, while the events are read and no row has
 shows a loading splash ("Loading Sig Network events") in place of "No requests yet", so the empty
 texts appear only once the read is over. `SpinnerSplash` in `src/components/spinner-splash.tsx` is
 the splash behind both, built from the shadcn `Empty` and `Spinner` components. The block
-belongs with the address beside it: an address of another contract needs its own block, and a
-block above the one wanted hides events without any error.
+belongs with the addresses beside it: another pair of contracts needs its own block, and a block
+above the one wanted hides events without any error.
 
 A lifecycle can hold responses and no request notification: the MPC answering a request notified
-on another Signet contract, or anyone posting a response for a request that never was. Its row says
+on another Signet signer, or anyone posting a response for a request that never was. Its row says
 so in place of the request time, caller and duration, and the expanded notification section says
 what is missing. Those are verdicts, so they wait for the search: the window is read newest first
 and a response is posted about 15 minutes of foreign-chain finality after its request, so a linked
@@ -314,23 +367,26 @@ with its transaction hash and the height, hash and time of its block. Each event
 through the SDK's `tryDecodeSignetEvent`, which yields a union over the three Signet event names
 (SignBidirectionalEvent, SignatureRespondedEvent, RespondBidirectionalEvent) carrying the declared
 request id and the decoded record. `src/lib/midnight/signet-events.ts` adds the explorer's own
-policy on top: the explorer shows everything the contract emitted, so a name that is not a Signet
-event becomes an unrecognised entry and a payload that fails to decode becomes an undecodable
-entry that keeps the error. Every entry carries `source`, the event as the indexer served it: the
-event id, the transaction hash, and the block height, hash and timestamp.
+policy on top: the explorer shows everything either contract emitted, so a name that is not a
+Signet event becomes an unrecognised entry and a payload that fails to decode becomes an
+undecodable entry that keeps the error. Every entry carries `roles`, the part the emitting contract
+is configured in (`signer`, `responder`, or both when one address is configured for both), and
+`source`, the event as the indexer served it: the event id, the transaction hash, and the block
+height, hash and timestamp.
 
 The events live in memory in `src/lib/midnight/signet-event-store.ts`, so switching tabs or moving
 between the Midnight and Solana pages does not reload them. Each slice is published as it arrives,
-with the range of blocks read so far. Loads are cached per indexer URL and contract address:
-switching networks and back reuses the completed set, a lower starting block extends a load
-downwards, and a new tip, address or indexer starts a fresh load and abandons any load that no
-longer matches. Only completed loads are kept. The address typed into
-the configuration popover reaches the store only once it is 32 bytes of hex, in canonical form
-(lowercase, `0x` prefix dropped), and the starting block once it is a whole number or empty, so a
-half-typed value starts no load and the popover marks the field invalid. The popover checks the MPC root public key the same way: any spelling the SDK
+with the range of blocks read so far. Loads are cached per indexer URL, signer address and
+responder address: switching networks and back reuses the completed set, a lower starting block
+extends a load downwards, and a new tip, address or indexer starts a fresh load and abandons any
+load that no longer matches. Only completed loads are kept. Each address typed into the
+configuration popover (Signet Signer Address and Signet Responder Address) reaches the store only
+once it is 32 bytes of hex, in canonical form (lowercase, `0x` prefix dropped), and the starting
+block once it is a whole number or empty, so a half-typed value starts no load and the popover marks
+the field invalid. The popover checks the MPC root public key the same way: any spelling the SDK
 accepts (SEC1 hex, compressed or uncompressed, or NEAR's `secp256k1:<base58>`) is valid, and
-anything else is marked. Networks without a published address (preview, preprod, mainnet, and undeployed
-without the environment variable) stay unconfigured. Nothing is written to local storage.
+anything else is marked. Networks without both addresses (preview, mainnet, and undeployed without
+the environment variables) stay unconfigured. Nothing is written to local storage.
 
 Read the state with the `useMidnightSignetEvents` hook from the same file as the provider. It
 returns the status (`unconfigured`, `loading`, `loaded` or `error`), the events, the lifecycles
@@ -343,11 +399,11 @@ Every published snapshot also carries `lifecycles`, a view of the events built b
 `src/lib/midnight/sign-bidirectional-lifecycle.ts`. It groups the decoded events by the request id
 they declare into one `SignBidirectionalLifecycle` each, with a list per event kind:
 `signBidirectionalEvents`, `signatureRespondedEvents` and `respondBidirectionalEvents`. Each is a
-list since the contract is unauthenticated: nothing stops a kind being emitted twice under one
-request id, or a response being emitted for a request that never was, and the view keeps all of it
-so such cases can be seen. The grouping is by declared id only and verifies nothing. Events that
-did not decode declare no request id and are left out. Lifecycles are ordered newest first, by the
-indexer id of their earliest event.
+list since the signer and responder are unauthenticated: nothing stops a kind being emitted twice
+under one request id, or a response being emitted for a request that never was, and the view keeps
+all of it so such cases can be seen. The grouping is by declared id only and verifies nothing.
+Events that did not decode declare no request id and are left out. Lifecycles are ordered newest
+first, by the indexer id of their earliest event.
 
 The Explorer tab renders them with `SignBidirectionalLifecycleTable` in
 `src/components/midnight/sign-bidirectional-lifecycle-table.tsx`, one row per lifecycle. The table
@@ -381,11 +437,12 @@ and every change to the filter rewrites the address bar. The panel is `ExcludedC
 and `Toggle` components, and `signBidirectionalLifecycleCalledBy` in the lifecycle module decides
 the exclusion.
 
-Expanding a row shows one section per event kind, with a numbered tab per event: where the event
-was emitted (transaction hash, block hash, block height, block time), then every field of its
-decoded record. A kind with no event shows a clock, the notification section its explanation of
-what is missing, and, while the search for a linked request continues, both the notification and
-signature sections the searching splash instead.
+Expanding a row shows one section per event kind, with a numbered tab per event: the contract that
+emitted it, as a Signet Signer or Signet Responder badge, and where the event was emitted
+(transaction hash, block hash, block height, block time), then every field of its decoded record. A
+kind with no event shows a clock, the notification section its explanation of what is missing, and,
+while the search for a linked request continues, both the notification and signature sections the
+searching splash instead.
 
 ### Transaction inspection
 
@@ -422,19 +479,22 @@ grip). Two buttons float in the bottom right corner of the viewport
 and one opens the same tree in a dialog sized to 90% of the window.
 
 Results are cached per indexer URL, transaction and request id for the life of the page, since a
-finalised transaction never changes. The inspection's test runs against a real stagenet
-transaction kept in `sign-bidirectional-transaction-inspection.fixture.ts`.
+finalised transaction never changes. The inspection's test runs against a real preprod
+transaction kept in `sign-bidirectional-transaction-inspection.fixture.ts`, a `sendDeposit` whose
+nested `signBidirectional` call goes to the preprod signer, and checks that the request record it
+finds hashes to the request id the signer's event declares.
 
 ### Signature check
 
-The contract's events are unauthenticated: anyone can post a Signature Responded Event declaring any
-request id. Under each posted signature, the Signature Check list judges it against every Sign
-Bidirectional Notification of the same request id, numbered as the notification tabs are. For each
-notification it takes the request record from the transaction inspection, derives that request's
-signing key, and asks the SDK's `verifySignatureRespondedEvent` whether the signature, over the
-transaction the request describes, recovers to that key (`src/lib/midnight/signature-check.ts`). A
-line reads "valid for key" or "not valid for key" with the key it was judged against. A notification
-whose transaction stores no request has nothing to check.
+The Signet contracts' events are unauthenticated: anyone can post a Signature Responded Event
+declaring any request id. Under each posted signature, the Signature Check list judges it against
+every Sign Bidirectional Notification of the same request id, numbered as the notification tabs are.
+For each notification it takes the request record from the transaction inspection, derives that
+request's signing key, and asks the SDK's `verifySignatureRespondedEvent` whether the signature,
+over the transaction the request describes, recovers to that key
+(`src/lib/midnight/signature-check.ts`). A line reads "valid for key" or "not valid for key" with
+the key it was judged against. A notification whose transaction stores no request has nothing to
+check.
 
 A valid line also carries the EVM transaction hash, with a link to the transaction on Etherscan. The
 hash is the Keccak-256 of the signed transaction's bytes, signature included, so it exists only for
@@ -496,7 +556,7 @@ signature. The output kind is the MPC's verdict:
 | Failed      | The transaction was finalised and reverted, and the output is empty          |
 | Unviable    | Another signet request's transaction took the nonce, and the output is empty |
 
-The event's own fields are shown as declared, and the contract emits them unverified. Under each
+The event's own fields are shown as declared, and the responder emits them unverified. Under each
 event, the Attestation Check judges it in two steps (`src/lib/midnight/attestation-check.ts`).
 
 The first step needs nothing from the foreign chain. The response key is derived with the SDK's
@@ -514,7 +574,8 @@ that declares a width of zero is over no bytes, so nothing is obtained for it: e
 unviable attestation, and an executed one whose transaction returns nothing. The bytes come from:
 
 - The MPC's output cache. The MPC writes each request's attested bytes to a public bucket before
-  it posts the attestation, at `<cache URL>/<network id>/<signet contract address>/<request id>.bin`.
+  it posts the attestation, at `<cache URL>/<network id>/<signer address>/<request id>.bin`, under
+  the Signet signer's address, not the responder's.
   The SDK's `MpcOutputCacheReader` reads it (`src/lib/midnight/mpc-output-cache.ts`) from the
   MPC Output Cache URL in the configuration, which defaults to the one the SDK publishes for the
   network and is empty where it publishes none. The bytes come serialised, so this route shows no
@@ -549,13 +610,14 @@ released yet, link a local checkout of the `sig-net/midnight-integration` reposi
 local arrangement and is never committed.
 
 Add `portal:` resolutions to `package.json` for the SDK and for its sibling
-`@sig-net/midnight-serde`, which the SDK depends on as a workspace package. Paths are relative to
-this repository, here for a checkout sitting beside it:
+`@sig-net/midnight-serde`, which the SDK depends on as a workspace package, beside the
+resolutions already there. Paths are relative to this repository, here for a checkout named
+`midnight-integration` sitting beside it:
 
 ```json
 "resolutions": {
-  "@sig-net/midnight": "portal:../midnight-integration-decoded-signet-events/packages/signet-midnight",
-  "@sig-net/midnight-serde": "portal:../midnight-integration-decoded-signet-events/packages/midnight-serde-ts"
+  "@sig-net/midnight": "portal:../midnight-integration/packages/signet-midnight",
+  "@sig-net/midnight-serde": "portal:../midnight-integration/packages/midnight-serde-ts"
 }
 ```
 
@@ -593,7 +655,7 @@ checkout type-checks before the first dev server run, and it is excluded from li
 format.
 
 The explorer page takes an optional `requestId` query parameter, so a request can be linked to:
-`/midnight/explorer?networkId=stagenet&requestId=<64 hex digits>`. It fills the search box, which
+`/midnight/explorer?networkId=preprod&requestId=<64 hex digits>`. It fills the search box, which
 filters the table to that request and opens its row. The parameter is a link target and nothing more: the box also
 searches caller addresses, so the first edit to the box removes the parameter from the address bar.
 A value that is not a request id is dropped from the URL, and one spelled with `0x` or capitals is
@@ -601,7 +663,7 @@ rewritten in canonical form.
 
 The page also takes an optional `excludeCallers` query parameter, a comma-separated list of caller
 contract addresses whose requests the filter panel hides:
-`/midnight/explorer?networkId=stagenet&excludeCallers=<64 hex digits>,<64 hex digits>`. The
+`/midnight/explorer?networkId=preprod&excludeCallers=<64 hex digits>,<64 hex digits>`. The
 parameter is the filter's value: the panel opens with those callers excluded, and excluding or
 restoring a caller rewrites it. Entries that are not contract addresses are dropped, duplicates are
 kept once, and `0x`, capitals and spaces are rewritten in canonical form.

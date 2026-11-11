@@ -7,22 +7,29 @@ import { CopyableHex } from '@/components/copyable-hex'
 import { DetailLine, DetailList } from '@/components/detail-list'
 import { PendingIcon } from '@/components/pending-icon'
 import { ScrollableTabsList } from '@/components/scrollable-tabs-list'
+import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsTrigger } from '@/components/ui/tabs'
 import { formatLocalTimestamp } from '@/lib/format'
+import type { SignetContractRole } from '@/lib/midnight/signet-events'
 
 const SUCCESSFUL_TAB_CLASS_NAME =
   'bg-success-500/15 text-success-700 hover:text-success-700 data-active:border-success-500/50 data-active:bg-success-500/25 data-active:text-success-700 dark:text-success-400 dark:hover:text-success-400 dark:data-active:border-success-500/50 dark:data-active:bg-success-500/25 dark:data-active:text-success-400'
 
 /**
- * The events of one kind, one tab per event in the order given: where on chain the event was
- * emitted, then whatever `renderRecord` makes of it. An empty `events` shows `empty`, pending by
- * default.
+ * The events of one kind, one tab per event in the order given: the contract that emitted the
+ * event and where on chain, then whatever `renderRecord` makes of it. An empty `events` shows
+ * `empty`, pending by default.
  *
  * The tabs of the events in `successfulEventIds`, by source id, are green. Until a tab is picked by
  * hand, the first of them is the selected one, and the first event while there is none.
  */
-export function SignetEventsSection<TEvent extends { readonly source: IndexedSignetMiscEvent }>({
+export function SignetEventsSection<
+  TEvent extends {
+    readonly source: IndexedSignetMiscEvent
+    readonly roles: readonly SignetContractRole[]
+  },
+>({
   heading,
   events,
   renderRecord,
@@ -75,6 +82,15 @@ export function SignetEventsSection<TEvent extends { readonly source: IndexedSig
               className="flex flex-col gap-3"
             >
               <DetailList>
+                <DetailLine label="Emitted By">
+                  <span className="inline-flex gap-1">
+                    {event.roles.map((role) => (
+                      <Badge key={role} variant="secondary">
+                        {SIGNET_CONTRACT_ROLE_LABELS[role]}
+                      </Badge>
+                    ))}
+                  </span>
+                </DetailLine>
                 <DetailLine label="Txn Hash">
                   <CopyableHex value={event.source.transactionHash} label="transaction hash" />
                 </DetailLine>
@@ -101,4 +117,9 @@ export function SignetEventsSection<TEvent extends { readonly source: IndexedSig
       )}
     </section>
   )
+}
+
+const SIGNET_CONTRACT_ROLE_LABELS: Record<SignetContractRole, string> = {
+  signer: 'Signet Signer',
+  responder: 'Signet Responder',
 }

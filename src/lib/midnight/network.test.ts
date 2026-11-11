@@ -1,7 +1,8 @@
 import {
   getMpcOutputCacheUrl,
   getMpcRootPublicKey,
-  getSignetContractAddress,
+  getResponderContractAddress,
+  getSignerContractAddress,
   MidnightNetwork,
 } from '@sig-net/midnight'
 import { expect, test } from 'vitest'
@@ -14,19 +15,18 @@ import {
   parseMidnightDefaultNetworkEnv,
   parseMidnightEvmRpcEnv,
   parseMidnightNetwork,
-  parseMidnightStagenetEnv,
+  parseMidnightPreprodEnv,
   parseSignetEventsFromBlock,
   signetEventsEarliestBlock,
   parseMidnightUndeployedEnv,
   parseMpcRootPublicKey,
-  parseSignetContractAddress,
 } from './network'
 
 test('every network has defaults and round-trips through the parser', () => {
   for (const network of MIDNIGHT_NETWORKS) {
     expect(isMidnightNetwork(network)).toBe(true)
     expect(parseMidnightNetwork(network)).toBe(network)
-    expect(MIDNIGHT_NETWORK_DEFAULTS[network].nodeUrl).toMatch(/^https?:\/\//)
+    expect(MIDNIGHT_NETWORK_DEFAULTS[network].nodeUrl).toMatch(/^(https?:\/\/|$)/)
   }
 })
 
@@ -36,10 +36,10 @@ test('unknown or missing values fall back to the default network', () => {
   expect(isMidnightNetwork(42)).toBe(false)
 })
 
-test('the default network env value is a network id, and stagenet while unset', () => {
-  expect(parseMidnightDefaultNetworkEnv({})).toBe(MidnightNetwork.Stagenet)
+test('the default network env value is a network id, and preprod while unset', () => {
+  expect(parseMidnightDefaultNetworkEnv({})).toBe(MidnightNetwork.Preprod)
   expect(parseMidnightDefaultNetworkEnv({ VITE_MIDNIGHT_DEFAULT_NETWORK: ' ' })).toBe(
-    MidnightNetwork.Stagenet,
+    MidnightNetwork.Preprod,
   )
   expect(parseMidnightDefaultNetworkEnv({ VITE_MIDNIGHT_DEFAULT_NETWORK: ' undeployed ' })).toBe(
     MidnightNetwork.Undeployed,
@@ -75,28 +75,34 @@ test('an EVM RPC env value that is not an http or https URL names its variable',
 
 const LOCAL_MPC_ROOT_PUBLIC_KEY =
   '0x04715f51662249e34979be813de068bf6d73d6abcb8b2ed34f3d4c5311cc5a1365079b3b3e16681054e1be38bff104a231bf25c8d0594d5367cbaf3d204ce1e07a'
-const LOCAL_SIGNET_CONTRACT_ADDRESS =
+const LOCAL_SIGNER_CONTRACT_ADDRESS =
   '380b1348271af7dc5a18e199aa90483830342f16267025699b940ee4bfd35193'
+const LOCAL_RESPONDER_CONTRACT_ADDRESS =
+  '4f1a2b6c3d8e9f00112233445566778899aabbccddeeff00112233445566778a'
 
 test('undeployed env values are read in canonical form', () => {
   expect(
     parseMidnightUndeployedEnv({
       VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY: ` ${LOCAL_MPC_ROOT_PUBLIC_KEY.toUpperCase().replace('0X', '0x')} `,
-      VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS: `0x${LOCAL_SIGNET_CONTRACT_ADDRESS}`,
+      VITE_MIDNIGHT_UNDEPLOYED_SIGNER_CONTRACT_ADDRESS: `0x${LOCAL_SIGNER_CONTRACT_ADDRESS}`,
+      VITE_MIDNIGHT_UNDEPLOYED_RESPONDER_CONTRACT_ADDRESS:
+        LOCAL_RESPONDER_CONTRACT_ADDRESS.toUpperCase(),
     }),
   ).toEqual({
     mpcRootPublicKey: LOCAL_MPC_ROOT_PUBLIC_KEY,
-    signetContractAddress: LOCAL_SIGNET_CONTRACT_ADDRESS,
+    signerContractAddress: LOCAL_SIGNER_CONTRACT_ADDRESS,
+    responderContractAddress: LOCAL_RESPONDER_CONTRACT_ADDRESS,
   })
 })
 
 test('unset or empty undeployed env values yield empty strings', () => {
-  const empty = { mpcRootPublicKey: '', signetContractAddress: '' }
+  const empty = { mpcRootPublicKey: '', signerContractAddress: '', responderContractAddress: '' }
   expect(parseMidnightUndeployedEnv({})).toEqual(empty)
   expect(
     parseMidnightUndeployedEnv({
       VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY: '',
-      VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS: ' ',
+      VITE_MIDNIGHT_UNDEPLOYED_SIGNER_CONTRACT_ADDRESS: ' ',
+      VITE_MIDNIGHT_UNDEPLOYED_RESPONDER_CONTRACT_ADDRESS: ' ',
     }),
   ).toEqual(empty)
 })
@@ -106,54 +112,80 @@ test('an invalid undeployed env value names its variable', () => {
     parseMidnightUndeployedEnv({ VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY: '0x04abc' }),
   ).toThrow('Invalid VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY')
   expect(() =>
-    parseMidnightUndeployedEnv({ VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS: '380b' }),
-  ).toThrow('Invalid VITE_MIDNIGHT_UNDEPLOYED_SIGNET_CONTRACT_ADDRESS')
+    parseMidnightUndeployedEnv({ VITE_MIDNIGHT_UNDEPLOYED_SIGNER_CONTRACT_ADDRESS: '380b' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_UNDEPLOYED_SIGNER_CONTRACT_ADDRESS')
+  expect(() =>
+    parseMidnightUndeployedEnv({ VITE_MIDNIGHT_UNDEPLOYED_RESPONDER_CONTRACT_ADDRESS: '380b' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_UNDEPLOYED_RESPONDER_CONTRACT_ADDRESS')
 })
 
-test('stagenet env values replace what the SDK publishes, which stands while unset', () => {
+test('preprod env values replace what the SDK publishes, which stands while unset', () => {
   const published = {
-    mpcRootPublicKey: getMpcRootPublicKey(MidnightNetwork.Stagenet),
-    signetContractAddress: getSignetContractAddress(MidnightNetwork.Stagenet),
-    mpcOutputCacheUrl: getMpcOutputCacheUrl(MidnightNetwork.Stagenet),
+    mpcRootPublicKey: getMpcRootPublicKey(MidnightNetwork.Preprod),
+    signerContractAddress: getSignerContractAddress(MidnightNetwork.Preprod),
+    responderContractAddress: getResponderContractAddress(MidnightNetwork.Preprod),
+    mpcOutputCacheUrl: getMpcOutputCacheUrl(MidnightNetwork.Preprod),
   }
-  expect(parseMidnightStagenetEnv({})).toMatchObject(published)
+  expect(parseMidnightPreprodEnv({})).toMatchObject(published)
   expect(
-    parseMidnightStagenetEnv({
-      VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY: LOCAL_MPC_ROOT_PUBLIC_KEY,
-      VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS: ' ',
-      VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL: ' https://cache.example/v1/stagenet ',
+    parseMidnightPreprodEnv({
+      VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY: LOCAL_MPC_ROOT_PUBLIC_KEY,
+      VITE_MIDNIGHT_PREPROD_SIGNER_CONTRACT_ADDRESS: ' ',
+      VITE_MIDNIGHT_PREPROD_RESPONDER_CONTRACT_ADDRESS: `0x${LOCAL_RESPONDER_CONTRACT_ADDRESS}`,
+      VITE_MIDNIGHT_PREPROD_MPC_OUTPUT_CACHE_URL: ' https://cache.example/v1 ',
     }),
   ).toMatchObject({
     mpcRootPublicKey: LOCAL_MPC_ROOT_PUBLIC_KEY,
-    signetContractAddress: published.signetContractAddress,
-    mpcOutputCacheUrl: 'https://cache.example/v1/stagenet',
+    signerContractAddress: published.signerContractAddress,
+    responderContractAddress: LOCAL_RESPONDER_CONTRACT_ADDRESS,
+    mpcOutputCacheUrl: 'https://cache.example/v1',
   })
   expect(
-    parseMidnightStagenetEnv({
-      VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS: `0x${LOCAL_SIGNET_CONTRACT_ADDRESS}`,
-    }).signetContractAddress,
-  ).toBe(LOCAL_SIGNET_CONTRACT_ADDRESS)
+    parseMidnightPreprodEnv({
+      VITE_MIDNIGHT_PREPROD_SIGNER_CONTRACT_ADDRESS: `0x${LOCAL_SIGNER_CONTRACT_ADDRESS}`,
+    }).signerContractAddress,
+  ).toBe(LOCAL_SIGNER_CONTRACT_ADDRESS)
 })
 
-test('the stagenet starting block is the env value, and the default window while unset', () => {
-  expect(parseMidnightStagenetEnv({}).signetEventsFromBlock).toBe('')
+test('the preprod endpoints carry the Blockfrost project token, and are empty without one', () => {
+  expect(parseMidnightPreprodEnv({})).toMatchObject({
+    indexerUrl: '',
+    indexerWsUrl: '',
+    nodeUrl: '',
+  })
   expect(
-    parseMidnightStagenetEnv({ VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK: ' 1200 ' })
+    parseMidnightPreprodEnv({ VITE_MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID: ' ' }),
+  ).toMatchObject({ indexerUrl: '', indexerWsUrl: '', nodeUrl: '' })
+  expect(
+    parseMidnightPreprodEnv({ VITE_MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID: ' preprodAb+1/ ' }),
+  ).toMatchObject({
+    indexerUrl: 'https://midnight-preprod.blockfrost.io/api/v0?project_id=preprodAb%2B1%2F',
+    indexerWsUrl: 'wss://midnight-preprod.blockfrost.io/api/v0/ws?project_id=preprodAb%2B1%2F',
+    nodeUrl: 'https://rpc.midnight-preprod.blockfrost.io?project_id=preprodAb%2B1%2F',
+  })
+  expect(() =>
+    parseMidnightPreprodEnv({ VITE_MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID: 'preprod Ab' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID')
+})
+
+test('the preprod starting block is the env value, and the default window while unset', () => {
+  expect(parseMidnightPreprodEnv({}).signetEventsFromBlock).toBe('')
+  expect(
+    parseMidnightPreprodEnv({ VITE_MIDNIGHT_PREPROD_SIGNET_EVENTS_FROM_BLOCK: ' 1200 ' })
       .signetEventsFromBlock,
   ).toBe('1200')
   expect(() =>
-    parseMidnightStagenetEnv({ VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK: '12.5' }),
-  ).toThrow('Invalid VITE_MIDNIGHT_STAGENET_SIGNET_EVENTS_FROM_BLOCK')
+    parseMidnightPreprodEnv({ VITE_MIDNIGHT_PREPROD_SIGNET_EVENTS_FROM_BLOCK: '12.5' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_PREPROD_SIGNET_EVENTS_FROM_BLOCK')
 })
 
-test('the earliest block is listed for the known stagenet contracts alone', () => {
-  expect(
-    signetEventsEarliestBlock('49605c93a7f602bd3c4750f013615ee3e4bd4be02a201b051c2c220ece6a32f5'),
-  ).toBe(874309)
-  expect(
-    signetEventsEarliestBlock('d2a2419b5f296dae40c5681840b660f5ebab6cbd21c107e05e0464045b589517'),
-  ).toBe(866975)
-  expect(signetEventsEarliestBlock(LOCAL_SIGNET_CONTRACT_ADDRESS)).toBeNull()
+test('the earliest block is the lower of a listed preprod signer and responder pair', () => {
+  const signer = getSignerContractAddress(MidnightNetwork.Preprod)
+  const responder = getResponderContractAddress(MidnightNetwork.Preprod)
+  expect(signetEventsEarliestBlock(signer, responder)).toBe(3363610)
+  expect(signetEventsEarliestBlock(responder, responder)).toBe(3363762)
+  expect(signetEventsEarliestBlock(signer, LOCAL_RESPONDER_CONTRACT_ADDRESS)).toBeNull()
+  expect(signetEventsEarliestBlock(LOCAL_SIGNER_CONTRACT_ADDRESS, responder)).toBeNull()
 })
 
 test('a typed starting block parses to a height, to the default window, or to null', () => {
@@ -166,28 +198,19 @@ test('a typed starting block parses to a height, to the default window, or to nu
   expect(parseSignetEventsFromBlock('latest')).toBeNull()
 })
 
-test('an invalid stagenet env value names its variable', () => {
+test('an invalid preprod env value names its variable', () => {
   expect(() =>
-    parseMidnightStagenetEnv({ VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY: '0x04abc' }),
-  ).toThrow('Invalid VITE_MIDNIGHT_STAGENET_MPC_ROOT_PUBLIC_KEY')
+    parseMidnightPreprodEnv({ VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY: '0x04abc' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY')
   expect(() =>
-    parseMidnightStagenetEnv({ VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS: '380b' }),
-  ).toThrow('Invalid VITE_MIDNIGHT_STAGENET_SIGNET_CONTRACT_ADDRESS')
+    parseMidnightPreprodEnv({ VITE_MIDNIGHT_PREPROD_SIGNER_CONTRACT_ADDRESS: '380b' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_PREPROD_SIGNER_CONTRACT_ADDRESS')
   expect(() =>
-    parseMidnightStagenetEnv({ VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL: 'gs://bucket' }),
-  ).toThrow('Invalid VITE_MIDNIGHT_STAGENET_MPC_OUTPUT_CACHE_URL')
-})
-
-test('a typed contract address parses to its canonical form or to null', () => {
-  expect(parseSignetContractAddress(LOCAL_SIGNET_CONTRACT_ADDRESS)).toBe(
-    LOCAL_SIGNET_CONTRACT_ADDRESS,
-  )
-  expect(parseSignetContractAddress(` 0x${LOCAL_SIGNET_CONTRACT_ADDRESS.toUpperCase()} `)).toBe(
-    LOCAL_SIGNET_CONTRACT_ADDRESS,
-  )
-  expect(parseSignetContractAddress('')).toBeNull()
-  expect(parseSignetContractAddress('garbage')).toBeNull()
-  expect(parseSignetContractAddress(LOCAL_SIGNET_CONTRACT_ADDRESS.slice(2))).toBeNull()
+    parseMidnightPreprodEnv({ VITE_MIDNIGHT_PREPROD_RESPONDER_CONTRACT_ADDRESS: '380b' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_PREPROD_RESPONDER_CONTRACT_ADDRESS')
+  expect(() =>
+    parseMidnightPreprodEnv({ VITE_MIDNIGHT_PREPROD_MPC_OUTPUT_CACHE_URL: 'gs://bucket' }),
+  ).toThrow('Invalid VITE_MIDNIGHT_PREPROD_MPC_OUTPUT_CACHE_URL')
 })
 
 test('a typed MPC root public key parses to its canonical form or to null', () => {

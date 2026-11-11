@@ -5,6 +5,8 @@ import { expect, test } from 'vitest'
 import { render } from 'vitest-browser-react'
 
 import '@/index.css'
+import type { SignetContractRole } from '@/lib/midnight/signet-events'
+
 import { SignetEventsSection } from './signet-events-section'
 
 // Rendered in Asia/Kolkata (UTC+05:30), the test browser's zone set in vite.config.ts.
@@ -26,10 +28,14 @@ function source(id: number): IndexedSignetMiscEvent {
 
 interface SourcedEvent {
   readonly source: IndexedSignetMiscEvent
+  readonly roles: readonly SignetContractRole[]
 }
 
 function events(count: number): SourcedEvent[] {
-  return Array.from({ length: count }, (_, index) => ({ source: source(index + 1) }))
+  return Array.from({ length: count }, (_, index) => ({
+    source: source(index + 1),
+    roles: ['responder'],
+  }))
 }
 
 function renderRecord(event: SourcedEvent): ReactNode {
@@ -54,6 +60,7 @@ test('each event gets a numbered tab showing where it was emitted and its record
   await expect.element(screen.getByText('1001', { exact: true })).toBeVisible()
   await expect.element(screen.getByText('record of event 1')).toBeVisible()
   await expect.element(screen.getByRole('button', { name: 'Copy block height' })).toBeVisible()
+  await expect.element(screen.getByText('Signet Responder')).toBeVisible()
   await screen.getByRole('tab', { name: '2' }).click()
   await expect.element(screen.getByText('07-09-26 17:30:02')).toBeVisible()
   expect(screen.getByText('07-09-26 17:30:01').elements()).toHaveLength(0)
@@ -135,4 +142,16 @@ test('an empty section shows what it is given in place of the pending clock', as
   )
   await expect.element(screen.getByText('nothing declares this request id')).toBeVisible()
   expect(screen.container.querySelector('[aria-label="Pending"]')).toBeNull()
+})
+
+test('an event read from a contract configured as both signer and responder names both', async () => {
+  const screen = await render(
+    <SignetEventsSection
+      heading="Kind"
+      events={[{ source: source(1), roles: ['signer', 'responder'] }]}
+      renderRecord={renderRecord}
+    />,
+  )
+  await expect.element(screen.getByText('Signet Signer')).toBeVisible()
+  await expect.element(screen.getByText('Signet Responder')).toBeVisible()
 })

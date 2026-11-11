@@ -1,6 +1,6 @@
 import { hexToBytes, OutputKind, type RespondBidirectionalEvent } from '@sig-net/midnight'
 
-// Attestations for STAGENET_REQUEST, minted in Node with `attestRespondBidirectional` from
+// Attestations for SIGNED_REQUEST, minted in Node with `attestRespondBidirectional` from
 // `@sig-net/midnight/testing`, which does not run in a browser.
 
 /** The public key of the root secret key 0x11 repeated 32 times. */

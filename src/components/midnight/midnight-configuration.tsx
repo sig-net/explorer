@@ -21,11 +21,11 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useMidnight } from '@/components/contexts/MidnightContext'
 import { MidnightNetwork } from '@sig-net/midnight'
+import { parseContractAddressHex } from '@/lib/midnight/contract-address'
 import {
   MIDNIGHT_NETWORKS,
   type MidnightNetworkConfig,
   parseMpcRootPublicKey,
-  parseSignetContractAddress,
   parseSignetEventsFromBlock,
 } from '@/lib/midnight/network'
 
@@ -49,10 +49,14 @@ const CONFIG_FIELDS: readonly ConfigField[] = [
         : null,
   },
   {
-    key: 'signetContractAddress',
-    label: 'Signet Contract Address',
-    problem: (value) =>
-      parseSignetContractAddress(value) === null ? 'Expected 32 bytes of hex (64 digits).' : null,
+    key: 'signerContractAddress',
+    label: 'Signet Signer Address',
+    problem: contractAddressProblem,
+  },
+  {
+    key: 'responderContractAddress',
+    label: 'Signet Responder Address',
+    problem: contractAddressProblem,
   },
   {
     key: 'signetEventsFromBlock',
@@ -66,6 +70,10 @@ const CONFIG_FIELDS: readonly ConfigField[] = [
   { key: 'ethereumSepoliaRpcUrl', label: 'Ethereum Sepolia RPC URL' },
   { key: 'mpcOutputCacheUrl', label: 'MPC Output Cache URL' },
 ]
+
+function contractAddressProblem(value: string): string | null {
+  return parseContractAddressHex(value) === null ? 'Expected 32 bytes of hex (64 digits).' : null
+}
 
 export function MidnightConfiguration() {
   const navigate = useNavigate()

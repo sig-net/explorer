@@ -43,3 +43,14 @@ test('disconnect clears the snapshot', () => {
   store.disconnect()
   expect(listener).toHaveBeenCalledTimes(1)
 })
+
+test('an empty or blank indexer URL builds no services and drops the current ones', () => {
+  const store = new MidnightIndexerServicesStore()
+  store.connect({ indexerUrl: '' })
+  expect(store.getSnapshot()).toBeNull()
+
+  store.connect(INDEXER_URLS)
+  connectedServices(store)
+  store.connect({ indexerUrl: ' ' })
+  expect(store.getSnapshot()).toBeNull()
+})

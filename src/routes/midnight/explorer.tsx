@@ -1,6 +1,6 @@
-import { parseRequestIdHex, type RequestIdHex } from '@sig-net/midnight'
+import { MidnightNetwork, parseRequestIdHex, type RequestIdHex } from '@sig-net/midnight'
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { RefreshCw, X } from 'lucide-react'
+import { RefreshCw, Unplug, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import {
@@ -11,6 +11,7 @@ import { useMidnight } from '@/components/contexts/MidnightContext'
 import { ExcludedCallersFilter } from '@/components/midnight/excluded-callers-filter'
 import { SignBidirectionalLifecycleTable } from '@/components/midnight/sign-bidirectional-lifecycle-table'
 import { SignetEventsStartingBlock } from '@/components/midnight/signet-events-starting-block'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { parseContractAddressesHex } from '@/lib/midnight/contract-address'
@@ -95,6 +96,8 @@ function loadStatusText(
 ): string {
   if (events.status === 'unconfigured') {
     switch (events.startingBlock.status) {
+      case 'no-indexer':
+        return 'No indexer configured'
       case 'resolving':
         return 'Reading the chain tip for the starting block'
       case 'unavailable':
@@ -102,7 +105,7 @@ function loadStatusText(
       case 'invalid':
         return 'The starting block is not a block height'
       case 'resolved':
-        return 'No valid Signet contract address configured'
+        return 'No valid Signet signer and responder addresses configured'
       default: {
         const exhaustive: never = events.startingBlock
         throw new Error(`unhandled starting block ${String(exhaustive)}`)
@@ -130,9 +133,31 @@ function loadStatusText(
   }
 }
 
+/** Why no events are read while no indexer URL is configured, and how to configure one. */
+function NoIndexerAlert({ network }: { network: MidnightNetwork }) {
+  return (
+    <Alert>
+      <Unplug />
+      <AlertTitle>No indexer configured</AlertTitle>
+      <AlertDescription>
+        {network === MidnightNetwork.Preprod ? (
+          <p>
+            Preprod's indexer is served by Blockfrost and needs a Blockfrost project token for
+            Midnight preprod. Build the explorer with the token in{' '}
+            <code>VITE_MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID</code>, or enter an indexer URL that
+            carries it in the Midnight configuration.
+          </p>
+        ) : (
+          <p>Enter an indexer URL in the Midnight configuration to read the events.</p>
+        )}
+      </AlertDescription>
+    </Alert>
+  )
+}
+
 function ExplorerPage() {
   const events = useMidnightSignetEvents()
-  const { setConfig } = useMidnight()
+  const { network, setConfig } = useMidnight()
   const { requestId, excludeCallers } = Route.useSearch()
   const navigate = Route.useNavigate()
   const [search, setSearch] = useState<string>(requestId ?? '')
@@ -227,6 +252,7 @@ function ExplorerPage() {
           <RefreshCw />
         </Button>
       </div>
+      {events.startingBlock.status === 'no-indexer' && <NoIndexerAlert network={network} />}
       <SignBidirectionalLifecycleTable
         lifecycles={matching}
         emptyText={

@@ -1,79 +1,109 @@
-import { parseRequestIdHex, type SignBidirectionalNotification } from '@sig-net/midnight'
+import {
+  bytesToHex,
+  calculateRequestId,
+  getSignerContractAddress,
+  MidnightNetwork,
+  parseRequestIdHex,
+  type SignBidirectionalNotification,
+} from '@sig-net/midnight'
 import { expect, test } from 'vitest'
 
 import { signBidirectionalEventJson } from './sign-bidirectional-event-json'
 import { inspectSignBidirectionalTransaction } from './sign-bidirectional-transaction-inspection'
-import { SUBMIT_NATIVE_RAW_TRANSACTION_HEX } from './sign-bidirectional-transaction-inspection.fixture'
+import { SIGN_BIDIRECTIONAL_RAW_TRANSACTION_HEX } from './sign-bidirectional-transaction-inspection.fixture'
 
+// The Sign Bidirectional Event the transaction emitted on the preprod signer, as decoded.
 const REQUEST_ID = parseRequestIdHex(
-  'af63798d599c4778b1bf06482d43235471399aaf1a5b0164f25f2e095c409900',
+  '54f6494883830237e14f8fe4e0cb14ec0c6b06046a5b8b42ffa8478564388300',
 )
-const CALLER = '0e64b7f804ee4985111d7d6ca94e48b71f78d3dc4dadacadadde0e8d3ac74f50'
-const SIGNET = '49605c93a7f602bd3c4750f013615ee3e4bd4be02a201b051c2c220ece6a32f5'
+const CALLER = '4890aeb5fb2eaee7dafe6c87ca73d34807ce61b92d4542c1c82e2296e5e2a728'
 const NOTIFICATION: SignBidirectionalNotification = {
   version: 1,
   callerAddress: CALLER,
-  requestsPath: [0],
+  requestsPath: [2, 5],
 }
 
-test('the call chain nests the claimed signet call under the top level call', () => {
+test('the call chain nests the claimed signer call under the top level call', () => {
   const { callChains } = inspectSignBidirectionalTransaction(
-    SUBMIT_NATIVE_RAW_TRANSACTION_HEX,
+    SIGN_BIDIRECTIONAL_RAW_TRANSACTION_HEX,
     REQUEST_ID,
     NOTIFICATION,
   )
   expect(callChains).toEqual([
     {
-      entryPoint: 'submitNative',
+      entryPoint: 'sendDeposit',
       address: CALLER,
-      fallible: false,
-      calls: [{ entryPoint: 'signBidirectional', address: SIGNET, fallible: false, calls: [] }],
+      fallible: true,
+      calls: [
+        {
+          entryPoint: 'signBidirectional',
+          address: getSignerContractAddress(MidnightNetwork.Preprod),
+          fallible: true,
+          calls: [],
+        },
+      ],
     },
   ])
 })
 
+test('the request record found hashes to the request id the event declares', () => {
+  const { request } = inspectSignBidirectionalTransaction(
+    SIGN_BIDIRECTIONAL_RAW_TRANSACTION_HEX,
+    REQUEST_ID,
+    NOTIFICATION,
+  )
+  expect(request && bytesToHex(calculateRequestId(request))).toBe(REQUEST_ID)
+})
+
 test('the request is the record written at the requests path under the request id', () => {
   const { request } = inspectSignBidirectionalTransaction(
-    SUBMIT_NATIVE_RAW_TRANSACTION_HEX,
+    SIGN_BIDIRECTIONAL_RAW_TRANSACTION_HEX,
     REQUEST_ID,
     NOTIFICATION,
   )
   expect(request && signBidirectionalEventJson(request)).toEqual({
     keyVersion: 1,
     sender: CALLER,
-    path: 'c02f1c87888df99ac48a01fbdbbca0715b2ca051ed85c8dfbaad0a0808b04617',
+    path: 'bad98eb937feab871303240f667a90141071b40780c58612430ed158b5cf1100',
     algo: 0,
     txParamType: 0,
     txParams: {
       chainId: 11155111,
-      nonce: 7,
-      maxPriorityFeePerGas: 1582787,
-      maxFeePerGas: 1582817,
-      gasLimit: 14400,
-      to: '2ec1b0f2e155982e1de09e9cb05e2ec758c51db8',
+      nonce: 0,
+      maxPriorityFeePerGas: 1000000000,
+      maxFeePerGas: 30000000000,
+      gasLimit: 100000,
+      to: '1c7d4b196cb0c7b01d743fbc6116a902379c7238',
       value: 0,
-      calldata: null,
+      calldata: {
+        selector: 'a9059cbb',
+        noWords: 2,
+        words: [
+          '00000000000000000000000033935df7dc34f4b26cfe9a92d918f9e3e30095df',
+          '00000000000000000000000000000000000000000000000000000000000dbba0',
+        ],
+      },
       accessListEntryCount: 0,
       accessList: [],
     },
     executionDest: 'eip155:1',
     signatureDest: 0,
     params: '00'.repeat(64),
-    outputDeserializationSchema: '[]',
+    outputDeserializationSchema: '[{"name":"success","type":"bool"}]',
     respondSerializationSchema: '',
   })
 })
 
 test('no request is found at another path or under another request id', () => {
   expect(
-    inspectSignBidirectionalTransaction(SUBMIT_NATIVE_RAW_TRANSACTION_HEX, REQUEST_ID, {
+    inspectSignBidirectionalTransaction(SIGN_BIDIRECTIONAL_RAW_TRANSACTION_HEX, REQUEST_ID, {
       ...NOTIFICATION,
-      requestsPath: [1],
+      requestsPath: [2, 4],
     }).request,
   ).toBeNull()
   expect(
     inspectSignBidirectionalTransaction(
-      SUBMIT_NATIVE_RAW_TRANSACTION_HEX,
+      SIGN_BIDIRECTIONAL_RAW_TRANSACTION_HEX,
       parseRequestIdHex('00'.repeat(32)),
       NOTIFICATION,
     ).request,

@@ -14,6 +14,7 @@ test('anything but 32 bytes of hex is not a contract address', () => {
   expect(parseContractAddressHex('abab')).toBeNull()
   expect(parseContractAddressHex(`${ADDRESS}ab`)).toBeNull()
   expect(parseContractAddressHex(`${ADDRESS.slice(2)}zz`)).toBeNull()
+  expect(parseContractAddressHex(`0x0x${ADDRESS}`)).toBeNull()
 })
 
 test('a comma-separated list yields its distinct addresses in canonical form, dropping the rest', () => {

@@ -9,7 +9,7 @@ import type { MidnightNetworkConfig } from '@/lib/midnight/network'
 export type MidnightIndexerUrls = Pick<MidnightNetworkConfig, 'indexerUrl'>
 
 export interface MidnightIndexerServices {
-  /** Streams the Signet contract's events from the indexer's query URL, one page at a time. */
+  /** Streams any signet contract's events from the indexer's query URL, one page at a time. */
   signetEventSource: SignetEventSource<IndexedSignetMiscEvent>
 }
 
@@ -20,7 +20,8 @@ interface BuiltIndexerServices {
 
 /**
  * Owns the indexer-backed services for one indexer URL. Consumers key their work on the identity
- * of a service, so the same URL always yields the same objects.
+ * of a service, so the same URL always yields the same objects. A URL that names no indexer
+ * yields no services.
  */
 export class MidnightIndexerServicesStore {
   #built: BuiltIndexerServices | null = null
@@ -37,6 +38,10 @@ export class MidnightIndexerServicesStore {
 
   /** Builds services for `urls`, replacing the current ones only when the URL differs. */
   connect(urls: MidnightIndexerUrls): void {
+    if (!isIndexerUrlConfigured(urls.indexerUrl)) {
+      this.disconnect()
+      return
+    }
     if (this.#built?.urls.indexerUrl === urls.indexerUrl) {
       return
     }
@@ -59,4 +64,9 @@ export class MidnightIndexerServicesStore {
       listener()
     }
   }
+}
+
+/** Whether `indexerUrl` names an indexer: an empty or blank URL means none is configured. */
+export function isIndexerUrlConfigured(indexerUrl: string): boolean {
+  return indexerUrl.trim() !== ''
 }

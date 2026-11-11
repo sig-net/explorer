@@ -4,15 +4,23 @@ import {
   aggregateSignBidirectionalLifecycles,
   type SignBidirectionalLifecycle,
 } from '@/lib/midnight/sign-bidirectional-lifecycle'
-import { decodeSignetContractEvent, type SignetContractEvent } from '@/lib/midnight/signet-events'
+import {
+  decodeSignetContractEvent,
+  type SignetContractEvent,
+  type SignetContractRole,
+} from '@/lib/midnight/signet-events'
 import { midnightBlocksIn, SIGNET_EVENTS_SLICE_DAYS } from '@/lib/midnight/signet-events-window'
 
 export type IndexedSignetEventSource = SignetEventSource<IndexedSignetMiscEvent>
 
-/** The contract one set of events belongs to. Both fields together key the store's cache. */
-export interface SignetContractLocation {
+/**
+ * The signer and responder one set of events belongs to, and the indexer they are read from. All
+ * three fields together key the store's cache.
+ */
+export interface SignetEventsLocation {
   readonly indexerUrl: string
-  readonly signetContractAddress: string
+  readonly signerContractAddress: string
+  readonly responderContractAddress: string
 }
 
 /** An inclusive range of block heights. */
@@ -25,7 +33,7 @@ export type SignetEventLoadStatus = 'loading' | 'loaded' | 'error'
 
 export interface SignetEventLoad {
   readonly status: SignetEventLoadStatus
-  readonly location: SignetContractLocation
+  readonly location: SignetEventsLocation
   /**
    * The blocks read so far. `toBlock` is the chain tip the load was started at, and `fromBlock`
    * falls slice by slice towards `targetFromBlock` as the load reads backwards.
@@ -53,17 +61,39 @@ interface StoreEntry {
 
 const UNCONFIGURED: SignetEventStoreSnapshot = { status: 'unconfigured' }
 
-function locationKey(location: SignetContractLocation): string {
-  return JSON.stringify([location.indexerUrl, location.signetContractAddress])
+function locationKey(location: SignetEventsLocation): string {
+  return JSON.stringify([
+    location.indexerUrl,
+    location.signerContractAddress,
+    location.responderContractAddress,
+  ])
+}
+
+/** One contract whose events are streamed, and the roles it is configured in. */
+interface ContractRead {
+  readonly address: string
+  readonly roles: readonly SignetContractRole[]
+}
+
+/** The distinct contracts of `location`: one when the signer and responder share an address. */
+function contractReads(location: SignetEventsLocation): ContractRead[] {
+  if (location.signerContractAddress === location.responderContractAddress) {
+    return [{ address: location.signerContractAddress, roles: ['signer', 'responder'] }]
+  }
+  return [
+    { address: location.signerContractAddress, roles: ['signer'] },
+    { address: location.responderContractAddress, roles: ['responder'] },
+  ]
 }
 
 /**
- * Holds the Signet contract's events per location, reading each location's range through the
- * SDK's event stream one slice of blocks at a time, newest first, so the latest events show while
- * older ones are still arriving. A range only grows downwards: selecting a lower starting block
- * extends a load, and a new chain tip or event source starts one afresh. Only completed loads
- * survive a change of location, so a load that stops matching the current location is abandoned
- * and its partial results are dropped.
+ * Holds the signer's and the responder's events per location, reading each location's range
+ * through the SDK's event stream one slice of blocks at a time, newest first, so the latest events
+ * show while older ones are still arriving. A slice is committed once both contracts' reads of it
+ * have finished. A range only grows downwards: selecting a lower starting block extends a load,
+ * and a new chain tip or event source starts one afresh. Only completed loads survive a change of
+ * location, so a load that stops matching the current location is abandoned and its partial
+ * results are dropped.
  */
 export class SignetEventStore {
   readonly #entries = new Map<string, StoreEntry>()
@@ -91,7 +121,7 @@ export class SignetEventStore {
    * `fromBlock` is below what it covers, extended down to it.
    */
   select(
-    location: SignetContractLocation,
+    location: SignetEventsLocation,
     eventSource: IndexedSignetEventSource,
     fromBlock: number,
     tipHeight: number,
@@ -134,7 +164,7 @@ export class SignetEventStore {
 
   #start(
     key: string,
-    location: SignetContractLocation,
+    location: SignetEventsLocation,
     eventSource: IndexedSignetEventSource,
     fromBlock: number,
     tipHeight: number,
@@ -186,25 +216,18 @@ export class SignetEventStore {
           fromBlock: Math.max(targetFromBlock, read.fromBlock - sliceBlocks),
           toBlock: read.fromBlock - 1,
         }
-        const events: SignetContractEvent[] = []
-        for await (const event of current.eventSource.streamSignetEvents(
-          location.signetContractAddress,
-          slice,
-        )) {
-          if (this.#live(key, generation) === null) {
-            return
-          }
-          if (event.blockHeight < slice.fromBlock || event.blockHeight > slice.toBlock) {
-            throw new Error(
-              `the event source yielded block ${String(event.blockHeight)} outside the slice ${String(slice.fromBlock)} to ${String(slice.toBlock)}`,
-            )
-          }
-          events.push(decodeSignetContractEvent(event))
-        }
+        const { eventSource } = current
+        const contractEvents = await Promise.all(
+          contractReads(location).map((contract) =>
+            this.#readSlice(key, generation, eventSource, contract, slice),
+          ),
+        )
         const after = this.#live(key, generation)
         if (after === null) {
           return
         }
+        // The indexer's event id is one cursor across contracts, so ascending id is emission order.
+        const events = contractEvents.flat().sort((a, b) => a.source.id - b.source.id)
         const merged = [...events, ...after.load.events]
         after.load = {
           ...after.load,
@@ -230,6 +253,29 @@ export class SignetEventStore {
         done.reading = false
       }
     }
+  }
+
+  /** One contract's events in `slice`, cut short when the load is abandoned. */
+  async #readSlice(
+    key: string,
+    generation: number,
+    eventSource: IndexedSignetEventSource,
+    contract: ContractRead,
+    slice: SignetEventBlockRange,
+  ): Promise<SignetContractEvent[]> {
+    const events: SignetContractEvent[] = []
+    for await (const event of eventSource.streamSignetEvents(contract.address, slice)) {
+      if (this.#live(key, generation) === null) {
+        break
+      }
+      if (event.blockHeight < slice.fromBlock || event.blockHeight > slice.toBlock) {
+        throw new Error(
+          `the event source yielded block ${String(event.blockHeight)} outside the slice ${String(slice.fromBlock)} to ${String(slice.toBlock)}`,
+        )
+      }
+      events.push(decodeSignetContractEvent(event, contract.roles))
+    }
+    return events
   }
 
   #notify(): void {

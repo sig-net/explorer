@@ -18,9 +18,9 @@ const WINDOW_BLOCKS = midnightBlocksIn(DEFAULT_SIGNET_EVENTS_WINDOW_DAYS).toLoca
 const STEP_BLOCKS = midnightBlocksIn(SIGNET_EVENTS_STEP_BACK_DAYS).toLocaleString('en-GB')
 
 /**
- * The block the Signet contract's events are read from: shown as resolved, editable, and with a
- * button for `onStepBack`, enabled by `canStepBack`. An edit reaches `onChange` on Enter or blur,
- * as the typed text, once it is a block height or empty.
+ * The block the signer's and responder's events are read from: shown as resolved, editable, and
+ * with a button for `onStepBack`, enabled by `canStepBack`. An edit reaches `onChange` on Enter or
+ * blur, as the typed text, once it is a block height or empty.
  */
 export function SignetEventsStartingBlock({
   startingBlock,
@@ -54,11 +54,11 @@ export function SignetEventsStartingBlock({
         Starting Block
       </Label>
       <InfoTooltip label="About the starting block">
-        The lowest block the Signet contract's events are read from. By default it is{' '}
-        {String(DEFAULT_SIGNET_EVENTS_WINDOW_DAYS)} days of blocks (about {WINDOW_BLOCKS}) before
+        The lowest block the events of the Signet signer and responder are read from. By default it
+        is {String(DEFAULT_SIGNET_EVENTS_WINDOW_DAYS)} days of blocks (about {WINDOW_BLOCKS}) before
         the chain's tip when the page loaded, and never before the earliest block listed for the
-        contract. Enter a block height to read from it, 0 for the whole history, or nothing for the
-        default. It is the Signet Events From Block field of the Midnight configuration.
+        configured pair. Enter a block height to read from it, 0 for the whole history, or nothing
+        for the default. It is the Signet Events From Block field of the Midnight configuration.
       </InfoTooltip>
       <Input
         id={id}

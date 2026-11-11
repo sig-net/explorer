@@ -2,14 +2,14 @@ import { calculateRequestId, hexToBytes, type SignatureRespondedEvent } from '@s
 import { expect, test } from 'vitest'
 
 import {
-  STAGENET_REQUEST as REQUEST,
-  STAGENET_REQUEST_MPC_ROOT_KEY as STAGENET_ROOT_KEY,
+  SIGNED_REQUEST as REQUEST,
+  SIGNED_REQUEST_MPC_ROOT_KEY as REQUEST_ROOT_KEY,
 } from './sign-bidirectional-event.fixture'
 import { checkSignature } from './signature-check'
 
 const REQUEST_ID = calculateRequestId(REQUEST)
 
-// Two of the signatures posted for the stagenet request: the first is the MPC's, the second
+// Two of the signatures posted for the request: the first is the MPC's, the second
 // declares the same request id but is by another key.
 const MPC_RESPONSE: SignatureRespondedEvent = {
   requestId: REQUEST_ID,
@@ -42,7 +42,7 @@ const SIGNING_KEY = {
 }
 
 test('the MPC signature is valid and yields the hash the transaction has on Sepolia', () => {
-  expect(checkSignature(STAGENET_ROOT_KEY, REQUEST, MPC_RESPONSE)).toEqual({
+  expect(checkSignature(REQUEST_ROOT_KEY, REQUEST, MPC_RESPONSE)).toEqual({
     status: 'valid',
     signingKey: SIGNING_KEY,
     evmTransactionHash: '0x84e8c369f283eb7ca26693d0db2092e121407d140a9a4657ac7780182f963f13',
@@ -53,7 +53,7 @@ test('the MPC signature is valid and yields the hash the transaction has on Sepo
 })
 
 test('a signature by another key is invalid', () => {
-  expect(checkSignature(STAGENET_ROOT_KEY, REQUEST, FOREIGN_RESPONSE)).toEqual({
+  expect(checkSignature(REQUEST_ROOT_KEY, REQUEST, FOREIGN_RESPONSE)).toEqual({
     status: 'invalid',
     signingKey: SIGNING_KEY,
   })
@@ -61,7 +61,7 @@ test('a signature by another key is invalid', () => {
 
 test('the MPC signature is not valid for the same request on another path', () => {
   const check = checkSignature(
-    STAGENET_ROOT_KEY,
+    REQUEST_ROOT_KEY,
     { ...REQUEST, path: new Uint8Array(32) },
     MPC_RESPONSE,
   )

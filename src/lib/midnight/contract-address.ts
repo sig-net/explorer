@@ -1,17 +1,25 @@
-import { contractAddressFromHex } from '@sig-net/midnight'
+import { bytesToHex, contractAddressFromHex } from '@sig-net/midnight'
 
 /**
- * A contract address as the SDK records a caller: lowercase hex without `0x`. Null when `input`
- * is not 32 bytes of hex, with or without the prefix and surrounding space.
+ * A contract address in the form the indexer takes and the SDK records a caller in: 64 lowercase
+ * hex digits without `0x`. Null when `input` is not 32 bytes of hex, with or without the prefix
+ * and surrounding space.
  */
 export function parseContractAddressHex(input: string): string | null {
-  const digits = input.trim().toLowerCase().replace(/^0x/, '')
   try {
-    contractAddressFromHex(digits)
+    return normaliseContractAddressHex(input)
   } catch {
     return null
   }
-  return digits
+}
+
+/**
+ * The form {@link parseContractAddressHex} gives a contract address.
+ *
+ * @throws {Error} When the value is not 32 bytes of hex.
+ */
+export function normaliseContractAddressHex(input: string): string {
+  return bytesToHex(contractAddressFromHex(input.trim()).bytes)
 }
 
 /**

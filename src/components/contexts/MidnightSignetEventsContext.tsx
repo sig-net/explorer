@@ -8,20 +8,20 @@ import {
 } from 'react'
 
 import { useMidnight } from '@/components/contexts/MidnightContext'
+import { parseContractAddressHex } from '@/lib/midnight/contract-address'
 import { fetchIndexerBlockHeight } from '@/lib/midnight/indexer-block-height'
-import {
-  parseSignetContractAddress,
-  parseSignetEventsFromBlock,
-  signetEventsEarliestBlock,
-} from '@/lib/midnight/network'
+import { isIndexerUrlConfigured } from '@/lib/midnight/indexer-services'
+import { parseSignetEventsFromBlock, signetEventsEarliestBlock } from '@/lib/midnight/network'
 import { SignetEventStore, type SignetEventStoreSnapshot } from '@/lib/midnight/signet-event-store'
 import {
   defaultSignetEventsFromBlock,
   signetEventsFromBlockSteppedBack,
 } from '@/lib/midnight/signet-events-window'
 
-/** The block the Signet contract's events are read from, as the configuration resolves it. */
+/** The block both contracts' events are read from, as the configuration resolves it. */
 export type SignetStartingBlock =
+  /** No indexer URL is configured, so there is no chain tip to read. */
+  | { readonly status: 'no-indexer' }
   /** The configured value is not a block height. */
   | { readonly status: 'invalid' }
   /** The chain tip, which the load reads down from, is being read. */
@@ -33,7 +33,7 @@ export type SignetStartingBlock =
       readonly block: number
       /** True when the block is the default window's start, false for a configured block. */
       readonly automatic: boolean
-      /** The lowest block worth reading from: the contract's listed earliest block, or zero. */
+      /** The lowest block worth reading from: the contracts' listed earliest block, or zero. */
       readonly floor: number
     }
 
@@ -60,16 +60,18 @@ interface IndexerTip {
 }
 
 /**
- * Loads the Signet contract's events once the indexer services exist and the selected network
- * names a contract address and a starting block, and keeps every completed load for the life of
- * the application.
+ * Loads the signer's and the responder's events once the indexer services exist and the selected
+ * network names both addresses and a starting block, and keeps every completed load for the life
+ * of the application.
  */
 export function MidnightSignetEventsProvider({ children }: { children: ReactNode }) {
   const { indexerServices, config, setConfig } = useMidnight()
   const { indexerUrl } = config
-  // The configuration holds the address and block as typed. The canonical forms key the cache, so
+  const indexerConfigured = isIndexerUrlConfigured(indexerUrl)
+  // The configuration holds the addresses and block as typed. The canonical forms key the cache, so
   // a `0x` prefix or upper case names the same contract, and a half-typed value starts no load.
-  const signetContractAddress = parseSignetContractAddress(config.signetContractAddress)
+  const signerContractAddress = parseContractAddressHex(config.signerContractAddress)
+  const responderContractAddress = parseContractAddressHex(config.responderContractAddress)
   const configuredBlock = parseSignetEventsFromBlock(config.signetEventsFromBlock)
   const eventSource = indexerServices?.signetEventSource ?? null
   const [store] = useState(() => new SignetEventStore())
@@ -80,28 +82,35 @@ export function MidnightSignetEventsProvider({ children }: { children: ReactNode
   const [tipReads, setTipReads] = useState(0)
   useEffect(() => {
     let current = true
-    fetchIndexerBlockHeight(indexerUrl).then(
-      (height) => {
-        if (current) {
-          setTip({ indexerUrl, read: tipReads, result: { height } })
-        }
-      },
-      (error: unknown) => {
-        if (current) {
-          const message = error instanceof Error ? error.message : String(error)
-          setTip({ indexerUrl, read: tipReads, result: { error: message } })
-        }
-      },
-    )
+    if (indexerConfigured) {
+      fetchIndexerBlockHeight(indexerUrl).then(
+        (height) => {
+          if (current) {
+            setTip({ indexerUrl, read: tipReads, result: { height } })
+          }
+        },
+        (error: unknown) => {
+          if (current) {
+            const message = error instanceof Error ? error.message : String(error)
+            setTip({ indexerUrl, read: tipReads, result: { error: message } })
+          }
+        },
+      )
+    }
     return () => {
       current = false
     }
-  }, [indexerUrl, tipReads])
+  }, [indexerUrl, indexerConfigured, tipReads])
   const tipIsCurrent = tip?.indexerUrl === indexerUrl
 
   const floor =
-    signetContractAddress === null ? 0 : (signetEventsEarliestBlock(signetContractAddress) ?? 0)
+    signerContractAddress === null || responderContractAddress === null
+      ? 0
+      : (signetEventsEarliestBlock(signerContractAddress, responderContractAddress) ?? 0)
   const startingBlock = ((): SignetStartingBlock => {
+    if (!indexerConfigured) {
+      return { status: 'no-indexer' }
+    }
     if (configuredBlock === null) {
       return { status: 'invalid' }
     }
@@ -131,15 +140,29 @@ export function MidnightSignetEventsProvider({ children }: { children: ReactNode
   useEffect(() => {
     if (
       eventSource === null ||
-      signetContractAddress === null ||
+      signerContractAddress === null ||
+      responderContractAddress === null ||
       fromBlock === null ||
       tipHeight === null
     ) {
       store.deselect()
     } else {
-      store.select({ indexerUrl, signetContractAddress }, eventSource, fromBlock, tipHeight)
+      store.select(
+        { indexerUrl, signerContractAddress, responderContractAddress },
+        eventSource,
+        fromBlock,
+        tipHeight,
+      )
     }
-  }, [store, eventSource, indexerUrl, signetContractAddress, fromBlock, tipHeight])
+  }, [
+    store,
+    eventSource,
+    indexerUrl,
+    signerContractAddress,
+    responderContractAddress,
+    fromBlock,
+    tipHeight,
+  ])
 
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot)
 

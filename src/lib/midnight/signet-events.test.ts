@@ -66,7 +66,8 @@ function respondBidirectionalPayload(): number[] {
 
 test('a sign bidirectional event decodes to its request id and notification', () => {
   const source = signetEvent(SignetEventName.SignBidirectionalEvent, notificationPayload(1, 1))
-  expect(decodeSignetContractEvent(source)).toEqual({
+  expect(decodeSignetContractEvent(source, ['signer'])).toEqual({
+    roles: ['signer'],
     kind: 'decoded',
     name: SignetEventName.SignBidirectionalEvent,
     requestId: bytesToHex(REQUEST_ID),
@@ -78,11 +79,13 @@ test('a sign bidirectional event decodes to its request id and notification', ()
 test('a signature responded event decodes to its request id and signature', () => {
   const decoded = decodeSignetContractEvent(
     signetEvent(SignetEventName.SignatureRespondedEvent, signatureRespondedPayload()),
+    ['responder'],
   )
   if (decoded.kind !== 'decoded' || decoded.name !== SignetEventName.SignatureRespondedEvent) {
     throw new Error('expected a decoded signature responded event')
   }
   expect(decoded.requestId).toBe(bytesToHex(REQUEST_ID))
+  expect(decoded.roles).toEqual(['responder'])
   expect(decoded.source).toMatchObject({ id: 7, transactionId: 42 })
   expect(decoded.record).toEqual({
     requestId: REQUEST_ID,
@@ -97,6 +100,7 @@ test('a signature responded event decodes to its request id and signature', () =
 test('a respond bidirectional event decodes to everything its attestation declares', () => {
   const decoded = decodeSignetContractEvent(
     signetEvent(SignetEventName.RespondBidirectionalEvent, respondBidirectionalPayload()),
+    ['responder'],
   )
   if (decoded.kind !== 'decoded' || decoded.name !== SignetEventName.RespondBidirectionalEvent) {
     throw new Error('expected a decoded respond bidirectional event')
@@ -122,6 +126,7 @@ test('a respond bidirectional event with an unknown output kind is kept as undec
   payload[40] = 3
   const decoded = decodeSignetContractEvent(
     signetEvent(SignetEventName.RespondBidirectionalEvent, payload),
+    ['responder'],
   )
   expect(decoded.kind).toBe('undecodable')
   if (decoded.kind !== 'undecodable') {
@@ -132,24 +137,31 @@ test('a respond bidirectional event with an unknown output kind is kept as undec
 
 test('an unknown event name is kept as unrecognised', () => {
   const source = signetEvent('SomethingElse', [0xff])
-  expect(decodeSignetContractEvent(source)).toEqual({ kind: 'unrecognised', source })
+  expect(decodeSignetContractEvent(source, ['signer', 'responder'])).toEqual({
+    roles: ['signer', 'responder'],
+    kind: 'unrecognised',
+    source,
+  })
 })
 
 test('a notification with an unsupported version is kept as undecodable', () => {
   const decoded = decodeSignetContractEvent(
     signetEvent(SignetEventName.SignBidirectionalEvent, notificationPayload(2, 1)),
+    ['signer'],
   )
   expect(decoded.kind).toBe('undecodable')
   if (decoded.kind !== 'undecodable') {
     throw new Error('expected an undecodable event')
   }
   expect(decoded.source.name).toBe(SignetEventName.SignBidirectionalEvent)
+  expect(decoded.roles).toEqual(['signer'])
   expect(decoded.reason).toContain('version 2')
 })
 
 test('a notification with a zero path depth is kept as undecodable', () => {
   const decoded = decodeSignetContractEvent(
     signetEvent(SignetEventName.SignBidirectionalEvent, notificationPayload(1, 0)),
+    ['signer'],
   )
   expect(decoded.kind).toBe('undecodable')
   if (decoded.kind !== 'undecodable') {

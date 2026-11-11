@@ -4,7 +4,7 @@ import { MpcOutputCacheReader, type RequestIdHex } from '@sig-net/midnight'
 export interface MpcOutputCacheLocation {
   readonly cacheUrl: string
   readonly networkId: string
-  readonly signetContractAddress: string
+  readonly signerContractAddress: string
 }
 
 const outputs = new Map<string, Promise<Uint8Array>>()

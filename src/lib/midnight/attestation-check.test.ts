@@ -10,7 +10,7 @@ import {
   FIXTURE_RESPONSE_KEY as RESPONSE_KEY,
   FOREIGN_KEY_ATTESTATION,
 } from './respond-bidirectional-event.fixture'
-import { STAGENET_REQUEST as REQUEST } from './sign-bidirectional-event.fixture'
+import { SIGNED_REQUEST as REQUEST } from './sign-bidirectional-event.fixture'
 
 const CALLER = bytesToHex(REQUEST.sender.bytes)
 

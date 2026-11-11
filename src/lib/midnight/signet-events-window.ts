@@ -1,8 +1,8 @@
 /**
- * Stagenet's block time in seconds: 7.0 over the 100,000 blocks before block 973415, read off the
- * indexer on 2026-10-22.
+ * Preprod's block time in seconds: 6.0 over the 100,000 blocks before block 3375000, read off the
+ * indexer on 2026-11-11.
  */
-export const MIDNIGHT_SECONDS_PER_BLOCK = 7
+export const MIDNIGHT_SECONDS_PER_BLOCK = 6
 
 export const MIDNIGHT_BLOCKS_PER_DAY = Math.round((24 * 60 * 60) / MIDNIGHT_SECONDS_PER_BLOCK)
 
@@ -18,7 +18,7 @@ export const SIGNET_EVENTS_STEP_BACK_DAYS = 0.5
  */
 export const SIGNET_EVENTS_SLICE_DAYS = 1 / 8
 
-/** The number of blocks `days` of stagenet blocks take. */
+/** The number of blocks `days` of Midnight blocks take. */
 export function midnightBlocksIn(days: number): number {
   return Math.round(days * MIDNIGHT_BLOCKS_PER_DAY)
 }

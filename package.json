@@ -18,8 +18,8 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@microlink/react-json-view": "1.31.34",
-    "@midnightntwrk/ledger-v9": "1.0.0-rc.3",
-    "@sig-net/midnight": "0.26.0-rc.1",
+    "@midnightntwrk/ledger-v9": "1.0.1",
+    "@sig-net/midnight": "0.26.0-rc.13",
     "@tanstack/react-router": "^1.170.36",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
@@ -55,6 +55,10 @@
     "vite-plugin-wasm": "^3.6.0",
     "vitest": "^5.0.0",
     "vitest-browser-react": "^2.3.0"
+  },
+  "resolutions": {
+    "@midnightntwrk/ledger-v9": "1.0.1",
+    "@midnightntwrk/onchain-runtime-v4": "4.0.1"
   },
   "engines": {
     "node": ">=22.12.0"

@@ -4,22 +4,25 @@ import { expect, test, vi } from 'vitest'
 
 import {
   type IndexedSignetEventSource,
-  type SignetContractLocation,
   type SignetEventLoad,
+  type SignetEventsLocation,
   SignetEventStore,
 } from './signet-event-store'
 
-const LOCATION: SignetContractLocation = {
+const SIGNER = '380b1348271af7dc5a18e199aa90483830342f16267025699b940ee4bfd35193'
+const RESPONDER = 'ab0b1348271af7dc5a18e199aa90483830342f16267025699b940ee4bfd35193'
+const LOCATION: SignetEventsLocation = {
   indexerUrl: 'https://indexer.example/api/v4/graphql',
-  signetContractAddress: '380b1348271af7dc5a18e199aa90483830342f16267025699b940ee4bfd35193',
+  signerContractAddress: SIGNER,
+  responderContractAddress: RESPONDER,
 }
-const OTHER_LOCATION: SignetContractLocation = {
+const OTHER_LOCATION: SignetEventsLocation = {
   ...LOCATION,
-  signetContractAddress: 'ab0b1348271af7dc5a18e199aa90483830342f16267025699b940ee4bfd35193',
+  responderContractAddress: 'cd0b1348271af7dc5a18e199aa90483830342f16267025699b940ee4bfd35193',
 }
 const TIP = 10000
 /** A slice is an eighth of a day of blocks. */
-const SLICE = 1543
+const SLICE = 1800
 const BLOCK_START = DateTime.fromISO('2026-09-09T05:46:00Z')
 
 function signetEvent(id: number, blockHeight = TIP - 5): IndexedSignetMiscEvent {
@@ -44,6 +47,7 @@ function eventsFrom(first: number, count: number, blockHeight = TIP - 5): Indexe
 type Requested = [string, SignetEventStreamOptions | undefined]
 
 interface HeldStream {
+  address: string
   resolve: (events: IndexedSignetMiscEvent[]) => void
   reject: (error: Error) => void
 }
@@ -63,7 +67,7 @@ function heldSource(): {
     async *streamSignetEvents(contractAddress, options) {
       requested.push([contractAddress, options])
       yield* await new Promise<IndexedSignetMiscEvent[]>((resolve, reject) => {
-        streams.push({ resolve, reject })
+        streams.push({ address: contractAddress, resolve, reject })
       })
     },
   }
@@ -105,7 +109,23 @@ async function waitForStreams(held: { streams: HeldStream[] }, count: number) {
   })
 }
 
-test('a range is read newest slice first, each published as it lands, oldest events first', async () => {
+/** The held stream of `address` among the two a slice opened, the slice counted from zero. */
+function sliceStream(held: { streams: HeldStream[] }, slice: number, address: string): HeldStream {
+  const stream = held.streams
+    .slice(2 * slice, 2 * slice + 2)
+    .find((candidate) => candidate.address === address)
+  if (stream === undefined) {
+    throw new Error(`no stream of ${address} for slice ${String(slice)}`)
+  }
+  return stream
+}
+
+/** The source ids and roles of the loaded events, in stored order. */
+function storedEvents(store: SignetEventStore): [number, readonly string[]][] {
+  return loadOf(store).events.map((event) => [event.source.id, event.roles])
+}
+
+test('a range is read newest slice first, both contracts per slice, merged in id order', async () => {
   const held = heldSource()
   const store = new SignetEventStore()
   const listener = vi.fn<() => void>()
@@ -120,30 +140,51 @@ test('a range is read newest slice first, each published as it lands, oldest eve
     targetFromBlock: TIP - 2 * SLICE - 10,
     events: [],
   })
-  await waitForStreams(held, 1)
-  expect(held.requested).toEqual([
-    [LOCATION.signetContractAddress, { fromBlock: TIP - SLICE + 1, toBlock: TIP }],
-  ])
-
-  held.streams[0]?.resolve(eventsFrom(201, 2))
   await waitForStreams(held, 2)
+  const firstSlice = { fromBlock: TIP - SLICE + 1, toBlock: TIP }
+  expect(held.requested).toEqual(
+    expect.arrayContaining([
+      [SIGNER, firstSlice],
+      [RESPONDER, firstSlice],
+    ]),
+  )
+
+  sliceStream(held, 0, SIGNER).resolve([signetEvent(201), signetEvent(204)])
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  // The signer's half of the slice waits for the responder's.
+  expect(loadOf(store).events).toEqual([])
+  sliceStream(held, 0, RESPONDER).resolve(eventsFrom(202, 2))
+  await waitForStreams(held, 4)
   expect(loadOf(store)).toMatchObject({ status: 'loading', read: { fromBlock: TIP - SLICE + 1 } })
-  expect(loadOf(store).events.map((event) => event.source.id)).toEqual([201, 202])
-  expect(held.requested[1]).toEqual([
-    LOCATION.signetContractAddress,
-    { fromBlock: TIP - 2 * SLICE + 1, toBlock: TIP - SLICE },
+  expect(storedEvents(store)).toEqual([
+    [201, ['signer']],
+    [202, ['responder']],
+    [203, ['responder']],
+    [204, ['signer']],
   ])
+  const secondSlice = { fromBlock: TIP - 2 * SLICE + 1, toBlock: TIP - SLICE }
+  expect(held.requested.slice(2)).toEqual(
+    expect.arrayContaining([
+      [SIGNER, secondSlice],
+      [RESPONDER, secondSlice],
+    ]),
+  )
 
-  held.streams[1]?.resolve(eventsFrom(101, 3, TIP - SLICE))
-  await waitForStreams(held, 3)
-  expect(loadOf(store).events.map((event) => event.source.id)).toEqual([101, 102, 103, 201, 202])
+  sliceStream(held, 1, SIGNER).resolve(eventsFrom(101, 3, TIP - SLICE))
+  sliceStream(held, 1, RESPONDER).resolve([])
+  await waitForStreams(held, 6)
+  expect(storedEvents(store).map(([id]) => id)).toEqual([101, 102, 103, 201, 202, 203, 204])
   // The last slice is cut at the target.
-  expect(held.requested[2]).toEqual([
-    LOCATION.signetContractAddress,
-    { fromBlock: TIP - 2 * SLICE - 10, toBlock: TIP - 2 * SLICE },
-  ])
+  const lastSlice = { fromBlock: TIP - 2 * SLICE - 10, toBlock: TIP - 2 * SLICE }
+  expect(held.requested.slice(4)).toEqual(
+    expect.arrayContaining([
+      [SIGNER, lastSlice],
+      [RESPONDER, lastSlice],
+    ]),
+  )
 
-  held.streams[2]?.resolve([])
+  sliceStream(held, 2, SIGNER).resolve([])
+  sliceStream(held, 2, RESPONDER).resolve([])
   await waitForStatus(store, 'loaded')
   expect(loadOf(store)).toMatchObject({
     read: { fromBlock: TIP - 2 * SLICE - 10, toBlock: TIP },
@@ -153,13 +194,28 @@ test('a range is read newest slice first, each published as it lands, oldest eve
   expect(listener).toHaveBeenCalledTimes(5)
 })
 
+test('a signer and responder at one address are read once, as both', async () => {
+  const shared: SignetEventsLocation = { ...LOCATION, responderContractAddress: SIGNER }
+  const serving = servingSource(2)
+  const store = new SignetEventStore()
+
+  store.select(shared, serving.source, TIP - 10, TIP)
+  await waitForStatus(store, 'loaded')
+  expect(serving.requested).toEqual([[SIGNER, { fromBlock: TIP - 10, toBlock: TIP }]])
+  expect(storedEvents(store)).toEqual([
+    [100, ['signer', 'responder']],
+    [101, ['signer', 'responder']],
+  ])
+})
+
 test('a loaded range at the same tip is kept, and extended when a lower block is selected', async () => {
   const held = heldSource()
   const store = new SignetEventStore()
 
   store.select(LOCATION, held.source, TIP - 10, TIP)
-  await waitForStreams(held, 1)
-  held.streams[0]?.resolve(eventsFrom(201, 1))
+  await waitForStreams(held, 2)
+  sliceStream(held, 0, SIGNER).resolve(eventsFrom(201, 1))
+  sliceStream(held, 0, RESPONDER).resolve([])
   await waitForStatus(store, 'loaded')
   const loaded = store.getSnapshot()
 
@@ -168,14 +224,17 @@ test('a loaded range at the same tip is kept, and extended when a lower block is
 
   store.select(LOCATION, held.source, TIP - 10 - SLICE, TIP)
   expect(loadOf(store)).toMatchObject({ status: 'loading', targetFromBlock: TIP - 10 - SLICE })
-  await waitForStreams(held, 2)
-  expect(held.requested[1]).toEqual([
-    LOCATION.signetContractAddress,
-    { fromBlock: TIP - 10 - SLICE, toBlock: TIP - 11 },
-  ])
-  held.streams[1]?.resolve(eventsFrom(101, 1, TIP - 11))
+  await waitForStreams(held, 4)
+  expect(held.requested.slice(2)).toEqual(
+    expect.arrayContaining([[RESPONDER, { fromBlock: TIP - 10 - SLICE, toBlock: TIP - 11 }]]),
+  )
+  sliceStream(held, 1, SIGNER).resolve([])
+  sliceStream(held, 1, RESPONDER).resolve(eventsFrom(101, 1, TIP - 11))
   await waitForStatus(store, 'loaded')
-  expect(loadOf(store).events.map((event) => event.source.id)).toEqual([101, 201])
+  expect(storedEvents(store)).toEqual([
+    [101, ['responder']],
+    [201, ['signer']],
+  ])
   expect(loadOf(store).read).toEqual({ fromBlock: TIP - 10 - SLICE, toBlock: TIP })
 })
 
@@ -184,13 +243,15 @@ test('a lower block selected while a load runs extends that load without a secon
   const store = new SignetEventStore()
 
   store.select(LOCATION, held.source, TIP - 10, TIP)
-  await waitForStreams(held, 1)
-  store.select(LOCATION, held.source, TIP - 10 - SLICE, TIP)
-  held.streams[0]?.resolve(eventsFrom(201, 1))
   await waitForStreams(held, 2)
-  held.streams[1]?.resolve([])
+  store.select(LOCATION, held.source, TIP - 10 - SLICE, TIP)
+  sliceStream(held, 0, SIGNER).resolve(eventsFrom(201, 1))
+  sliceStream(held, 0, RESPONDER).resolve([])
+  await waitForStreams(held, 4)
+  sliceStream(held, 1, SIGNER).resolve([])
+  sliceStream(held, 1, RESPONDER).resolve([])
   await waitForStatus(store, 'loaded')
-  expect(held.requested).toHaveLength(2)
+  expect(held.requested).toHaveLength(4)
   expect(loadOf(store).read.fromBlock).toBe(TIP - 10 - SLICE)
 })
 
@@ -202,45 +263,61 @@ test('a new tip, event source or location starts afresh, and loaded locations ar
   store.select(LOCATION, first.source, TIP - 10, TIP)
   await waitForStatus(store, 'loaded')
   const loaded = store.getSnapshot()
-  expect(first.requested).toHaveLength(1)
+  expect(first.requested).toHaveLength(2)
 
   store.select(OTHER_LOCATION, second.source, TIP - 10, TIP)
   await waitForStatus(store, 'loaded')
-  expect(loadOf(store).events).toHaveLength(2)
+  expect(loadOf(store).events).toHaveLength(4)
 
   store.select(LOCATION, first.source, TIP - 10, TIP)
   expect(store.getSnapshot()).toBe(loaded)
-  expect(first.requested).toHaveLength(1)
+  expect(first.requested).toHaveLength(2)
 
   store.select(LOCATION, first.source, TIP - 10, TIP + 5)
   expect(loadOf(store)).toMatchObject({ status: 'loading', events: [], read: { toBlock: TIP + 5 } })
   await waitForStatus(store, 'loaded')
-  expect(first.requested).toHaveLength(2)
+  expect(first.requested).toHaveLength(4)
 
   store.select(LOCATION, second.source, TIP - 10, TIP + 5)
   await waitForStatus(store, 'loaded')
-  expect(second.requested).toHaveLength(2)
+  expect(second.requested).toHaveLength(4)
 })
 
-test('a load that stops matching the current location is abandoned', async () => {
+test('a load that stops matching the current location is abandoned, both streams with it', async () => {
   const held = heldSource()
   const other = servingSource(1)
   const store = new SignetEventStore()
 
   store.select(LOCATION, held.source, TIP - 10, TIP)
-  await waitForStreams(held, 1)
+  await waitForStreams(held, 2)
 
   store.select(OTHER_LOCATION, other.source, TIP - 10, TIP)
   await waitForStatus(store, 'loaded')
 
-  held.streams[0]?.resolve(eventsFrom(1, 100))
+  sliceStream(held, 0, SIGNER).resolve(eventsFrom(1, 100))
+  sliceStream(held, 0, RESPONDER).resolve(eventsFrom(101, 100))
   await new Promise((resolve) => setTimeout(resolve, 10))
-  expect(held.streams).toHaveLength(1)
+  expect(held.streams).toHaveLength(2)
   expect(loadOf(store).location).toEqual(OTHER_LOCATION)
 
   store.select(LOCATION, held.source, TIP - 10, TIP)
   expect(loadOf(store)).toMatchObject({ status: 'loading', location: LOCATION, events: [] })
+  await waitForStreams(held, 4)
+})
+
+test('a failure of either contract fails the load, and a reselect retries', async () => {
+  const held = heldSource()
+  const store = new SignetEventStore()
+
+  store.select(LOCATION, held.source, TIP - 10, TIP)
   await waitForStreams(held, 2)
+  sliceStream(held, 0, SIGNER).resolve(eventsFrom(1, 2))
+  sliceStream(held, 0, RESPONDER).reject(new Error('responder unreachable'))
+  await waitForStatus(store, 'error')
+  expect(loadOf(store)).toMatchObject({ error: 'responder unreachable', events: [] })
+
+  store.select(LOCATION, held.source, TIP - 10, TIP)
+  await waitForStreams(held, 4)
 })
 
 test('a stream that fails, before or after yielding, yields an error state, and a reselect retries', async () => {
@@ -265,7 +342,7 @@ test('a stream that fails, before or after yielding, yields an error state, and 
 
   store.select(LOCATION, failingLate, TIP - 10, TIP)
   await vi.waitFor(() => {
-    expect(attempts).toBe(2)
+    expect(attempts).toBe(4)
   })
 
   store.select(OTHER_LOCATION, failingEarly, TIP - 10, TIP)
@@ -297,7 +374,7 @@ test('deselect returns to unconfigured and drops an unfinished load', async () =
   expect(listener).toHaveBeenCalledTimes(2)
 
   store.select(LOCATION, held.source, TIP - 10, TIP)
-  await waitForStreams(held, 2)
+  await waitForStreams(held, 4)
 })
 
 test('each published snapshot carries the lifecycles of its events', async () => {
@@ -305,9 +382,12 @@ test('each published snapshot carries the lifecycles of its events', async () =>
   const payload = new Uint8Array(256)
   payload.set([...requestId, ...new Uint8Array(96).fill(0x33), 1])
   const source: IndexedSignetEventSource = {
-    async *streamSignetEvents() {
-      yield* eventsFrom(1, 1)
-      yield { ...signetEvent(2), name: 'SignatureRespondedEvent', payload }
+    async *streamSignetEvents(contractAddress) {
+      if (contractAddress === SIGNER) {
+        yield* eventsFrom(1, 1)
+      } else {
+        yield { ...signetEvent(2), name: 'SignatureRespondedEvent', payload }
+      }
     },
   }
   const store = new SignetEventStore()

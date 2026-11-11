@@ -4,9 +4,9 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { loadMpcCachedOutput } from './mpc-output-cache'
 
 const LOCATION = {
-  cacheUrl: 'https://cache.example/v1/stagenet/',
-  networkId: 'stagenet',
-  signetContractAddress: 'ab'.repeat(32),
+  cacheUrl: 'https://cache.example/v1/',
+  networkId: 'preprod',
+  signerContractAddress: 'ab'.repeat(32),
 }
 
 function stubCache(respond: () => Response): { calls: () => string[] } {
@@ -28,7 +28,7 @@ test('a cached output is read from its object once per cache and request', async
   expect(await loadMpcCachedOutput(LOCATION, requestId)).toEqual(new Uint8Array([1]))
   await loadMpcCachedOutput(LOCATION, requestId)
   expect(cache.calls()).toEqual([
-    `https://cache.example/v1/stagenet/stagenet/${'ab'.repeat(32)}/${'11'.repeat(32)}.bin`,
+    `https://cache.example/v1/preprod/${'ab'.repeat(32)}/${'11'.repeat(32)}.bin`,
   ])
 })
 
