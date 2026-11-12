@@ -1,8 +1,6 @@
 import {
   bytesToHex,
   calculateRequestId,
-  getSignerContractAddress,
-  MidnightNetwork,
   parseRequestIdHex,
   type SignBidirectionalNotification,
 } from '@sig-net/midnight'
@@ -12,7 +10,9 @@ import { signBidirectionalEventJson } from './sign-bidirectional-event-json'
 import { inspectSignBidirectionalTransaction } from './sign-bidirectional-transaction-inspection'
 import { SIGN_BIDIRECTIONAL_RAW_TRANSACTION_HEX } from './sign-bidirectional-transaction-inspection.fixture'
 
-// The Sign Bidirectional Event the transaction emitted on the preprod signer, as decoded.
+// The preprod signer the transaction calls.
+const SIGNER = '798e602d58ca65bae159464f43091bd790b3ef23f10abb49d962bc0efeb00c5e'
+// The Sign Bidirectional Event the transaction emitted on that signer, as decoded.
 const REQUEST_ID = parseRequestIdHex(
   '54f6494883830237e14f8fe4e0cb14ec0c6b06046a5b8b42ffa8478564388300',
 )
@@ -37,7 +37,7 @@ test('the call chain nests the claimed signer call under the top level call', ()
       calls: [
         {
           entryPoint: 'signBidirectional',
-          address: getSignerContractAddress(MidnightNetwork.Preprod),
+          address: SIGNER,
           fallible: true,
           calls: [],
         },

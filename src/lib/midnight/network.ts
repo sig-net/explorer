@@ -49,9 +49,9 @@ export interface MidnightNetworkConfig {
  */
 const SIGNET_EVENTS_EARLIEST_BLOCKS: Readonly<Record<string, number>> = {
   // The preprod signer.
-  '798e602d58ca65bae159464f43091bd790b3ef23f10abb49d962bc0efeb00c5e': 3363610,
+  c423fca48329307ba00383e8c40cf1b3a83a7728a2b6721e863cfa16d25fb3ec: 3386746,
   // The preprod responder.
-  '825841d7bef91956fc4fdefe4edb7ecf9c2b985f0b4ddae7d0f1b35d9267ca2b': 3363762,
+  '627ef19bb1db09b4261e31a4f87a6b299581c3d635c409bad9ac4547370ef4d5': 3386749,
 }
 
 /**

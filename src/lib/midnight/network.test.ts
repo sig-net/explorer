@@ -182,8 +182,8 @@ test('the preprod starting block is the env value, and the default window while 
 test('the earliest block is the lower of a listed preprod signer and responder pair', () => {
   const signer = getSignerContractAddress(MidnightNetwork.Preprod)
   const responder = getResponderContractAddress(MidnightNetwork.Preprod)
-  expect(signetEventsEarliestBlock(signer, responder)).toBe(3363610)
-  expect(signetEventsEarliestBlock(responder, responder)).toBe(3363762)
+  expect(signetEventsEarliestBlock(signer, responder)).toBe(3386746)
+  expect(signetEventsEarliestBlock(responder, responder)).toBe(3386749)
   expect(signetEventsEarliestBlock(signer, LOCAL_RESPONDER_CONTRACT_ADDRESS)).toBeNull()
   expect(signetEventsEarliestBlock(LOCAL_SIGNER_CONTRACT_ADDRESS, responder)).toBeNull()
 })
