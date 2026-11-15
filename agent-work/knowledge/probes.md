@@ -22,16 +22,16 @@ probe is written and what its findings file must hold.
 
 ## How a probe is written
 
-- A probe is ONE self-contained file `probes/<name>.mjs`, run by plain `node` with the global `fetch`, importing nothing but `node:` modules and, where the step says so, `@sig-net/midnight`. Two probes never share a helper: they are written side by side and removed in stage 07. [read 6ee55f6]
+- A probe is ONE self-contained file `agent-work/probes/<name>.mjs`, run by plain `node` with the global `fetch`, importing nothing but `node:` modules and, where the step says so, `@sig-net/midnight`. Every path of a probe is relative to the root of the worktree the step works in. Two probes never share a helper: they are written side by side. [read 6ee55f6]
 - It reads the indexer URL from the environment variable `MIDNIGHT_PREPROD_INDEXER_URL` and stops with a message naming the variable when it is unset. It never prints the URL, a response header or an error that could hold the URL. [read 6ee55f6]
-- The command that runs one, which keeps the secret out of every output: `MIDNIGHT_PREPROD_INDEXER_URL="https://midnight-preprod.blockfrost.io/api/v0?project_id=$(dev-secrets get MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID)" node probes/<name>.mjs | redact` [run 6ee55f6]
+- The command that runs one, which keeps the secret out of every output: `MIDNIGHT_PREPROD_INDEXER_URL="https://midnight-preprod.blockfrost.io/api/v0?project_id=$(dev-secrets get MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID)" node agent-work/probes/<name>.mjs | redact` [run 6ee55f6]
 - It prints progress to standard error and writes its findings file itself. With the argument `--verdicts` it writes nothing and prints, as the LAST line of standard output, one line of JSON: the object of gate id to verdict it computes on this run. The exit check runs it that way. A probe that watches for a long time also takes `--seconds N`, and its step says what a short run must still do. [read 6ee55f6]
-- The probe files must pass `yarn lint` and `yarn format:check`: an unused variable in a `.mjs` file fails the lint. [run 6ee55f6]
+- The probe files must pass `yarn lint`: an unused variable in a `.mjs` file under `agent-work/probes/` fails it. `oxfmt` leaves `agent-work/` alone (`.oxfmtrc.json:6`), so `yarn format` and `yarn format:check` say nothing about a probe or its findings. [run d2ff8df]
 - Keep the load light: at most 5 requests a second, except in the rate limit probe. Every probe shares one project id, and a throttled probe reports a failure that is not the indexer's. [unverified]
 
 ## The findings file
 
-`probes/findings/<name>.json`, formatted by `yarn format`, holds exactly:
+`agent-work/probes/findings/<name>.json`, written by the probe with `JSON.stringify(findings, null, 2)` and a final newline, holds exactly:
 
 ```
 {

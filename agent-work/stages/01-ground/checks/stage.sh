@@ -5,12 +5,12 @@ set -euo pipefail
 
 baseline="$(jq -r .baseline "$AGENT_WORK/task.json")"
 
-# No product code: the stage may touch only the probes, the two ignore files and the plan itself.
-outside="$(git diff --name-only "$baseline"..HEAD | grep -Ev '^(probes/|agent-work/|\.gitignore$|\.dockerignore$|\.oxfmtrc\.json$)' || true)"
+# No product code: the stage may touch only the plan's folder, which holds the probes, and the ignore files.
+outside="$(git diff --name-only "$baseline"..HEAD | grep -Ev '^(agent-work/|\.gitignore$|\.dockerignore$|\.oxfmtrc\.json$)' || true)"
 test -z "$outside" || { echo "the stage changed product files:" >&2; echo "$outside" >&2; exit 1; }
 
-test -f probes/README.md || { echo "probes/README.md is missing" >&2; exit 1; }
-grep -qx 'probes' .dockerignore || { echo ".dockerignore does not leave probes out" >&2; exit 1; }
+test -f agent-work/probes/README.md || { echo "agent-work/probes/README.md is missing" >&2; exit 1; }
+test -f agent-work/probes/findings/README.md || { echo "agent-work/probes/findings/README.md is missing" >&2; exit 1; }
 git check-ignore -q .env || { echo "git does not ignore .env" >&2; exit 1; }
 
 findings_ok contract-events-paging "G01 G02" "max_limit_honoured"
@@ -26,5 +26,5 @@ yarn lint
 yarn build
 yarn check
 
-echo "The gates, for the orchestrator to record in decisions.md (G12 is in the report of step 01.10):"
-jq -r '.probe as $p | .gates | to_entries[] | "\(.key)  \(.value.verdict)  [\($p)]  \(.value.evidence)"' probes/findings/*.json | sort
+echo "The gates, for the orchestrator to record in decisions.md:"
+jq -r '.probe as $p | .gates | to_entries[] | "\(.key)  \(.value.verdict)  [\($p)]  \(.value.evidence)"' agent-work/probes/findings/*.json | sort

@@ -8,7 +8,7 @@ for gone in lib/midnight/signet-event-store.ts lib/midnight/indexer-services.ts 
   lib/midnight/signet-events-window.ts components/midnight/signet-events-starting-block.tsx components/contexts/MidnightSignetEventsContext.tsx; do
   test ! -e "$ui/$gone" || { echo "$ui/$gone is still there" >&2; exit 1; }
 done
-everywhere=(-- . ':!agent-work' ':!probes' ':!yarn.lock' ':!packages/backend')
+everywhere=(-- . ':!agent-work' ':!yarn.lock' ':!packages/backend')
 no_match "a removed name is still referenced" 'SignetEventStore|MidnightSignetEvents|useMidnightSignetEvents|MidnightIndexerServices|fetchIndexerBlockHeight|signetEventsFromBlock|SIGNET_EVENTS_FROM_BLOCK|indexerWsUrl|resetDefaults|isDefaultConfig' "${everywhere[@]}"
 no_match "a removed variable is still referenced" 'VITE_MIDNIGHT_(PREPROD_BLOCKFROST_PROJECT_ID|[A-Z]+_SIGNER_CONTRACT_ADDRESS|[A-Z]+_RESPONDER_CONTRACT_ADDRESS|[A-Z]+_MPC_ROOT_PUBLIC_KEY)' "${everywhere[@]}"
 no_match "the UI reads an indexer" 'signetEventSourceFromIndexer|blockfrost|contractEvents' -- "$ui"

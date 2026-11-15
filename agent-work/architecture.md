@@ -341,7 +341,6 @@ What the design rests on. Each is a gate of the first stage.
 - `contract(address, offset: { height })` says cleanly that a contract does not exist below its deployment block. [unverified]
 - Node runs the backend's TypeScript, and its imports of the other workspace packages' source, with no build step. [unverified]
 - `debug_traceTransaction` works from `SEPOLIA_FORK_RPC_URL` and its result decodes in Node with the SDK. [unverified]
-- A push from this machine that changes a workflow file is accepted. [unverified]
 
 ## Open questions
 

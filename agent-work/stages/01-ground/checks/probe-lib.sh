@@ -4,7 +4,7 @@
 # findings_ok <name> "<gate ids>" "<number keys>": the file exists, names its probe, and holds a
 # verdict with evidence for each gate and a number under each key.
 findings_ok() {
-  local name="$1" gates="$2" numbers="$3" file="probes/findings/$1.json"
+  local name="$1" gates="$2" numbers="$3" file="agent-work/probes/findings/$1.json"
   test -f "$file" || { echo "$file is missing" >&2; return 1; }
   jq -e --arg name "$name" '.probe == $name and (.head | type == "number")' "$file" > /dev/null ||
     { echo "$file: probe is not \"$name\" or head is not a number" >&2; return 1; }
@@ -23,7 +23,7 @@ findings_ok() {
 # verdicts_of <name> "<gate ids>": the verdicts the findings file holds, as one line of JSON.
 verdicts_of() {
   jq -cS --arg gates "$2" '.gates | with_entries(select(.key as $k | ($gates | split(" ")) | index($k))) | map_values(.verdict)' \
-    "probes/findings/$1.json"
+    "agent-work/probes/findings/$1.json"
 }
 
 # The indexer URL for a probe run, never printed.
@@ -32,9 +32,8 @@ indexer_url() {
     "$(dev-secrets get MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID)"
 }
 
-# The repository's own checks on the probe files.
+# The repository's lint, which reads the probe files.
 repo_checks() {
   yarn install --immutable > /dev/null
   yarn lint
-  yarn format:check
 }

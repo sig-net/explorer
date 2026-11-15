@@ -24,5 +24,5 @@ EXPLORER_BASE_PATH=/explorer/ yarn build > /dev/null
 grep -q '"/explorer/assets/' packages/ui/dist/index.html || { echo "the /explorer/ build does not put its base in index.html" >&2; exit 1; }
 yarn build > /dev/null
 
-no_match "a path of the app as it was before the move" '(^|[^/A-Za-z-])src/(lib|components|routes|index\.css|routeTree|fonts|vite-env)' -- . ':!packages/ui' ':!agent-work' ':!probes' ':!yarn.lock'
+no_match "a path of the app as it was before the move" '(^|[^/A-Za-z-])src/(lib|components|routes|index\.css|routeTree|fonts|vite-env)' -- . ':!packages/ui' ':!agent-work' ':!yarn.lock'
 grep -q 'agent-work' .oxfmtrc.json || { echo ".oxfmtrc.json no longer ignores agent-work" >&2; exit 1; }

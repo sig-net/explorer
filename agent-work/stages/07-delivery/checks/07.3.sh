@@ -1,11 +1,7 @@
 #!/bin/bash
-# Exit check of step 07.3. Runs in the step's own worktree.
+# Exit check of step 07.3, which changes no file: it is checked on its report.
 set -euo pipefail
 . "$AGENT_WORK/stages/common.sh"
-
-test ! -e probes || { echo "probes/ is still there" >&2; exit 1; }
-no_match "something still mentions the probes" '\bprobes\b' -- . ':!agent-work'
-grep -qx 'agent-work' .dockerignore || { echo ".dockerignore lost its agent-work line" >&2; exit 1; }
-yarn install --immutable > /dev/null
-yarn lint
-yarn format:check
+review_ok
+dirty="$(git status --porcelain | grep -v '^.. agent-work/' | head -5 || true)"
+test -z "$dirty" || { echo "the review left changes behind:" >&2; echo "$dirty" >&2; exit 1; }

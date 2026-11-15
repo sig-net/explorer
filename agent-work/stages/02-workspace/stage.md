@@ -12,9 +12,10 @@ in stage 03 by the step that gives it its first real content, so no empty packag
 - G10 (stage 01): Node runs TypeScript source across workspace packages with no build. If it
   failed on source imports, step 02.2 adds `tsx` and the start scripts use it.
 - D15, D25: the folders and the package names. D27: the local Postgres.
-- D20: no workflow file changes before stage 07. `pages-deploy.yml` uploads `dist` from the
-  root, so between this stage and stage 07 that workflow would fail on this branch. It runs on
-  release tags on `main` only, and this branch is never tagged.
+- D35: no workflow file changes in this task. `pages-deploy.yml` uploads `dist` from the root,
+  so from this stage on that workflow would fail on this branch. It runs on release tags on
+  `main` only, and this branch is never tagged. What it needs is in the list stage 07 leaves
+  for the user.
 - The app's 143 tests all pass at the baseline. None may be lost by the move.
 
 ## Shape

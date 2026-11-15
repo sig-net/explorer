@@ -15,13 +15,13 @@ stage delivers and which gates it must close.
 - Domain modules are in `src/lib/midnight/`, React contexts in `src/components/contexts/`, the one data route in `src/routes/midnight/explorer.tsx`. [read 6ee55f6]
 - The SDK is `@sig-net/midnight` 0.26.0-rc.15. Its documented types are `node_modules/@sig-net/midnight/dist/*.d.ts`, starting from `index.d.ts`. [read 6ee55f6]
 - The repository's own check is `yarn check`: typecheck, lint, format check, tests, in that order (`package.json:16`). [run 6ee55f6]
-- The one workflow that builds (`.github/workflows/pages-deploy.yml:65-79`) runs `yarn install --immutable`, `yarn lint`, `yarn build`. No workflow runs on a pull request. [read 6ee55f6]
+- The one workflow that builds (`.github/workflows/pages-deploy.yml:65-79`) runs `yarn install --immutable`, `yarn lint`, `yarn build`. No workflow runs on a pull request. No file under `.github/workflows` is changed in this task (D35): when your step would need one changed, say what it needs in your report and change nothing there. [read 6ee55f6]
 - Test secrets are read with `dev-secrets get <NAME>`, names listed by `dev-secrets list`: `MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID` and `SEPOLIA_FORK_RPC_URL` are the two this task uses. [run 6ee55f6]
 
 ## Pitfalls of this repository
 
 - A fresh worktree has no `node_modules`. Run `yarn install --immutable` before anything else: it takes seconds with the machine's warm cache. [run 6ee55f6]
-- `oxfmt` checks every `.md`, `.json`, `.mjs` and `.ts` file in the repository, wherever it is, and `oxlint` lints every script wherever it is. Run `yarn format` before each commit, then `yarn lint`. [run 6ee55f6]
+- `oxfmt` checks every `.md`, `.json`, `.mjs` and `.ts` file in the repository outside `agent-work/`, and `oxlint` lints every script wherever it is, `agent-work/` included. Run `yarn format` before each commit, then `yarn lint`. [run d2ff8df]
 - The tests run in headless Chromium through vitest's browser mode (`vite.config.ts:74-84`). Playwright 1.63.0 and its Chromium are installed on this machine: `yarn test` passes with 143 tests. [run 6ee55f6]
 - `yarn check` and `yarn build` leave nothing untracked: `dist` and `node_modules` are ignored. [run 6ee55f6]
 - At the baseline `.env` is NOT ignored by git, only `*.local` is (`.gitignore:15`). Step 01.3 changes that. Until it has merged, a secret goes in `.env.local` and nowhere else. [run 6ee55f6]

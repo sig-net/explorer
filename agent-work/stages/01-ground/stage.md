@@ -2,23 +2,25 @@
 
 ## Delivers
 
-An answer, from something that was run, to each of the twelve assumptions of `architecture.md`,
+An answer, from something that was run, to each of the eleven assumptions of `architecture.md`,
 and proof that a subagent of each model the plan uses follows a brief, commits on its own branch
-and files a report. The answers are `probes/findings/*.json` and the report of step 01.10. The
-probes themselves stay in `probes/` so that a doubted answer can be run again. No product code:
-nothing under `src/`, no manifest, no lockfile.
+and files a report. The answers are `agent-work/probes/findings/*.json`, beside the probes in
+`agent-work/probes/`, where a doubted answer can be run again. Every such path is relative to the
+root of the worktree a step works in. No product code: nothing under `src/`, no manifest, no
+lockfile.
 
 ## Assumes
 
 - The secrets `MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID` and `SEPOLIA_FORK_RPC_URL` work.
 - Docker runs on this machine (step 01.8 runs a `node:24.18.0-bookworm-slim` container).
 - D17: preprod is the one network probed.
-- D20: no step of this stage puts a workflow change on a branch that is merged.
+- D35: no step changes a file under `.github/workflows`, and nothing is pushed outside the
+  task's branches.
 
 ## Shape
 
 01.1, 01.2 and 01.3 are trivial and run side by side, one per model: they prove the machinery,
-and every probe waits on all three. The probes 01.4, 01.5, 01.6, 01.8, 01.9 and 01.10 then run
+and every probe waits on all three. The probes 01.4, 01.5, 01.6, 01.8 and 01.9 then run
 side by side: each writes its own files. 01.7 measures the indexer's rate limit with the one
 project id every probe shares, so it waits on 01.4, 01.5 and 01.6 and runs alone.
 
@@ -42,4 +44,3 @@ the user decides.
 | G09 | Does `contract(address, offset: { height })` say cleanly that a contract does not exist below its deployment block? | 01.6 | `contractExistsAt` as designed | `contractExistsAt` asks `contractEvents` for one event at or below the height. If neither works: BLOCKED |
 | G10 | Does Node 24.18 run TypeScript that imports another workspace package's TypeScript source and the SDK, with no build step? | 01.8 | The backend starts with `node src/main.ts` | Source imports fail: the packages are run through `tsx`, added in stage 02. The SDK does not load in Node: BLOCKED |
 | G11 | Does `debug_traceTransaction` answer from `SEPOLIA_FORK_RPC_URL`, and does the SDK decode the frame in Node? | 01.9 | The trace service as designed, and stage 03 has the two JSON shapes to choose from | The node refuses the method: the service answers `ok: false` and the user is told what the endpoint lacks. The SDK cannot decode in Node: BLOCKED |
-| G12 | Is a push from this machine that changes a workflow file accepted? | 01.10 | Stage 07 pushes its workflow step like any other | Stage 07's workflow step is its last, it commits and does not push, and the user takes the branch out through the workstation |

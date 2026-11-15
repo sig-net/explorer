@@ -16,4 +16,4 @@ for later in ingester services http config; do
   test ! -e "packages/backend/src/$later" || { echo "packages/backend/src/$later exists: stage 04 or 05 makes it" >&2; exit 1; }
 done
 baseline="$(jq -r .baseline "$AGENT_WORK/task.json")"
-test -z "$(git diff --name-only "$baseline"..HEAD -- .github)" || { echo "a workflow file changed before stage 07" >&2; exit 1; }
+test -z "$(git diff --name-only "$baseline"..HEAD -- .github)" || { echo "a workflow file changed (D35)" >&2; exit 1; }
