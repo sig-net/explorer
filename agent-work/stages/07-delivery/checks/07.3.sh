@@ -1,10 +1,11 @@
 #!/bin/bash
-# Exit check of step 07.3: exits 0 only when it is done. Runs in the step's own worktree.
-# Given: $AGENT_WORK (the task's agent-work folder), $AGENT_WORK_PARENT (the parent branch) and
-# $AGENT_WORK_REPORT (the step's newest filed report, empty when none). Before this script runs,
-# the tool itself fails a step whose branch changes a path outside its scope or whose worktree
-# holds uncommitted or untracked files.
+# Exit check of step 07.3. Runs in the step's own worktree.
 set -euo pipefail
+. "$AGENT_WORK/stages/common.sh"
 
-echo "this exit check is not written yet" >&2
-exit 1
+test ! -e probes || { echo "probes/ is still there" >&2; exit 1; }
+no_match "something still mentions the probes" '\bprobes\b' -- . ':!agent-work'
+grep -qx 'agent-work' .dockerignore || { echo ".dockerignore lost its agent-work line" >&2; exit 1; }
+yarn install --immutable > /dev/null
+yarn lint
+yarn format:check

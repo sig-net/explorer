@@ -1,10 +1,18 @@
 #!/bin/bash
-# Exit check of stage 06-operations: exits 0 only when it is done. Runs in the parent branch's worktree, on the merged result.
-# Given: $AGENT_WORK (the task's agent-work folder), $AGENT_WORK_PARENT (the parent branch) and
-# $AGENT_WORK_REPORT (the step's newest filed report, empty when none). Before this script runs,
-# the tool itself fails a step whose branch changes a path outside its scope or whose worktree
-# holds uncommitted or untracked files.
+# Exit check of stage 06-operations. Runs in the parent branch's worktree, on the merged result.
 set -euo pipefail
+. "$AGENT_WORK/stages/common.sh"
 
-echo "this exit check is not written yet" >&2
-exit 1
+postgres_up
+ci_checks
+wasm_ok
+for command in start migrate audit rebuild-sign-requests wipe reset-network schema-state; do
+  grep -rq "$command" packages/backend/src/commands || { echo "the command $command is not registered" >&2; exit 1; }
+done
+no_match "product code imports a drill tool" "drills/" -- packages/backend/src
+yarn drills 2>&1 | tee /tmp/stage-06.$$
+tests_at_least 8 /tmp/stage-06.$$; rm -f /tmp/stage-06.$$
+left="$(docker compose -p explorer exec -T postgres psql -U explorer -d explorer -Atc "select count(*) from pg_database where datname like 'scratch_%'")"
+test "$left" = 0 || { echo "$left scratch database(s) were left behind" >&2; exit 1; }
+baseline="$(jq -r .baseline "$AGENT_WORK/task.json")"
+test -z "$(git diff --name-only "$baseline"..HEAD -- .github)" || { echo "a workflow file changed before stage 07" >&2; exit 1; }

@@ -1,10 +1,9 @@
 #!/bin/bash
-# Exit check of step 06.4: exits 0 only when it is done. Runs in the step's own worktree.
-# Given: $AGENT_WORK (the task's agent-work folder), $AGENT_WORK_PARENT (the parent branch) and
-# $AGENT_WORK_REPORT (the step's newest filed report, empty when none). Before this script runs,
-# the tool itself fails a step whose branch changes a path outside its scope or whose worktree
-# holds uncommitted or untracked files.
+# Exit check of step 06.4, which changes no file: it is checked on its report.
 set -euo pipefail
-
-echo "this exit check is not written yet" >&2
-exit 1
+. "$AGENT_WORK/stages/common.sh"
+review_ok
+dirty="$(git status --porcelain -- packages | head -5)"
+test -z "$dirty" || { echo "the review left changes behind:" >&2; echo "$dirty" >&2; exit 1; }
+left="$(docker compose -p explorer exec -T postgres psql -U explorer -d explorer -Atc "select count(*) from pg_database where datname like 'scratch_%'")"
+test "$left" = 0 || { echo "$left scratch database(s) were left behind" >&2; exit 1; }

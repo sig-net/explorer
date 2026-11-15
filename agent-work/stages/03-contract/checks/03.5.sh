@@ -5,9 +5,10 @@ set -euo pipefail
 
 b=packages/backend
 for file in src/db/schema.ts src/db/migrate.ts src/db/schema-state.ts src/db/schema.test.ts drizzle.config.ts \
-  src/chain-source/chain-source.ts src/chain-source/fake-chain-source.ts src/repositories/unit-of-work.ts; do
+  src/chain-source/chain-source.ts src/chain-source/fake-chain-source.ts src/repositories/unit-of-work.ts src/logging/logger.ts; do
   test -f "$b/$file" || { echo "$b/$file is missing" >&2; exit 1; }
 done
+jq -e '.scripts["db:generate"] and .scripts["db:migrate"]' "$b/package.json" > /dev/null || { echo "the scripts db:generate and db:migrate are missing" >&2; exit 1; }
 test "$(find "$b/drizzle" -maxdepth 1 -name '*.sql' | wc -l)" = 1 || { echo "$b/drizzle does not hold exactly one migration" >&2; exit 1; }
 grep -qi 'create extension if not exists pg_trgm' "$b"/drizzle/*.sql || { echo "the migration does not create pg_trgm" >&2; exit 1; }
 for table in midnight_signet_deployments_v1 midnight_signet_indexer_checkpoints_v1 midnight_signet_events_v1 \
