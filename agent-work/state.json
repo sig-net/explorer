@@ -5,6 +5,36 @@
       "checkpoint": "",
       "provisional": false,
       "status": "pending"
+    },
+    "02-workspace": {
+      "checkpoint": "",
+      "provisional": true,
+      "status": "pending"
+    },
+    "03-contract": {
+      "checkpoint": "",
+      "provisional": true,
+      "status": "pending"
+    },
+    "04-build": {
+      "checkpoint": "",
+      "provisional": true,
+      "status": "pending"
+    },
+    "05-join": {
+      "checkpoint": "",
+      "provisional": true,
+      "status": "pending"
+    },
+    "06-operations": {
+      "checkpoint": "",
+      "provisional": true,
+      "status": "pending"
+    },
+    "07-delivery": {
+      "checkpoint": "",
+      "provisional": true,
+      "status": "pending"
     }
   },
   "steps": {}
