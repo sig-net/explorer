@@ -27,3 +27,6 @@ logs
 .github
 Dockerfile
 .dockerignore
+
+# The plan agents work from, never part of a build.
+agent-work

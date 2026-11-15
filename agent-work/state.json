@@ -1,5 +1,11 @@
 {
   "seq": 0,
-  "stages": {},
+  "stages": {
+    "01-ground": {
+      "checkpoint": "",
+      "provisional": false,
+      "status": "pending"
+    }
+  },
   "steps": {}
 }
