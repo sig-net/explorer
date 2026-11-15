@@ -1,9 +1,11 @@
 # Architecture
 
+## Design
+
 The design the user settled. Change it only after a stage 01 gate or a user decision, and record
 the change in `decisions.md`.
 
-## 1. Shape
+### 1. Shape
 
 ```
 browser (packages/ui, static site)
@@ -22,7 +24,7 @@ packages/backend  (Node)            - MPC output cache
 - Everything the database holds can be read again from a chain. That is what makes "drop and
   rebuild" safe. Storing anything that cannot be re-read needs a user decision first.
 
-## 2. Packages
+### 2. Packages
 
 | Package | Holds | Runtime | May import |
 | --- | --- | --- | --- |
@@ -37,7 +39,7 @@ each other. `api` holds no Fastify, no Drizzle, no React.
 Code moves into `lib` only when its second consumer exists. Moving something "because it looks
 shared" is forbidden by the repository rules.
 
-## 3. Networks
+### 3. Networks
 
 - The networks are the SDK's `MidnightNetwork` set: `undeployed`, `preview`, `preprod`, `mainnet`.
 - The backend serves a network when its configuration is complete: indexer URL, signer address,
@@ -50,12 +52,12 @@ shared" is forbidden by the repository rules.
 - Preprod takes its addresses, root key and MPC output cache URL from the SDK
   (`getSignerContractAddress` and friends) unless overridden by configuration.
 
-## 4. Data model
+### 4. Data model
 
 Postgres, through Drizzle. Table names end in `_v1`. Column properties are named exactly as the
 resource fields. Every table is keyed by `network_id` first.
 
-### 4.1 `midnight_signet_deployments_v1`
+#### 4.1 `midnight_signet_deployments_v1`
 
 What the backend indexes for a network. Written at start-up from configuration.
 
@@ -68,7 +70,7 @@ What the backend indexes for a network. Written at start-up from configuration.
 | `start_block` | bigint | first block indexed |
 | `create_time` | timestamptz | |
 
-### 4.2 `midnight_signet_indexer_checkpoints_v1`
+#### 4.2 `midnight_signet_indexer_checkpoints_v1`
 
 | Column | Type | Notes |
 | --- | --- | --- |
@@ -80,7 +82,7 @@ What the backend indexes for a network. Written at start-up from configuration.
 | `head_block` | bigint | the indexer's height at the last loop, for the status display |
 | `update_time` | timestamptz | |
 
-### 4.3 `midnight_signet_events_v1`
+#### 4.3 `midnight_signet_events_v1`
 
 Every event either contract emitted, decodable or not.
 
@@ -106,7 +108,7 @@ Indexes: `(network_id, request_id, block_height, block_position)`.
 The key is the chain position, never the indexer's id: the id is not guaranteed stable across
 indexer instances.
 
-### 4.4 `midnight_signet_sign_requests_v1` (the aggregate table)
+#### 4.4 `midnight_signet_sign_requests_v1` (the aggregate table)
 
 One row per declared request id, written by the ingester in the same transaction as the events
 that change it. It groups by DECLARED id and verifies nothing, exactly as the UI's
@@ -146,7 +148,7 @@ column here. A value only the expanded row needs comes from the events.
 
 The table must always equal a rebuild from `midnight_signet_events_v1`. A test proves it.
 
-### 4.5 `midnight_transactions_v1`
+#### 4.5 `midnight_transactions_v1`
 
 Read-through cache of raw Midnight transactions, for the UI's transaction inspection.
 
@@ -160,7 +162,7 @@ Read-through cache of raw Midnight transactions, for the UI's transaction inspec
 Served only for a hash that appears in `midnight_signet_events_v1`, so the backend is not an open
 proxy to the indexer.
 
-### 4.6 `ethereum_transaction_outputs_v1`
+#### 4.6 `ethereum_transaction_outputs_v1`
 
 Read-through cache of the `debug_traceTransaction` fallback.
 
@@ -173,7 +175,7 @@ Read-through cache of the `debug_traceTransaction` fallback.
 
 Only a successfully read, mined trace is cached. A miss is never cached.
 
-## 5. Ingestion: how no event is lost
+### 5. Ingestion: how no event is lost
 
 One ingester loop per network. It is a poll loop. A subscription may wake it early and is never a
 source of truth.
@@ -222,7 +224,7 @@ the properties this rests on, and each has a written fallback.
 `SAFETY_MARGIN`, `RANGE_SIZE`, `REREAD_BLOCKS` and `POLL_INTERVAL` are configuration with defaults
 chosen from stage 01's findings.
 
-## 6. The chain source seam
+### 6. The chain source seam
 
 ```ts
 interface MidnightChainSource {
@@ -238,7 +240,7 @@ One implementation reads a Midnight indexer's GraphQL (Blockfrost for the public
 local indexer for `undeployed`). A fake implementation drives the ingester's tests. A node-reading
 implementation, as the MPC has in Rust, could replace it without touching storage.
 
-## 7. The API
+### 7. The API
 
 Transport: `POST /<service>/<method>`, JSON body, JSON reply. Replies are values, not HTTP
 errors: `{ ok: true, ... }` or `{ ok: false, error: string }`. Bytes travel as lowercase hex
@@ -264,7 +266,7 @@ Paging is by keyset on the sort key, newest first. The page token encodes the la
 The UI stays live by polling: it refetches what it shows on an interval. A row can change after
 it is first seen (its signature and response arrive later).
 
-## 8. The UI after the change
+### 8. The UI after the change
 
 - Reads everything through the `api` services. `SignetEventStore`, the indexer services and the
   block window code go.
@@ -283,7 +285,7 @@ it is first seen (its signature and response arrive later).
 - The first page load still carries one WebAssembly module (the onchain runtime). The ledger
   module stays lazy.
 
-## 9. Operations
+### 9. Operations
 
 - **No migrations.** `drizzle/` holds exactly one migration, regenerated from the whole schema.
   A schema change means dropping the database and indexing again from each `start_block`.
@@ -297,7 +299,7 @@ it is first seen (its signature and response arrive later).
 - **Hosting is out of scope for this task.** The UI stays on GitHub Pages and the backend allows
   its origin through CORS.
 
-## 10. Backend configuration (environment)
+### 10. Backend configuration (environment)
 
 Server-only. None of it reaches the browser.
 
@@ -318,3 +320,29 @@ Server-only. None of it reaches the browser.
 
 Configuration is parsed once with zod at start-up into an immutable object. An invalid value stops
 the start and the error names the variable, never its value.
+
+## Out of scope
+
+- `sig-net/full-stack-demo` entirely, including its use of the explorer image.
+- Where the backend and its database are hosted.
+
+## Assumptions
+
+What the design rests on. Each is a gate of the first stage.
+
+- `contractEvents` rows are ordered by ascending `id` always, including across pages. [unverified]
+- `fromBlock` and `toBlock` are inclusive at both ends. [unverified]
+- An offset walk of a closed block range is stable while the chain advances. [unverified]
+- When the indexer reports height H, all events of every block at or below H are already served. [unverified]
+- A block at or below the indexer's reported head is never replaced. [unverified]
+- `block(offset: { height })` gives the hash of any past height, cheaply. [unverified]
+- The indexer honours a `limit` large enough for one range, and its rate limits allow the ingestion loop. [unverified]
+- `transactions(offset: { hash })` returns the raw bytes of an old transaction. [unverified]
+- `contract(address, offset: { height })` says cleanly that a contract does not exist below its deployment block. [unverified]
+- Node runs the backend's TypeScript, and its imports of the other workspace packages' source, with no build step. [unverified]
+- `debug_traceTransaction` works from `SEPOLIA_FORK_RPC_URL` and its result decodes in Node with the SDK. [unverified]
+- A push from this machine that changes a workflow file is accepted. [unverified]
+
+## Open questions
+
+None: every question of the architecture round was answered, and the answers are in `decisions.md`.

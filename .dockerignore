@@ -24,7 +24,9 @@ logs
 
 # Not part of the application build.
 .claude
-agent-work
 .github
 Dockerfile
 .dockerignore
+
+# The plan agents work from, never part of a build.
+agent-work

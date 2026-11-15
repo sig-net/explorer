@@ -1,77 +1,32 @@
 # Core pack: read first, every time
 
-## What this task is
+## The task
 
-The explorer is a React app that shows Sig Network (Signet) activity on Midnight. Today the
-browser reads the Midnight indexer directly. This task adds a Node backend with Postgres that
-reads the chain and serves the UI, and turns the repository into a Yarn workspace monorepo.
-`agent-work/architecture.md` is the design. `agent-work/decisions.md` is what is already settled.
-
-You are one subagent doing one step. The orchestrator gave you a worktree path and a step id.
-
-## Your contract
-
-1. Work only inside the worktree path you were given.
-2. Do only your step. If you find a problem outside its scope, report it. Do not fix it.
-3. Never touch git state: no `add`, `commit`, `push`, `stash`, `checkout`, `restore`, `reset`.
-   The orchestrator commits. Leave your changes in the working tree.
-4. Never write in `agent-work/`, except a stage's `evidence/` folder when your step names it.
-5. Reply with the report in `agent-work/templates/step-report.md`. Nothing else is read.
-6. You may stop early. `BLOCKED` with a precise question, or `REFUSED` with the reason, is a good
-   outcome when the step is unclear, mis-shaped or beyond you. A confident wrong result is the
-   worst outcome.
-7. Run your step's exit check yourself before you report `DONE`, and quote its decisive output.
-8. A claim in your report must come from something you ran or read in this session. Say which.
-   "I did not find it" is not "it does not exist": say what you searched.
-
-## Rules agents break most (all of them are hard rules)
-
-Your session loads the user's global rules and the repository's engineering rules on its own.
-Stage 01 confirms that. These are the ones that cause rework:
-
-- **No em dash (U+2014) and no semicolon as prose punctuation**, anywhere you write: code
-  comments, docs, commit text, log strings, your report. Rewrite the sentence. British spelling.
-  Semicolons as code tokens are fine.
-- **Dependencies go in a package's manifest and are installed from it** (`yarn add` in that
-  workspace). Never `npm install -g`, never `pip install`. A one-off script uses `yarn dlx` or
-  `uv run --with`.
-- **Comments say what the code IS.** Never what it was, never a rejected alternative, never a
-  restatement of the code. Default is no comment. One sentence when an invariant needs it.
-- **No `any`, no double casts, no non-null assertions, no lint suppressions.** `unknown` only at
-  an external input boundary, narrowed there (zod).
-- **The file's focus comes first:** the declaration a file is named after is the first one after
-  the imports. Module-level values evaluated at load time (zod schemas, Drizzle tables) are the
-  exception and keep evaluation order.
-- **The mover pays:** when you move, rename or delete anything, grep the whole repository for the
-  old name (path, identifier, phrase) and fix every hit in the same step. Documentation included.
-- **Census consumers before shaping shared code.** List the real consumers by searching. Shape
-  the shared thing for all of them, not for the one that brought you there.
-- **Adding a second member renames the first:** a qualified twin (`fakeNetworkService`) beside a
-  bare original (`networkService`) means the original needs its own qualifier in the same change.
-- **A secret never reaches your output.** Pipe anything that may print configuration through
-  `redact` (`cat .env.local | redact`). Indexer and RPC URLs carry keys in their query string.
-  Never print one, log one, or return one from an API.
-- **UI elements are shadcn/ui components** from the UI's `components/ui` folder (installed with
-  the shadcn CLI). Never hand-roll a primitive. Never put a cursor class on a control.
-- **Keep the ledger WebAssembly off the first page load** and out of `lib` and `api`
-  (see `ui-codebase.md`).
+The explorer is a browser-only React app that reads Signet events straight from a Midnight
+indexer and keeps them in memory. This task gives it a Node backend that indexes every event of
+the Signet signer and responder into Postgres with no gaps, and changes the UI to read that
+backend. The design is `../architecture.md`. The decisions are `../decisions.md`: append only,
+report a disagreement and never act against an entry. Your stage's `stage.md` says what the
+stage delivers and which gates it must close.
 
 ## Where things are
 
-| What | Where |
-| --- | --- |
-| Main worktree | `/home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol` |
-| The reference for backend patterns | `~/Projects/github.com/sig-net/full-stack-demo-rebuild` (branch `bernard/rebuild` of `sig-net/full-stack-demo`). Read only. |
-| The MPC's Midnight indexer, for the no-gaps design | `~/Projects/github.com/sig-net/mpc/chain-signatures/chain-midnight/src/indexer.rs`. Read only. |
-| The Signet SDK | `node_modules/@sig-net/midnight` (types in `dist/*.d.ts`) |
+- Until stage 02 closes, the app IS the repository root: `src/`, `vite.config.ts`, one `package.json` with no workspaces. Stage 02 moves it to `packages/ui`. [read 6ee55f6]
+- Domain modules are in `src/lib/midnight/`, React contexts in `src/components/contexts/`, the one data route in `src/routes/midnight/explorer.tsx`. [read 6ee55f6]
+- The SDK is `@sig-net/midnight` 0.26.0-rc.15. Its documented types are `node_modules/@sig-net/midnight/dist/*.d.ts`, starting from `index.d.ts`. [read 6ee55f6]
+- The repository's own check is `yarn check`: typecheck, lint, format check, tests, in that order (`package.json:16`). [run 6ee55f6]
+- The one workflow that builds (`.github/workflows/pages-deploy.yml:65-79`) runs `yarn install --immutable`, `yarn lint`, `yarn build`. No workflow runs on a pull request. [read 6ee55f6]
+- Test secrets are read with `dev-secrets get <NAME>`, names listed by `dev-secrets list`: `MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID` and `SEPOLIA_FORK_RPC_URL` are the two this task uses. [run 6ee55f6]
 
-If a reference checkout is missing, report `BLOCKED`. Do not clone it yourself.
+## Pitfalls of this repository
 
-## Machine facts
-
-- This is the user's dev box, a persistent virtual machine. Other sessions share it. Run
-  `docker ps` before starting any container: one that is already up belongs to someone else.
-- The home network and other machines are unreachable by design. The internet is open.
-- Shared test secrets: `dev-secrets list` (names only), `dev-secrets get <NAME>` (use inside a
-  command, never print). A value goes only into a gitignored env file.
-- Node 26 and Yarn 4.18.0 through Corepack. `[run]` `node -v`, `yarn -v` in the planning session.
+- A fresh worktree has no `node_modules`. Run `yarn install --immutable` before anything else: it takes seconds with the machine's warm cache. [run 6ee55f6]
+- `oxfmt` checks every `.md`, `.json`, `.mjs` and `.ts` file in the repository, wherever it is, and `oxlint` lints every script wherever it is. Run `yarn format` before each commit, then `yarn lint`. [run 6ee55f6]
+- The tests run in headless Chromium through vitest's browser mode (`vite.config.ts:74-84`). Playwright 1.63.0 and its Chromium are installed on this machine: `yarn test` passes with 143 tests. [run 6ee55f6]
+- `yarn check` and `yarn build` leave nothing untracked: `dist` and `node_modules` are ignored. [run 6ee55f6]
+- At the baseline `.env` is NOT ignored by git, only `*.local` is (`.gitignore:15`). Step 01.3 changes that. Until it has merged, a secret goes in `.env.local` and nowhere else. [run 6ee55f6]
+- The Midnight indexer URL carries its key in the query string (`?project_id=`). Never print it. Pipe any output that may hold a URL through `redact`. The SDK's own errors mask it, but they also echo the response body. [read 6ee55f6]
+- Yarn refuses a package published in the last 24 hours, except `@sig-net/*` (`.yarnrc.yml:15-18`). Pick the newest version older than that. [read 6ee55f6]
+- `yarn build` must emit exactly two `.wasm` files: `midnight_onchain_runtime_wasm_bg-*.wasm` (1.6MB) on the first load and `midnight_ledger_wasm_v9_bg-*.wasm` (10.8MB) behind the lazy inspection chunk. A third file, or the ledger file in a first-load chunk, breaks a repository rule. [run 6ee55f6]
+- Node here is v26.13.1 and Yarn 4.18.0. The image builds on `node:24.18.0-bookworm-slim` (`Dockerfile:6`) and the manifest allows Node 22.12 and later (`package.json:64`). Code for the backend must run on Node 24.18. [run 6ee55f6]
+- This machine is shared. A port or a container name already taken belongs to another session: use another port under your own Compose project name, and never stop a container you did not start. [read 6ee55f6]
