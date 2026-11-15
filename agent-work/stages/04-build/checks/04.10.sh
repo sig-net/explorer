@@ -1,10 +1,21 @@
 #!/bin/bash
-# Exit check of step 04.10: exits 0 only when it is done. Runs in the step's own worktree.
-# Given: $AGENT_WORK (the task's agent-work folder), $AGENT_WORK_PARENT (the parent branch) and
-# $AGENT_WORK_REPORT (the step's newest filed report, empty when none). Before this script runs,
-# the tool itself fails a step whose branch changes a path outside its scope or whose worktree
-# holds uncommitted or untracked files.
+# Exit check of step 04.10. Runs in the step's own worktree.
 set -euo pipefail
+. "$AGENT_WORK/stages/common.sh"
 
-echo "this exit check is not written yet" >&2
-exit 1
+ui=packages/ui/src/components/midnight
+for file in use-midnight-network-status.ts indexing-status.tsx indexing-status.test.tsx midnight-configuration.test.tsx; do
+  test -f "$ui/$file" || { echo "$ui/$file is missing" >&2; exit 1; }
+done
+no_match "the popover still edits the configuration" '<Input|setConfig|resetDefaults|Reset Defaults' -- "$ui/midnight-configuration.tsx"
+no_match "the popover or the status line can show an indexer URL" 'indexerUrl|indexerWsUrl|nodeUrl' -- "$ui/midnight-configuration.tsx" "$ui/indexing-status.tsx"
+no_match "a cursor class on a control" 'cursor-pointer' -- "$ui/midnight-configuration.tsx" "$ui/indexing-status.tsx"
+grep -q 'IndexingStatus' "$ui/midnight-app-bar.tsx" || { echo "the status line is not mounted in the bar" >&2; exit 1; }
+grep -q 'indexerHost' "$ui/midnight-configuration.tsx" || { echo "the popover does not show the indexer's host" >&2; exit 1; }
+
+postgres_up
+yarn install --immutable > /dev/null
+yarn lint
+yarn build
+wasm_ok
+yarn check

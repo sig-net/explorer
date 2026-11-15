@@ -1,10 +1,21 @@
 #!/bin/bash
-# Exit check of step 04.3: exits 0 only when it is done. Runs in the step's own worktree.
-# Given: $AGENT_WORK (the task's agent-work folder), $AGENT_WORK_PARENT (the parent branch) and
-# $AGENT_WORK_REPORT (the step's newest filed report, empty when none). Before this script runs,
-# the tool itself fails a step whose branch changes a path outside its scope or whose worktree
-# holds uncommitted or untracked files.
+# Exit check of step 04.3. Runs in the step's own worktree.
 set -euo pipefail
+. "$AGENT_WORK/stages/common.sh"
 
-echo "this exit check is not written yet" >&2
-exit 1
+d=packages/backend/src/ingester
+test -f "$d/ingester.ts" || { echo "$d/ingester.ts is missing" >&2; exit 1; }
+tests="$(cat "$d"/*.test.ts)"
+for rule in 'start block' 'exists before' 'ascending' 'crash' 'different row|conflict' 'changed hash|hash' 'late event|re-read' 'keeps failing|never stepped' 'lock' 'deployment' 'rebuild'; do
+  grep -Eiq "$rule" <<< "$tests" || { echo "no ingester test names the rule: $rule" >&2; exit 1; }
+done
+grep -q 'pg_advisory\|advisory' "$d"/*.ts || { echo "the ingester takes no advisory lock" >&2; exit 1; }
+no_match "a timer in an ingester test" 'setTimeout|setInterval|useFakeTimers' -- "$d/*.test.ts"
+
+postgres_up
+yarn install --immutable > /dev/null
+yarn lint
+yarn build
+yarn check
+left="$(docker compose -p explorer exec -T postgres psql -U explorer -d explorer -Atc "select count(*) from pg_database where datname like 'scratch_%'")"
+test "$left" = 0 || { echo "$left scratch database(s) were left behind by the tests" >&2; exit 1; }
