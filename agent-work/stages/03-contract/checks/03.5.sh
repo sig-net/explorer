@@ -5,7 +5,7 @@ set -euo pipefail
 
 b=packages/backend
 for file in src/db/schema.ts src/db/migrate.ts src/db/schema-state.ts src/db/schema.test.ts drizzle.config.ts \
-  src/chain-source/chain-source.ts src/chain-source/fake-chain-source.ts src/repositories/unit-of-work.ts src/logging/logger.ts; do
+  src/chain-source/chain-source.ts src/chain-source/fake-chain-source.ts src/repositories/unit-of-work.ts src/repositories/network-lock.ts src/chain-source/to-signet-event.ts src/logging/logger.ts; do
   test -f "$b/$file" || { echo "$b/$file is missing" >&2; exit 1; }
 done
 jq -e '.scripts["db:generate"] and .scripts["db:migrate"]' "$b/package.json" > /dev/null || { echo "the scripts db:generate and db:migrate are missing" >&2; exit 1; }
@@ -19,6 +19,7 @@ for method in headBlock blockAt eventsInRange rawTransaction contractExistsAt; d
   grep -q "\b$method\b" "$b/src/chain-source/chain-source.ts" || { echo "MidnightChainSource lacks $method" >&2; exit 1; }
   grep -q "\b$method\b" "$b/src/chain-source/fake-chain-source.ts" || { echo "the fake chain source lacks $method" >&2; exit 1; }
 done
+grep -rq 'class ChainDataConflict' "$b/src/repositories" || { echo "ChainDataConflict is not defined beside the events repository interface" >&2; exit 1; }
 no_match "a repository implementation in a stage that ships interfaces only" 'class .* implements .*Repository' -- "$b/src/repositories"
 
 postgres_up
