@@ -24,6 +24,7 @@ logs
 
 # Not part of the application build.
 .claude
+agent-work
 .github
 Dockerfile
 .dockerignore
