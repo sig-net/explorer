@@ -595,3 +595,12 @@ DONE, kept in reports/05.5-1.md
 
 ## 198 ACCEPT 05.6
 merged bernard-05-6 as 3d11aba
+
+## 199 CHECK 05.5
+PASS, exit 0 at 6f53cdf, output in evidence/05.5-1.txt
+
+## 200 PACK
+backend.md: the UI holds no copy of the Blockfrost URL or the start block (from 05.5's report, grep over packages/ui/src empty)
+
+## 201 ACCEPT 05.5
+merged bernard-05-5 as ab4ed3f
