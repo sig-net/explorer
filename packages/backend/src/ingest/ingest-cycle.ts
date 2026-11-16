@@ -93,6 +93,13 @@ export type IngestCycleOutcome =
 
 const RAW_TRANSACTION_FETCHES_AT_ONCE = 8
 const RECORDED_ERROR_MAX_LENGTH = 2000
+/** U+0000, which `text` and `jsonb` refuse, and unpaired surrogates, which `jsonb` refuses. */
+const REFUSED_CHARACTERS = /[\0\p{Surrogate}]/gu
+/**
+ * Every escape of a text `JSON.stringify` wrote, matched whole so that an escaped backslash never
+ * reads as the start of the next one. Group 1 is set for an escape of a refused character.
+ */
+const JSON_ESCAPES = /\\(?:u(0000|d[89a-f][0-9a-f]{2})|[^])/g
 /** Keeps a multi-row statement under PostgreSQL's 65,535 bind parameters. */
 const ROWS_PER_STATEMENT = 1000
 
@@ -280,23 +287,47 @@ async function inspectedTransactionRows(
       const row = rows.get(transaction.hash)
       if (row !== undefined) {
         row.raw = bytesOfHex(raw)
-        row.inspection = JSON.stringify(inspectionOf(inspect, raw, transaction.notifications))
+        row.inspection = storedInspectionJson(inspect, raw, transaction.notifications)
       }
     },
   )
   return [...rows.values()]
 }
 
-function inspectionOf(
+/**
+ * The inspection of a transaction as the JSON its row holds. A throw, and a result holding a
+ * character PostgreSQL refuses, are the failed inspection of the whole transaction.
+ */
+function storedInspectionJson(
   inspect: InspectTransaction,
   rawTransactionHex: string,
   notifications: readonly SignBidirectionalNotificationEvent[],
-): StoredInspection {
+): string {
+  const failed = (reason: string): string =>
+    JSON.stringify({ failed: reason } satisfies StoredInspection)
+  let inspection: StoredInspection
   try {
-    return inspect(rawTransactionHex, notifications)
+    inspection = inspect(rawTransactionHex, notifications)
   } catch (error) {
-    return { failed: recordedErrorText(error) }
+    return failed(recordedErrorText(error))
   }
+  if ('failed' in inspection) {
+    return failed(recordedErrorText(inspection.failed))
+  }
+  const json = JSON.stringify(inspection)
+  return jsonHoldsRefusedCharacter(json)
+    ? failed('the inspection holds a character PostgreSQL refuses')
+    : json
+}
+
+/** Whether a string or a key of the value `json` serialises holds U+0000 or an unpaired surrogate. */
+function jsonHoldsRefusedCharacter(json: string): boolean {
+  for (const escape of json.matchAll(JSON_ESCAPES)) {
+    if (escape[1] !== undefined) {
+      return true
+    }
+  }
+  return false
 }
 
 /**
@@ -381,7 +412,7 @@ function eventRowOf(event: SignetContractEvent): EventRow {
     name: source.name,
     payload: Buffer.from(source.payload),
     request_id: event.kind === 'decoded' ? event.requestId : null,
-    decode_failure: event.kind === 'undecodable' ? event.reason : null,
+    decode_failure: event.kind === 'undecodable' ? recordedErrorText(event.reason) : null,
   }
 }
 
@@ -477,8 +508,13 @@ function bytesOfHex(hex: string): Buffer {
   return Buffer.from(hex, 'hex')
 }
 
-/** The text of a caught error as the database may hold it: with no URL credential, and bounded. */
+/**
+ * The text of a caught error or of a failure reason as the database may hold it: with no URL
+ * credential, bounded, and with no character PostgreSQL refuses.
+ */
 export function recordedErrorText(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error)
-  return textWithoutUrlCredentials(text).slice(0, RECORDED_ERROR_MAX_LENGTH)
+  return textWithoutUrlCredentials(text)
+    .slice(0, RECORDED_ERROR_MAX_LENGTH)
+    .replace(REFUSED_CHARACTERS, '')
 }
