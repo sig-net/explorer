@@ -148,3 +148,9 @@ PASS, exit 0 at 3923d6a, output in evidence/02-workspace-1.txt
 
 ## 49 CHECKPOINT 02-workspace
 stage done at 3923d6a
+
+## 50 PLAN 03-contract
+re-planned against the stages before it, and confirmed
+
+## 51 HANDOVER
+Stage 03 is revised and confirmed, nothing of it is dispatched. For the planner of stage 04: reconcile step 04.1's inspectionForStorage with D34 (one request cell per sign bidirectional event), and put D28 (tipMargin 6 blocks) into step 04.2. For the closing report to the user: the workflow lines 02.1's report lists (pages-deploy.yml 81 and 84, docker-publish.yml 1, 72 and 108), moving .env.local to packages/ui (D31), the daily Blockfrost quota of about 11,000 requests a network to confirm, 02.1 and 02.2 accepted with --retried for the excluded callers filter defect that 02.4 fixed in the component. Limit is 3 on a machine with 8 processors and about 4.5 GB available: measure again.
