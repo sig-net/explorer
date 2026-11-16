@@ -257,6 +257,8 @@ The repository delivers the image and no manifests. A deployment provides:
   indexes use. A user that cannot create it needs the extension created beforehand by one that
   can.
 - Outbound HTTPS to the indexer. Against Blockfrost, a preprod network that is caught up sends
-  about 31,000 requests a day at the default poll interval (114 requests in 320 seconds, measured
-  once): each poll finds a few new blocks, stores them and checks the tip again. A longer poll
-  interval lowers that roughly in proportion.
+  about 28,000 to 31,000 requests a day at the default poll interval (63 requests in 7 polls over
+  195 seconds, and 114 requests in 320 seconds, each measured once). Each poll finds a few new
+  blocks, stores them with 6 requests and checks the tip again with 3, and each transaction that
+  emitted a sign bidirectional event adds one. A longer poll interval lowers that roughly in
+  proportion.
