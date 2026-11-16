@@ -604,3 +604,21 @@ backend.md: the UI holds no copy of the Blockfrost URL or the start block (from 
 
 ## 201 ACCEPT 05.5
 merged bernard-05-5 as ab4ed3f
+
+## 202 DISPATCH 05.1
+model fable, branch bernard-05-1, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-05-1
+
+## 203 REPORT 05.1
+DONE, kept in reports/05.1-1.md
+
+## 204 CHECK 05.1
+PASS, exit 0 at a97b4cf, output in evidence/05.1-1.txt
+
+## 205 PACK
+server.md: serve returns before it listens, 500 before started. core.md: zsh word splitting and pkill -f (from 05.1's report)
+
+## 206 PLAN
+For the closing report, from 05.1: stop() answers a request in flight before it closes the remaining connections, and waits for a migration in flight within the 8 s. The 8 second abandon path has no test. wipe-network drops and migrates under two separate locks, so a running loop can log one failed cycle between them
+
+## 207 ACCEPT 05.1
+merged bernard-05-1 as e97cdc5

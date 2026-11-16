@@ -36,3 +36,4 @@ names the rows and sections it rests on: read those, and never act against a row
 - oxlint enforces `vitest(valid-expect)`, so `expect(value, message)` is refused. vitest prints the console output of passing tests only with `--reporter=verbose`. [unverified]
 - A synthetic seed whose rows pass through the `lifecycle` view and `lifecycleFromWire` needs payloads that decode: `packages/backend/src/service/postgres-explorer-service.large.test.ts` builds them in SQL. [unverified]
 - A step with `worktree: none` works in the parent's worktree, which moves when other steps merge. A review pins itself to its commit with `git archive <commit>` into a scratch folder. [unverified]
+- The shell is zsh: an unquoted `$VAR` that holds several words is one word. `pkill -f <pattern>` also kills the calling shell when its command line holds the pattern. [unverified]
