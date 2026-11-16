@@ -7,6 +7,7 @@ import {
   signBidirectionalLifecycleCalledBy,
   signBidirectionalLifecycleCallers,
   signBidirectionalLifecycleDurationMs,
+  signBidirectionalLifecycleEventCount,
   signBidirectionalLifecycleMatches,
 } from './sign-bidirectional-lifecycle'
 
@@ -35,6 +36,19 @@ test('duration runs from the first request to the first attestation', () => {
   expect(signBidirectionalLifecycleDurationMs(complete)).toBe(120_000)
   expect(signBidirectionalLifecycleDurationMs(signedOnly)).toBeNull()
   expect(signBidirectionalLifecycleDurationMs(orphan)).toBeNull()
+})
+
+test('the event count is the number of events of every kind the lifecycle groups', () => {
+  const [lifecycle] = aggregateSignBidirectionalLifecycles([
+    notificationEvent(1, REQUEST_A, CALLER_ONE, 0),
+    notificationEvent(2, REQUEST_A, CALLER_TWO, 5),
+    responseEvent(3, SignetEventName.SignatureRespondedEvent, REQUEST_A, 10),
+    responseEvent(4, SignetEventName.SignatureRespondedEvent, REQUEST_A, 11),
+  ])
+  if (lifecycle === undefined) {
+    throw new Error('expected a lifecycle')
+  }
+  expect(signBidirectionalLifecycleEventCount(lifecycle)).toBe(4)
 })
 
 test('search matches a fragment of the request id or of a caller address', () => {
