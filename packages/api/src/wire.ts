@@ -26,6 +26,7 @@ import {
   type LifecyclePage,
   LIFECYCLES_DEFAULT_LIMIT,
   LIFECYCLES_MAX_LIMIT,
+  LIFECYCLES_MIN_SEARCH_LENGTH,
   type LifecyclesQuery,
   type RequestCell,
   type SignBidirectionalInspection,
@@ -236,7 +237,7 @@ function inspectionToWire(
   inspection: SignBidirectionalInspection,
 ): SignBidirectionalInspectionWire {
   if ('failed' in inspection) {
-    return { failed: inspection.failed }
+    return { failed: textWithoutUrlCredentials(inspection.failed) }
   }
   const { callChains, requestCell } = inspection
   return {
@@ -305,7 +306,7 @@ export const networksWireSchema = z.object({ networks: z.array(networkWireSchema
 
 export type NetworksWire = z.infer<typeof networksWireSchema>
 
-/** The wire form of `networks`, each source URL without its credentials. */
+/** The wire form of `networks`, the source URL and the sync error without URL credentials. */
 export function networksToWire(networks: readonly ExplorerNetwork[]): NetworksWire {
   return {
     networks: networks.map(({ network, config, sync }) => ({
@@ -315,6 +316,7 @@ export function networksToWire(networks: readonly ExplorerNetwork[]): NetworksWi
         ...sync,
         processedBlockTime: sync.processedBlockTime?.toISOString() ?? null,
         lastSuccessAt: sync.lastSuccessAt?.toISOString() ?? null,
+        error: sync.error === null ? null : textWithoutUrlCredentials(sync.error),
       },
     })),
   }
@@ -336,6 +338,11 @@ export function networksFromWire(wire: NetworksWire): ExplorerNetwork[] {
 /** `url` without its user and password and cut before its query string or fragment. */
 export function urlWithoutCredentials(url: string): string {
   return url.replace(/[?#].*$/s, '').replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/\\]*@/i, '$1')
+}
+
+/** `text` with every URL it holds replaced by what {@link urlWithoutCredentials} gives for it. */
+export function textWithoutUrlCredentials(text: string): string {
+  return text.replace(/[a-z][a-z0-9+.-]*:\/\/[^\s"'`)\]}>]+/gi, urlWithoutCredentials)
 }
 
 export const callersWireSchema = z.object({ callers: z.array(hash32Schema) })
@@ -370,7 +377,10 @@ const lifecyclesQuerySchema = z.object({
 
 /** A {@link LifecyclesQuery} with its defaults applied and its values in canonical form. */
 export interface ResolvedLifecyclesQuery {
-  /** The search in lower case without `0x` and surrounding space. Empty matches every lifecycle. */
+  /**
+   * The search in lower case without `0x` and surrounding space, or the empty string, which
+   * matches every lifecycle, when that is shorter than {@link LIFECYCLES_MIN_SEARCH_LENGTH}.
+   */
   readonly fragment: string
   readonly excludeCallers: readonly string[]
   readonly before: number | null
@@ -384,8 +394,9 @@ export function resolveLifecyclesQuery(query: LifecyclesQuery = {}): ResolvedLif
     throw new ExplorerApiError('invalid_request', z.prettifyError(parsed.error))
   }
   const { search, excludeCallers, before, limit } = parsed.data
+  const fragment = (search ?? '').trim().toLowerCase().replace(/^0x/, '')
   return {
-    fragment: (search ?? '').trim().toLowerCase().replace(/^0x/, ''),
+    fragment: fragment.length < LIFECYCLES_MIN_SEARCH_LENGTH ? '' : fragment,
     excludeCallers: excludeCallers ?? [],
     before: before ?? null,
     limit: limit ?? LIFECYCLES_DEFAULT_LIMIT,

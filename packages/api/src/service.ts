@@ -62,7 +62,8 @@ export type ExplorerSyncState = (typeof EXPLORER_SYNC_STATES)[number]
 export interface LifecyclesQuery {
   /**
    * A fragment of a request id or of a caller contract address, in any case and with an optional
-   * `0x` prefix. An empty fragment matches every lifecycle.
+   * `0x` prefix. A fragment of fewer than {@link LIFECYCLES_MIN_SEARCH_LENGTH} characters, once
+   * trimmed and cut of its prefix, matches every lifecycle.
    */
   readonly search?: string | undefined
   /**
@@ -79,6 +80,8 @@ export interface LifecyclesQuery {
 export const LIFECYCLES_DEFAULT_LIMIT = 50
 
 export const LIFECYCLES_MAX_LIMIT = 200
+
+export const LIFECYCLES_MIN_SEARCH_LENGTH = 3
 
 export interface LifecyclePage {
   /** The page, ordered by first event id, descending. */
