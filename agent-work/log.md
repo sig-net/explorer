@@ -73,3 +73,15 @@ re-planned against the stages before it, and confirmed
 
 ## 24 DISPATCH 02.1
 model opus, branch bernard-02-1, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-1
+
+## 25 REPORT 02.1
+DONE, kept in reports/02.1-1.md
+
+## 26 CHECK 02.1
+PASS, exit 0 at e959f01, output in evidence/02.1-1.txt
+
+## 27 ACCEPT 02.1
+merged bernard-02-1 as 0c17b75
+
+## 28 PLAN
+Added step 02.4 (find and fix the cause of the excluded callers filter test timing out about 1 in 10 full runs, present on base fc68397), 02.3 now waits on it
