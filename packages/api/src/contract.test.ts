@@ -486,6 +486,24 @@ describe('the client over the routes', () => {
     expect(textWithoutUrlCredentials('no url here: a?b=c, d@e')).toBe('no url here: a?b=c, d@e')
   })
 
+  it('a text loses the credentials of a url whose password holds a bracket', () => {
+    expect(textWithoutUrlCredentials('https://u:p)w@h.example/x?k=SECRET')).toBe(
+      'https://h.example/x',
+    )
+    for (const delimiter of ['"', "'", ')', ']', '}', '>', '`']) {
+      expect(
+        textWithoutUrlCredentials(
+          `read (wss://user:pass${delimiter}word@h.example/ws${delimiter}s?k=SEC${delimiter}RET#FRAGMENT) failed`,
+        ),
+      ).not.toMatch(/user|pass|word|SEC|RET|FRAGMENT/)
+    }
+    expect(
+      textWithoutUrlCredentials(
+        '["https://h.example/x","wss://user:password@h.example/y?k=SECRET"]',
+      ),
+    ).toBe('["https://h.example/x","wss://h.example/y"]')
+  })
+
   it('the error of a network crosses the wire without a token', async () => {
     const [preprod] = explorerSeed.networks
     if (preprod === undefined) {

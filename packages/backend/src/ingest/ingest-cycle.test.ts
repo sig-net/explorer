@@ -167,6 +167,36 @@ function meetingAtEventsIn(source: MidnightSource, parties: number): MidnightSou
   }
 }
 
+/** `source` whose `eventsIn` answers only after `release` is called. */
+function heldAtEventsIn(source: MidnightSource): {
+  readonly source: MidnightSource
+  readonly reached: Promise<void>
+  readonly release: () => void
+} {
+  let reach = (): void => undefined
+  let release = (): void => undefined
+  const reached = new Promise<void>((resolve) => {
+    reach = resolve
+  })
+  const released = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  return {
+    reached,
+    release: () => {
+      release()
+    },
+    source: {
+      ...source,
+      eventsIn: async (range) => {
+        reach()
+        await released
+        return source.eventsIn(range)
+      },
+    },
+  }
+}
+
 async function stateOf(network: MidnightNetwork = NETWORK) {
   return networkDb(database.db, network)
     .selectFrom('ingest_state')
@@ -493,6 +523,29 @@ describe('the ingest cycle', () => {
       expect(await stateOf()).toMatchObject({ cursor_height: toBlock, last_error: null })
       expect(await eventIds()).toEqual(ids)
     }
+  })
+
+  it('a cycle that read under another identity stores nothing', async () => {
+    const held = heldAtEventsIn(chainOf(1010, [at(1002, notification(1))]))
+    const readBeforeTheWipe = cycle(held.source)
+    await held.reached
+    await wipeNetworkSchema(database.db, NETWORK)
+    await migrateNetworkSchema(database.db, NETWORK)
+    const otherSigner = 'a9'.repeat(32)
+    expect(await cycle(chainOf(1002, []), { signerContractAddress: otherSigner })).toEqual({
+      kind: 'caught-up',
+    })
+    const before = await snapshot()
+    expect(before.stored).toMatchObject({
+      ingestState: { cursor_height: null, signer_address: bytes(otherSigner) },
+      transactions: [],
+      events: [],
+    })
+
+    held.release()
+
+    expect(await readBeforeTheWipe).toEqual({ kind: 'superseded' })
+    expect(await snapshot()).toEqual(before)
   })
 
   it('a changed genesis hash stops the network and writes nothing', async () => {
@@ -853,6 +906,41 @@ describe('the ingest cycle', () => {
     ])
     expect(await eventIds()).toEqual([1, 2])
     expect(await stateOf()).toMatchObject({ cursor_height: 1008, last_error: null })
+  })
+
+  it('a returned failed reason is stored without url credentials', async () => {
+    const whole = 'f3'.repeat(32)
+    const single = 'f4'.repeat(32)
+    const source = chainOf(1010, [
+      at(1002, notification(1, REQUEST_A), whole),
+      at(1003, notification(2, REQUEST_B), single),
+      at(1003, notification(3, REQUEST_C), single),
+    ])
+    const reason = 'cannot read https://user:pass@indexer.example/api/v0?project_id=SECRET'
+    const inspect: InspectTransaction = (raw) =>
+      raw === rawOf(whole)
+        ? { failed: reason }
+        : {
+            callChains: [],
+            requests: { '2': { failed: `${reason} ${'x'.repeat(3000)}` }, '3': { cell: null } },
+          }
+
+    expect(await cycle(source, {}, inspect)).toMatchObject({ kind: 'stored', events: 3 })
+
+    const cut = 'cannot read https://indexer.example/api/v0'
+    expect(await transactionsOf()).toMatchObject([
+      { hash: bytes(whole), inspection: { failed: cut } },
+      {
+        hash: bytes(single),
+        inspection: {
+          callChains: [],
+          requests: {
+            '2': { failed: `${cut} ${'x'.repeat(2000 - cut.length - 1)}` },
+            '3': { cell: null },
+          },
+        },
+      },
+    ])
   })
 
   it('a failed cycle records its error without a NUL character', async () => {
