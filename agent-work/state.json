@@ -1,6 +1,6 @@
 {
   "limit": 2,
-  "seq": 147,
+  "seq": 155,
   "stages": {
     "01-ground": {
       "check_dirty": true,
@@ -219,6 +219,15 @@
       "status": "done",
       "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-10"
     },
+    "04.11": {
+      "base": "2d0ee0d",
+      "branch": "bernard-04-11",
+      "checks": 0,
+      "redos": 1,
+      "reports": 0,
+      "status": "running",
+      "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-11"
+    },
     "04.2": {
       "base": "e6b2df2",
       "branch": "bernard-04-2",
@@ -270,10 +279,13 @@
     "04.6": {
       "base": "99fa02c",
       "branch": "bernard-04-6",
-      "checks": 0,
+      "check_dirty": false,
+      "check_head": "d45b12d",
+      "check_passed": true,
+      "checks": 1,
       "redos": 0,
-      "reports": 0,
-      "status": "running",
+      "reports": 1,
+      "status": "done",
       "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-6"
     },
     "04.8": {

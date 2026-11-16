@@ -442,3 +442,27 @@ indexer path corrected, backend.md: U+0000, ui.md: the cold Vite cache (from rev
 
 ## 147 ACCEPT 04.8
 nothing to merge
+
+## 148 DISPATCH 04.11
+model fable, branch bernard-04-11, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-11
+
+## 149 REPORT 04.6
+DONE, kept in reports/04.6-1.md
+
+## 150 CHECK 04.6
+PASS, exit 0 at d45b12d, output in evidence/04.6-1.txt
+
+## 151 REDO 04.11
+the orchestrator's session ended while the step ran: its branch holds commit 2c10b35 and a clean worktree, and no report was filed. A fresh agent finishes from what is there
+
+## 152 DISPATCH 04.11
+model fable, branch bernard-04-11, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-11
+
+## 153 PACK
+ui.md: ThemeProvider for JsonViewer, setConfig in tests, split-text getByText, the signed request fixtures, and the expanded row section rewritten for what 04.6 deleted (from 04.6's report). contract pack taken off 04.7
+
+## 154 ACCEPT 04.6
+merged bernard-04-6 as 40e68fd
+
+## 155 RECOVERY
+new session: 04.6 was reported, checked and accepted with its retry's cause. 04.11 was running with one commit and no report: sent back and dispatched to a fresh agent that finishes from the branch. Limit 2 kept: 8 processors, 6.4 GB available, 170 GB of disk free

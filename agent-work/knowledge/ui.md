@@ -12,9 +12,7 @@ Read this when your step changes the browser app. Paths are relative to the app'
 
 ## What an expanded row fetches
 
-- `src/components/midnight/use-lifecycle-verification.ts` inspects each notification's transaction, then checks signatures and attestations in the browser. The inspection is the only Midnight read in it: `loadSignBidirectionalTransactionInspection(indexerUrl, notification)` (`src/lib/midnight/sign-bidirectional-transaction-loader.ts:66`) fetches the raw transaction from the indexer and runs `inspectSignBidirectionalTransaction` from a lazily imported module. [read 4234222]
-- `src/components/midnight/use-sign-bidirectional-transaction-inspection.ts` is the second caller of that loader, for the transaction details panel. [read 4234222]
-- `src/lib/midnight/sign-bidirectional-transaction-inspection.ts` is the one module that imports `@midnightntwrk/ledger-v9` as values. Its result is `{ callChains, request }`. [read 4234222]
+- `src/components/midnight/use-lifecycle-verification.ts` takes each sign bidirectional event's inspection from the lifecycle the backend served (`InspectedSignBidirectionalLifecycle`), then checks signatures and attestations in the browser. The UI imports no ledger and reads no indexer for it. [read d45b12d]
 - The EVM status (`evm-transaction-status.ts`, `evm-transaction-output.ts`) and the MPC output cache (`mpc-output-cache.ts`) call their own services from the browser and stay as they are (D10). [read 4234222]
 
 ## Configuration
@@ -30,7 +28,11 @@ Read this when your step changes the browser app. Paths are relative to the app'
 - The UI's Vitest configuration is the `test` block of `packages/ui/vite.config.ts`: the UI has no `vitest.config.ts`. [run 53ef0ad]
 - A Base UI popup stays mounted for its exit animation (100 ms) after it closes, and `screen` or `page.getByText` queries resolve before it unmounts. To wait for a popup to be gone, poll `document.querySelector` for its `data-slot` (`[data-slot="combobox-content"]`), as `excluded-callers-filter.test.tsx` does. [read 53ef0ad]
 - Base UI's combobox calls `onInputValueChange` with reason `input-clear` when its popup unmounts. A handler that accepts every reason wipes what the user typed: accept `input-change` and `escape-key` alone, as `excluded-callers-filter.tsx` does. [read 53ef0ad]
-- `SignetEventsSection`'s `TEvent` bound (`packages/ui/src/components/midnight/signet-events-section.tsx`) and `SignBidirectionalNotificationEvent` (`packages/ui/src/lib/midnight/sign-bidirectional-transaction-loader.ts`) type `source` as lib's `StoredSignetMiscEvent`. An `IndexedSignetMiscEvent` assigns to it. [run c09a270]
+- `SignetEventsSection`'s `TEvent` bound (`packages/ui/src/components/midnight/signet-events-section.tsx`) types `source` as lib's `StoredSignetMiscEvent`. An `IndexedSignetMiscEvent` assigns to it. [read d45b12d]
 - oxlint enforces `react(set-state-in-effect)` as an error and flags extra effect dependencies: a refresh counter in the dependencies must be read in the effect body. [unverified]
 - A test that renders the generated `routeTree` awaits `router.load()` first. The page's tests are in `packages/ui/src/components/midnight/explorer-page.test.tsx`, since a test under `src/routes` is read as a route. The list is read through the api client (`packages/ui/src/lib/explorer-api.ts`), whose base URL is `VITE_EXPLORER_API_URL`. [unverified]
 - From a cold Vite cache (`packages/ui/node_modules/.vite`, `packages/ui/.vitest`) Vite optimises dependencies in the middle of the UI's test run and reloads, which fails tests that render the route tree. Seen at 8d493d7, 1 run in 4 with 7 failures, another with 2 timeouts while a second test run was using the machine. [run 8d493d7]
+- `JsonViewer` (`packages/ui/src/components/json-viewer.tsx`) calls `useTheme`: a test that expands a row with a decoded request wraps it in `ThemeProvider`. [read d45b12d]
+- `MidnightProvider` takes `children` alone: a test sets a configuration through `useMidnight().setConfig`. A valid signature makes `EvmTransactionStatus` call the configured EVM RPC, so such a test sets the RPC and cache URLs to `''`. [read d45b12d]
+- `getByText` of vitest-browser does not match a span whose text is split by child elements (`valid for key` followed by a `CopyableHex`): assert on `container.textContent`. [unverified]
+- A known request with a valid MPC signature is `SIGNED_REQUEST_ID` and `SIGNED_REQUEST_MPC_RESPONSE` of `packages/ui/src/lib/midnight/sign-bidirectional-event.fixture.ts`. `inspected-sign-bidirectional-lifecycle.fixture.ts` beside it builds an `InspectedSignBidirectionalLifecycle`, which is what the lifecycle table takes. [unverified]
