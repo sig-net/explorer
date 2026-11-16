@@ -67,3 +67,6 @@ PASS, exit 0 at 8580093, output in evidence/01-ground-1.txt
 
 ## 22 CHECKPOINT 01-ground
 stage done at 8580093
+
+## 23 PLAN 02-workspace
+re-planned against the stages before it, and confirmed

@@ -1,6 +1,6 @@
 {
   "limit": 3,
-  "seq": 22,
+  "seq": 23,
   "stages": {
     "01-ground": {
       "check_dirty": true,
@@ -13,7 +13,7 @@
     },
     "02-workspace": {
       "checkpoint": "",
-      "provisional": true,
+      "provisional": false,
       "status": "pending"
     },
     "03-contract": {
