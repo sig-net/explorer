@@ -1,6 +1,6 @@
 # Architecture
 
-Status: round 1, a proposal. Nothing below "Design" is settled until its decision row in
+Status: round 2. Nothing below "Design" is settled until its decision row in
 `decisions.md` reads `user` or `planner (confirmed)`.
 
 ## Outcomes
@@ -47,8 +47,7 @@ Per network, the loop is:
 5. Any failure commits nothing. The loop retries with backoff from the same cursor.
 
 The source is a port with two possible adaptors: the Midnight indexer's GraphQL (the SDK's
-`signetEventSourceFromIndexer`), and a Midnight node read block by block. Which is built first is
-Q1.
+`signetEventSourceFromIndexer`), and a Midnight node read block by block. The indexer adaptor is the one built (D08).
 
 ### Store: one PostgreSQL schema per network
 
@@ -72,12 +71,15 @@ migrations.
 
 Read-only HTTP JSON: the networks with their sync state (cursor, tip, lag, last error), a page of
 lifecycles (newest first, keyset paged, search fragment, excluded callers, match count), one
-lifecycle by request id, the distinct callers.
+lifecycle by request id, the distinct callers, and each network's configuration for display
+(addresses, starting block, source URL without its query string: D11, D13).
 
 ## Out of scope
 
 - Solana: its route stays the placeholder it is.
-- Moving EVM transaction status, EVM tracing and the MPC output cache behind the backend (Q3).
+- Moving EVM transaction status, EVM tracing and the MPC output cache behind the backend (D10).
+- Kubernetes manifests and any GitHub Actions workflow for the backend (D09, D14). The Pages build needs the backend's public URL as a build variable, which is a workflow change for the workstation.
+- A node adaptor for the ingest source (D08).
 - Push from backend to browser (websocket, server-sent events): the UI polls.
 - Changes to `.github/workflows/**`: this machine's tokens cannot push them. What the workflows
   need is listed in the closing report of the build.
@@ -100,10 +102,11 @@ and an unverified one names the gate of the first stage that tests it.
 
 ## Open questions
 
-One line each: `- Q1 [open] <the question>`, then `[answered] <the answer>` in place of `[open]`.
+One line each: `- Q1 [answered] <the question>`, then `[answered] <the answer>` in place of `[open]`. Answer: Blockfrost's existing indexer, with the token on the server (D08). The plan and its quota are not known: A10 stays a gate.
 
-- Q1 [open] What will the production backend read Midnight from: Blockfrost's indexer and node with a token kept on the server (which plan, what quota), a node sig-net runs, or a node and an indexer sig-net runs?
-- Q2 [open] Where do the backend and its PostgreSQL run, and does the UI stay on GitHub Pages calling the backend across origins, or is it served from the same place?
-- Q3 [open] Do EVM transaction status, EVM tracing and the MPC output cache stay in the browser as today (recommended), or move behind the backend too?
-- Q4 [open] The signer and responder addresses, the source URL and the starting block become server configuration, so the configuration popover loses those fields and the starting block control goes. A developer on a local `undeployed` stack runs the backend locally. Is that acceptable?
-- Q5 [open] When the backend finds that a network's genesis hash or contract addresses differ from what its schema was indexed for: stop that network and wait for an operator's wipe command (recommended), or wipe and index again on its own?
+- Q1 [answered] What will the production backend read Midnight from: Blockfrost's indexer and node with a token kept on the server (which plan, what quota), a node sig-net runs, or a node and an indexer sig-net runs? Answer: Blockfrost's existing indexer, with the token on the server (D08). The plan and its quota are not known: A10 stays a gate.
+- Q2 [answered] Where do the backend and its PostgreSQL run, and does the UI stay on GitHub Pages calling the backend across origins, or is it served from the same place? Answer: Kubernetes on Google Cloud, a Docker image for the backend, no GitHub Actions yet, the UI on GitHub Pages with CORS on the backend (D09).
+- Q3 [answered] Do EVM transaction status, EVM tracing and the MPC output cache stay in the browser as today (recommended), or move behind the backend too? Answer: They stay in the browser (D10).
+- Q4 [answered] The signer and responder addresses, the source URL and the starting block become server configuration, so the configuration popover loses those fields and the starting block control goes. A developer on a local `undeployed` stack runs the backend locally. Is that acceptable? Answer: Yes, and the UI still shows them read only (D11).
+- Q5 [answered] When the backend finds that a network's genesis hash or contract addresses differ from what its schema was indexed for: stop that network and wait for an operator's wipe command (recommended), or wipe and index again on its own? Answer: Stop and wait for the operator (D12).
+- Q6 [open] The row of the request list: is it assembled when read, by a SQL view that joins the maintained `requests` table to the `events` table (recommended, measured at 0.8 ms for 50 rows), or stored whole, with the events of the request copied as JSON into the `requests` row and rewritten on every new event?
