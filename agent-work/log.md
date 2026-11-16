@@ -220,3 +220,21 @@ backend.md and core.md: redactUrlQuery, the api entry, raw sql fragments, scratc
 
 ## 73 ACCEPT 03.3
 nothing to merge
+
+## 74 DISPATCH 03.4
+model fable, branch bernard-03-4, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-03-4
+
+## 75 REPORT 03.4
+DONE, kept in reports/03.4-1.md
+
+## 76 CHECK 03.4
+PASS, exit 0 at b2ada30, output in evidence/03.4-1.txt
+
+## 77 PACK
+backend.md: VACUUM before a GIN plan, EXPLAIN tests at 20,000 rows, the view follows requests, request_callers, matchingEvents (from 03.4's report)
+
+## 78 PLAN
+for the planner of stage 04, from 03.4: the lifecycle event count is written twice (api testing.ts and the UI's signBidirectionalLifecycleEventCount) and belongs in packages/lib once the service is the third user. A backfilled database needs VACUUM before caller search uses its index
+
+## 79 ACCEPT 03.4
+merged bernard-03-4 as 47ac04e
