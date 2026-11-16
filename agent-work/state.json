@@ -1,6 +1,6 @@
 {
   "limit": 2,
-  "seq": 122,
+  "seq": 126,
   "stages": {
     "01-ground": {
       "check_dirty": true,
@@ -234,10 +234,13 @@
     "04.4": {
       "base": "61addcc",
       "branch": "bernard-04-4",
-      "checks": 0,
+      "check_dirty": false,
+      "check_head": "872fbe8",
+      "check_passed": true,
+      "checks": 1,
       "redos": 0,
       "reports": 1,
-      "status": "reported",
+      "status": "done",
       "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-4"
     },
     "04.9": {

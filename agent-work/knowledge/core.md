@@ -34,4 +34,4 @@ names the rows and sections it rests on: read those, and never act against a row
 - `packages/lib` holds what both runtimes use: contract address parsing, signet event decoding, the sign bidirectional lifecycle aggregation, the network set, and a `/testing` entry with the lifecycle fixture (D32). The UI and the backend both list `@sig-net/explorer-lib` as `workspace:*`. [run c09a270]
 - oxlint enforces `vitest(require-to-throw-message)`, `vitest(require-mock-type-parameters)` and `typescript(no-base-to-string)` on tests. [unverified]
 - oxlint enforces `vitest(valid-expect)`, so `expect(value, message)` is refused. vitest prints the console output of passing tests only with `--reporter=verbose`. [unverified]
-- A synthetic seed whose rows pass through the `lifecycle` view and `lifecycleFromWire` needs payloads that decode: `packages/backend/src/query/postgres-explorer-service.large.test.ts` builds them in SQL. [unverified]
+- A synthetic seed whose rows pass through the `lifecycle` view and `lifecycleFromWire` needs payloads that decode: `packages/backend/src/service/postgres-explorer-service.large.test.ts` builds them in SQL. [unverified]

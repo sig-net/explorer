@@ -367,3 +367,15 @@ gate of stage 04, the timed tests of 04.3: they hold, 18 to 31 ms a statement at
 
 ## 122 ACCEPT 04.3
 merged bernard-04-3 as 49d07aa
+
+## 123 CHECK 04.4
+PASS, exit 0 at 872fbe8, output in evidence/04.4-1.txt
+
+## 124 PACK
+backend.md: the SDK's address getters, hono cors on preflights, parseBackendEnv and the health endpoints (from 04.4's report)
+
+## 125 PLAN
+for steps 04.5 to 04.7 and review 04.8, from 04.4: the Blockfrost indexer URL and the preprod start block are in the backend's configuration and in the UI's network.ts, and the UI's copies go when the UI stops reading the indexer
+
+## 126 ACCEPT 04.4
+merged bernard-04-4 as ec45953
