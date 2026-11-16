@@ -37,3 +37,9 @@ DONE, kept in reports/01.1-1.md
 
 ## 12 ACCEPT 01.2
 merged bernard-01-2 as 3ce3f20
+
+## 13 CHECK 01.1
+PASS, exit 0 at d7c9bef, output in evidence/01.1-1.txt
+
+## 14 ACCEPT 01.1
+merged bernard-01-1 as 8a83e95
