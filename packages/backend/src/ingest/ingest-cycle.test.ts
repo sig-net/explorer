@@ -1,5 +1,7 @@
 import {
   type ContractCallNode,
+  type ExplorerNetworkSync,
+  type ExplorerService,
   type RequestCellWire,
   textWithoutUrlCredentials,
 } from '@sig-net/explorer-api'
@@ -98,9 +100,8 @@ function bytesCellOf(atom: string, length: number): RequestCellWire {
   return { value: [atom], alignment: [{ tag: 'atom', value: { tag: 'bytes', length } }] }
 }
 
-/** The inspection each sign bidirectional event is served with, in emission order. */
-async function servedInspections() {
-  const service = createPostgresExplorerService(database.db, [
+function explorerService(): ExplorerService {
+  return createPostgresExplorerService(database.db, [
     {
       network: NETWORK,
       config: {
@@ -111,6 +112,17 @@ async function servedInspections() {
       },
     },
   ])
+}
+
+/** The sync state the network is served with. */
+async function servedSync(): Promise<ExplorerNetworkSync | undefined> {
+  const networks = await explorerService().networks()
+  return networks.find(({ network }) => network === NETWORK)?.sync
+}
+
+/** The inspection each sign bidirectional event is served with, in emission order. */
+async function servedInspections() {
+  const service = explorerService()
   const page = await service.lifecycles(NETWORK)
   const events = []
   for (const { requestId } of page.lifecycles) {
@@ -330,6 +342,55 @@ describe('the ingest cycle', () => {
     expect(longer.ranges).toEqual([{ fromBlock: 1003, toBlock: 1008 }])
     expect(await eventIds()).toEqual([2])
     expect(await stateOf()).toMatchObject({ start_block: 1003, cursor_height: 1008 })
+  })
+
+  it('a network whose source never answered shows its error', async () => {
+    const down = (): Promise<never> => Promise.reject(new Error('the indexer is down'))
+    const neverAnswering: MidnightSource = {
+      genesisHash: down,
+      finalisedTip: down,
+      blockAt: down,
+      eventsIn: down,
+      rawTransaction: down,
+    }
+
+    expect(await cycle(neverAnswering)).toEqual({ kind: 'failed', error: 'the indexer is down' })
+
+    expect(await stateOf()).toMatchObject({
+      genesis_hash: Buffer.alloc(0),
+      signer_address: bytes(SETTINGS.signerContractAddress),
+      responder_address: bytes(SETTINGS.responderContractAddress),
+      start_block: FIRST_BLOCK,
+      cursor_height: null,
+      cursor_hash: null,
+      cursor_block_time: null,
+      tip_height: null,
+      state: 'starting',
+      last_success_at: null,
+      last_error: 'the indexer is down',
+    })
+    expect(await servedSync()).toEqual({
+      state: 'starting',
+      processedBlock: null,
+      processedBlockTime: null,
+      tipBlock: null,
+      lastSuccessAt: null,
+      error: 'the indexer is down',
+    })
+
+    const answering = chainOf(1010, [at(1002, notification(1))])
+    expect(await cycle(answering)).toEqual({
+      kind: 'stored',
+      fromBlock: FIRST_BLOCK,
+      toBlock: 1008,
+      events: 1,
+    })
+    expect(await stateOf()).toMatchObject({
+      genesis_hash: bytes(GENESIS_HASH),
+      cursor_height: 1008,
+      state: 'synced',
+      last_error: null,
+    })
   })
 
   it('stores a range and moves the cursor together', async () => {
