@@ -25,3 +25,15 @@ model opus, branch bernard-01-2, worktree /home/brbussy/Projects/github.com/sig-
 
 ## 8 DISPATCH 01.3
 model opus, branch bernard-01-3, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-01-3
+
+## 9 REPORT 01.2
+DONE, kept in reports/01.2-1.md
+
+## 10 CHECK 01.2
+PASS, exit 0 at b9474cd, output in evidence/01.2-1.txt
+
+## 11 REPORT 01.1
+DONE, kept in reports/01.1-1.md
+
+## 12 ACCEPT 01.2
+merged bernard-01-2 as 3ce3f20

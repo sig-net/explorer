@@ -1,6 +1,6 @@
 {
   "limit": 3,
-  "seq": 8,
+  "seq": 12,
   "stages": {
     "01-ground": {
       "checkpoint": "",
@@ -34,17 +34,20 @@
       "branch": "bernard-01-1",
       "checks": 0,
       "redos": 0,
-      "reports": 0,
-      "status": "running",
+      "reports": 1,
+      "status": "reported",
       "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-bernard-01-1"
     },
     "01.2": {
       "base": "7c2b1ff",
       "branch": "bernard-01-2",
-      "checks": 0,
+      "check_dirty": false,
+      "check_head": "b9474cd",
+      "check_passed": true,
+      "checks": 1,
       "redos": 0,
-      "reports": 0,
-      "status": "running",
+      "reports": 1,
+      "status": "done",
       "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-bernard-01-2"
     },
     "01.3": {
