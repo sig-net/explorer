@@ -565,3 +565,9 @@ For the closing report, from 04.14: an event whose name held a NUL is stored und
 
 ## 188 ACCEPT 04.14
 merged bernard-04-14 as 0fd0aa3
+
+## 189 CHECK 04-build
+PASS, exit 0 at 0177f15, output in evidence/04-build-1.txt
+
+## 190 CHECKPOINT 04-build
+stage done at 0177f15
