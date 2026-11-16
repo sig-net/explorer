@@ -124,3 +124,6 @@ PASS, exit 0 at e28b444, output in evidence/02.2-2.txt
 
 ## 41 ACCEPT 02.2
 merged bernard-02-2 as e924a47
+
+## 42 DISPATCH 02.3
+model opus, branch bernard-02-3, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-3
