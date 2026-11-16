@@ -155,7 +155,7 @@ export function createIndexerSource({
   }
 }
 
-/** How long one request to the indexer may take by default (D50). */
+/** How long one request to the indexer may take by default. */
 export const INDEXER_REQUEST_TIMEOUT_MS = 30_000
 
 const TIP_QUERY = '{ block { height hash timestamp } }'
@@ -179,7 +179,7 @@ const hashSchema = z
 const timestampSchema = z.number().int().nonnegative()
 
 const graphqlResponseSchema = z.object({
-  data: z.unknown(),
+  data: z.unknown().optional(),
   errors: z.array(z.object({ message: z.string() })).optional(),
 })
 const tipSchema = z.object({

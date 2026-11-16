@@ -80,27 +80,16 @@ interface IngestTiming {
 
 export const EXPLORER_DEFAULT_PORT = 8080
 
-/** D29. */
 export const EXPLORER_DEFAULT_POLL_INTERVAL_SECONDS = 30
 
-/** D28. */
 export const EXPLORER_DEFAULT_TIP_MARGIN_BLOCKS = 6
 
-/** D21. */
 export const EXPLORER_DEFAULT_MAX_RANGE_BLOCKS = 2_000
 
-/**
- * Preprod's Blockfrost indexer, which takes a project id as `?project_id=<id>`. Duplicates
- * `PREPROD_BLOCKFROST_URLS.indexerUrl` of the UI's `lib/midnight/network.ts`: delete that copy
- * when the UI stops reading the indexer itself.
- */
+/** Preprod's Blockfrost indexer, which takes a project id as `?project_id=<id>`. */
 const PREPROD_BLOCKFROST_INDEXER_URL = 'https://midnight-preprod.blockfrost.io/api/v0'
 
-/**
- * The lower deployment block of the signer and the responder the SDK publishes for preprod.
- * Duplicates `SIGNET_EVENTS_EARLIEST_BLOCKS` of the UI's `lib/midnight/network.ts`: delete that
- * copy when the UI stops reading the indexer itself.
- */
+/** The lower deployment block of the signer and the responder the SDK publishes for preprod. */
 const PREPROD_PUBLISHED_CONTRACTS_START_BLOCK = 3_386_746
 
 /** A schema of one variable, and what it expects, which is all an error says about the value. */
