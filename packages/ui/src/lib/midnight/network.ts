@@ -6,16 +6,13 @@ import {
   MidnightNetwork,
   normaliseSecp256k1PublicKey,
 } from '@sig-net/midnight'
+import {
+  isMidnightNetwork,
+  MIDNIGHT_NETWORKS,
+  normaliseContractAddressHex,
+} from '@sig-net/explorer-lib'
 
 import { EXPLORER_ENV } from '@/lib/explorer-env'
-import { normaliseContractAddressHex } from '@/lib/midnight/contract-address'
-
-export const MIDNIGHT_NETWORKS: readonly MidnightNetwork[] = [
-  MidnightNetwork.Undeployed,
-  MidnightNetwork.Preview,
-  MidnightNetwork.Preprod,
-  MidnightNetwork.Mainnet,
-]
 
 export interface MidnightNetworkConfig {
   indexerUrl: string
@@ -336,13 +333,6 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     mpcOutputCacheUrl: '',
     signetEventsFromBlock: '',
   },
-}
-
-// Widened to plain strings so a raw value can be tested without comparing across enum types.
-const MIDNIGHT_NETWORK_VALUES: readonly string[] = MIDNIGHT_NETWORKS
-
-export function isMidnightNetwork(value: unknown): value is MidnightNetwork {
-  return typeof value === 'string' && MIDNIGHT_NETWORK_VALUES.includes(value)
 }
 
 export type MidnightDefaultNetworkEnv = Pick<ImportMetaEnv, 'VITE_MIDNIGHT_DEFAULT_NETWORK'>

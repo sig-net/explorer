@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 
-import { parseContractAddressHex, parseContractAddressesHex } from './contract-address'
+import { parseContractAddressHex, parseContractAddressesHex } from './contract-address.ts'
 
 const ADDRESS = 'ab'.repeat(32)
 

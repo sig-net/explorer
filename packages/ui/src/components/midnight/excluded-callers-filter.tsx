@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/combobox'
 import { Label } from '@/components/ui/label'
 import { truncateMiddle } from '@/lib/format'
-import { parseContractAddressHex } from '@/lib/midnight/contract-address'
+import { parseContractAddressHex } from '@sig-net/explorer-lib'
 
 /** A typed hex fragment as the SDK's lowercase hex, with any `0x` prefix and surrounding space dropped. */
 function normaliseHexQuery(query: string): string {

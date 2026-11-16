@@ -15,7 +15,7 @@ import {
 import { evmRpcUrl } from '@/lib/midnight/evm-transaction-status'
 import { loadMpcCachedOutput } from '@/lib/midnight/mpc-output-cache'
 import type { MidnightNetworkConfig } from '@/lib/midnight/network'
-import type { SignBidirectionalLifecycle } from '@/lib/midnight/sign-bidirectional-lifecycle'
+import type { SignBidirectionalLifecycle } from '@sig-net/explorer-lib'
 import { loadSignBidirectionalTransactionInspection } from '@/lib/midnight/sign-bidirectional-transaction-loader'
 import { checkSignature } from '@/lib/midnight/signature-check'
 

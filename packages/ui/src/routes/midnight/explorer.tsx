@@ -14,9 +14,8 @@ import { SignetEventsStartingBlock } from '@/components/midnight/signet-events-s
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { parseContractAddressesHex } from '@/lib/midnight/contract-address'
+import { parseContractAddressesHex, type SignBidirectionalLifecycle } from '@sig-net/explorer-lib'
 import {
-  type SignBidirectionalLifecycle,
   signBidirectionalLifecycleCalledBy,
   signBidirectionalLifecycleCallers,
   signBidirectionalLifecycleEventCount,

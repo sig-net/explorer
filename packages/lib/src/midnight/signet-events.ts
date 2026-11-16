@@ -8,19 +8,22 @@ import {
  * One event of a signet contract as the explorer stores it. The explorer keeps every event either
  * contract emitted, so the two ways a decode can come up empty are variants of their own. Every
  * variant carries `roles`, those of the contract that emitted it, and `source`, the event as the
- * indexer served it, with its cursor and transaction id.
+ * indexer served it, with its cursor.
  */
 export type SignetContractEvent = { readonly roles: readonly SignetContractRole[] } & (
-  | (DecodedSignetEvent<IndexedSignetMiscEvent> & { readonly kind: 'decoded' })
+  | (DecodedSignetEvent<StoredSignetMiscEvent> & { readonly kind: 'decoded' })
   /** An event whose name is not a Signet event name. */
-  | { readonly kind: 'unrecognised'; readonly source: IndexedSignetMiscEvent }
+  | { readonly kind: 'unrecognised'; readonly source: StoredSignetMiscEvent }
   /** A Signet event whose payload did not decode. */
   | {
       readonly kind: 'undecodable'
-      readonly source: IndexedSignetMiscEvent
+      readonly source: StoredSignetMiscEvent
       readonly reason: string
     }
 )
+
+/** The part of an indexed event the explorer keeps: everything but `maxId` and `transactionId`. */
+export type StoredSignetMiscEvent = Omit<IndexedSignetMiscEvent, 'maxId' | 'transactionId'>
 
 /**
  * A signet contract's part in the protocol: the signer, which requester contracts notify, or the
@@ -33,7 +36,7 @@ export type SignetContractRole = 'signer' | 'responder'
  * are variants.
  */
 export function decodeSignetContractEvent(
-  source: IndexedSignetMiscEvent,
+  source: StoredSignetMiscEvent,
   roles: readonly SignetContractRole[],
 ): SignetContractEvent {
   const result = tryDecodeSignetEvent(source)

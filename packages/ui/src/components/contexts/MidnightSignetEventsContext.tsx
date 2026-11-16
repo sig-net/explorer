@@ -8,7 +8,7 @@ import {
 } from 'react'
 
 import { useMidnight } from '@/components/contexts/MidnightContext'
-import { parseContractAddressHex } from '@/lib/midnight/contract-address'
+import { parseContractAddressHex } from '@sig-net/explorer-lib'
 import { fetchIndexerBlockHeight } from '@/lib/midnight/indexer-block-height'
 import { isIndexerUrlConfigured } from '@/lib/midnight/indexer-services'
 import { parseSignetEventsFromBlock, signetEventsEarliestBlock } from '@/lib/midnight/network'

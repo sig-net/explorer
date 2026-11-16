@@ -1,3 +1,4 @@
+import type { SignBidirectionalLifecycle } from '@sig-net/explorer-lib'
 import { useRouter } from '@tanstack/react-router'
 import { ChevronDown, ChevronUp, EyeOff, Link, ListFilter } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
@@ -35,10 +36,7 @@ import {
 import { Toggle } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatDuration, formatLocalTimestamp } from '@/lib/format'
-import {
-  type SignBidirectionalLifecycle,
-  signBidirectionalLifecycleDurationMs,
-} from '@/lib/midnight/sign-bidirectional-lifecycle'
+import { signBidirectionalLifecycleDurationMs } from '@/lib/midnight/sign-bidirectional-lifecycle'
 
 /** Entries shown in one cell before the rest collapse into an ellipsis. */
 const MAX_STACKED = 3

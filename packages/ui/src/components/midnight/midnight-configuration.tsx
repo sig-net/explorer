@@ -21,9 +21,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useMidnight } from '@/components/contexts/MidnightContext'
 import { MidnightNetwork } from '@sig-net/midnight'
-import { parseContractAddressHex } from '@/lib/midnight/contract-address'
+import { MIDNIGHT_NETWORKS, parseContractAddressHex } from '@sig-net/explorer-lib'
 import {
-  MIDNIGHT_NETWORKS,
   type MidnightNetworkConfig,
   parseMpcRootPublicKey,
   parseSignetEventsFromBlock,

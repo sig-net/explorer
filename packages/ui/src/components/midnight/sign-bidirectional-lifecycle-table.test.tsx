@@ -1,3 +1,8 @@
+import {
+  aggregateSignBidirectionalLifecycles,
+  type SignBidirectionalLifecycle,
+} from '@sig-net/explorer-lib'
+import { notificationEvent, responseEvent } from '@sig-net/explorer-lib/testing'
 import { SignetEventName } from '@sig-net/midnight'
 import {
   RouterProvider,
@@ -11,14 +16,6 @@ import { render } from 'vitest-browser-react'
 import '@/index.css'
 import { MidnightProvider } from '@/components/contexts/MidnightContext'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import {
-  aggregateSignBidirectionalLifecycles,
-  type SignBidirectionalLifecycle,
-} from '@/lib/midnight/sign-bidirectional-lifecycle'
-import {
-  notificationEvent,
-  responseEvent,
-} from '@/lib/midnight/sign-bidirectional-lifecycle.fixture'
 
 import { SignBidirectionalLifecycleTable } from './sign-bidirectional-lifecycle-table'
 
