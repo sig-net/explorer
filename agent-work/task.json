@@ -1,0 +1,13 @@
+{
+  "title": "Give the explorer a node backend and SQL store so it no longer depends on a public Midnight node and indexer",
+  "parent_branch": "upgrade-protocol",
+  "baseline": "942e473",
+  "step_branches": "bernard",
+  "models": [
+    "fable",
+    "opus"
+  ],
+  "pack_budget": 8000,
+  "step_budget": 6000,
+  "report_budget": 6000
+}
