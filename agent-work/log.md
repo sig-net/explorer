@@ -466,3 +466,21 @@ merged bernard-04-6 as 40e68fd
 
 ## 155 RECOVERY
 new session: 04.6 was reported, checked and accepted with its retry's cause. 04.11 was running with one commit and no report: sent back and dispatched to a fresh agent that finishes from the branch. Limit 2 kept: 8 processors, 6.4 GB available, 170 GB of disk free
+
+## 156 DISPATCH 04.7
+model opus, branch bernard-04-7, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-7
+
+## 157 REPORT 04.11
+DONE, kept in reports/04.11-1.md
+
+## 158 CHECK 04.11
+PASS, exit 0 at 2c10b35, output in evidence/04.11-1.txt
+
+## 159 PACK
+backend.md: jsonb refuses an unpaired surrogate, run against PostgreSQL 17 (from 04.11's report)
+
+## 160 PLAN
+04.13 also tests a NUL in an event's name and in the genesis hash of a stopped network, which 04.11's fix does not pass through its filter. For the closing report: 04.11 went wider than its step, it treats unpaired surrogates like U+0000 and bounds decode_failure to 2000 characters without URL credentials
+
+## 161 ACCEPT 04.11
+merged bernard-04-11 as 60d5a3a
