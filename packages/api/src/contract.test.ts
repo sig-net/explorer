@@ -11,7 +11,6 @@ import { createExplorerApiClient } from './client.ts'
 import { explorerApiRoutes } from './routes.ts'
 import {
   ExplorerApiError,
-  type ExplorerNetwork,
   type ExplorerService,
   type InspectedSignBidirectionalLifecycle,
   type LifecyclePage,
@@ -420,7 +419,7 @@ describe('the client over the routes', () => {
     if (preprod === undefined) {
       throw new Error('the seed holds no network')
     }
-    const configured: ExplorerNetwork = {
+    const configured = {
       ...preprod,
       config: {
         ...preprod.config,
