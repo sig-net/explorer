@@ -59,13 +59,15 @@ export interface TransactionsTable {
 
 /**
  * What the inspection of one transaction found: its call chains and, under the id of each sign
- * bidirectional event it emitted, the request cell that notification wrote, or the reason the
- * inspection failed.
+ * bidirectional event it emitted, the request cell that notification wrote or the reason reading
+ * it failed, or the reason the inspection of the whole transaction failed.
  */
 export type StoredInspection =
   | {
       readonly callChains: readonly ContractCallNode[]
-      readonly requestCells: Readonly<Record<string, RequestCellWire | null>>
+      readonly requests: Readonly<
+        Record<string, { readonly cell: RequestCellWire | null } | { readonly failed: string }>
+      >
     }
   | { readonly failed: string }
 

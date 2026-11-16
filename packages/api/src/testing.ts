@@ -25,7 +25,7 @@ import {
   inspectionFromWire,
   resolveLifecyclesQuery,
   type SignBidirectionalInspectionWire,
-  withoutQueryString,
+  urlWithoutCredentials,
 } from './wire.ts'
 
 export { PREPROD_REQUEST_CELL_WIRE, PREPROD_REQUEST_ID }
@@ -47,7 +47,7 @@ export function createInMemoryExplorerService(seed: ExplorerSeed): ExplorerServi
       return Promise.resolve(
         seed.networks.map(({ network, config, sync }) => ({
           network,
-          config: { ...config, sourceUrl: withoutQueryString(config.sourceUrl) },
+          config: { ...config, sourceUrl: urlWithoutCredentials(config.sourceUrl) },
           sync,
         })),
       )
