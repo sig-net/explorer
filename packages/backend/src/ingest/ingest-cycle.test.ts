@@ -1,3 +1,4 @@
+import type { ContractCallNode } from '@sig-net/explorer-api'
 import { MIDNIGHT_NETWORKS, type SignetContractEvent } from '@sig-net/explorer-lib'
 import {
   indexedSignetContractEvent,
@@ -72,6 +73,10 @@ function signature(id: number, requestId = REQUEST_A): SignetContractEvent {
 
 function attestation(id: number, requestId = REQUEST_A): SignetContractEvent {
   return responseEvent(id, SignetEventName.RespondBidirectionalEvent, requestId, 0)
+}
+
+function callNode(entryPoint: string): ContractCallNode {
+  return { entryPoint, address: 'a0'.repeat(32), fallible: false, calls: [] }
 }
 
 interface InspectCall {
@@ -782,6 +787,86 @@ describe('the ingest cycle', () => {
       },
       { hash: bytes(refused), raw: bytes(rawOf(refused)), inspection: { failed: 'no call chain' } },
     ])
+  })
+
+  it('an inspection holding a NUL character is stored as a failed inspection', async () => {
+    const nul = 'e1'.repeat(32)
+    const surrogate = 'e2'.repeat(32)
+    const escaped = 'e3'.repeat(32)
+    const source = chainOf(1010, [
+      at(1002, notification(1, REQUEST_A), nul),
+      at(1003, notification(2, REQUEST_B), surrogate),
+      at(1004, notification(3, REQUEST_C), escaped),
+    ])
+    const inspect: InspectTransaction = (raw, notifications) => {
+      const inspection = inspectedWithoutCells(raw, notifications)
+      if (raw === rawOf(nul)) {
+        return { ...inspection, callChains: [callNode('send\u0000eposit')] }
+      }
+      return raw === rawOf(surrogate)
+        ? { ...inspection, requests: { '2': { failed: 'cut \ud83d' } } }
+        : { ...inspection, callChains: [callNode('send\\u0000eposit \\ud83d')] }
+    }
+
+    expect(await cycle(source, {}, inspect)).toMatchObject({ kind: 'stored', events: 3 })
+
+    const failed = { failed: 'the inspection holds a character PostgreSQL refuses' }
+    expect(await transactionsOf()).toMatchObject([
+      { hash: bytes(nul), raw: bytes(rawOf(nul)), inspection: failed },
+      { hash: bytes(surrogate), raw: bytes(rawOf(surrogate)), inspection: failed },
+      {
+        hash: bytes(escaped),
+        inspection: { callChains: [callNode('send\\u0000eposit \\ud83d')] },
+      },
+    ])
+    expect(await eventIds()).toEqual([1, 2, 3])
+    expect(await stateOf()).toMatchObject({ cursor_height: 1008, last_error: null })
+  })
+
+  it('a thrown reason holding a NUL character is stored', async () => {
+    const thrown = 'f1'.repeat(32)
+    const returned = 'f2'.repeat(32)
+    const source = chainOf(1010, [
+      at(1002, notification(1, REQUEST_A), thrown),
+      at(1003, notification(2, REQUEST_B), returned),
+    ])
+    const inspect: InspectTransaction = (raw) => {
+      if (raw === rawOf(thrown)) {
+        throw new Error(`no entry point send\u0000eposit ${'x'.repeat(1972)}\u{1f512}`)
+      }
+      return { failed: 'no entry point send\u0000eposit' }
+    }
+
+    expect(await cycle(source, {}, inspect)).toMatchObject({ kind: 'stored', events: 2 })
+
+    expect(await transactionsOf()).toMatchObject([
+      {
+        hash: bytes(thrown),
+        raw: bytes(rawOf(thrown)),
+        inspection: { failed: `no entry point sendeposit ${'x'.repeat(1972)}` },
+      },
+      {
+        hash: bytes(returned),
+        raw: bytes(rawOf(returned)),
+        inspection: { failed: 'no entry point sendeposit' },
+      },
+    ])
+    expect(await eventIds()).toEqual([1, 2])
+    expect(await stateOf()).toMatchObject({ cursor_height: 1008, last_error: null })
+  })
+
+  it('a failed cycle records its error without a NUL character', async () => {
+    const source = chainOf(1010, [at(1002, notification(1))])
+    expect(await cycle(source, { maxRange: 3 })).toMatchObject({ kind: 'stored' })
+    source.failNextCall(new Error('the indexer answered \u0000'))
+
+    const outcome = await cycle(source, { maxRange: 3 })
+
+    expect(outcome).toEqual({ kind: 'failed', error: 'the indexer answered ' })
+    expect(await stateOf()).toMatchObject({
+      cursor_height: 1003,
+      last_error: 'the indexer answered ',
+    })
   })
 
   it('stores a transaction without a notification uninspected', async () => {
