@@ -160,9 +160,10 @@ describe('the query service over PostgreSQL', () => {
             for (let pageNumber = 0; pageNumber < 10; pageNumber++) {
               const query: LifecyclesQuery = { search, excludeCallers, limit, before }
               const page = await actual.lifecycles(network, query)
-              expect(page, JSON.stringify(query)).toEqual(
-                await expected.lifecycles(network, query),
-              )
+              expect({ query, page }).toEqual({
+                query,
+                page: await expected.lifecycles(network, query),
+              })
               if (page.nextBefore === null) {
                 break
               }
@@ -233,8 +234,11 @@ describe('the query service over PostgreSQL', () => {
 
     for (const search of ['%%%', '___', '\\\\\\', 'ab%', 'ab_', 'a__', '%ab', 'ab\\', 'a%b%']) {
       const page = await service().lifecycles(PREPROD, { search })
-      expect(page.lifecycles, search).toEqual([])
-      expect(page.matchingRequests, search).toBe(0)
+      expect({ search, lifecycles: page.lifecycles, matching: page.matchingRequests }).toEqual({
+        search,
+        lifecycles: [],
+        matching: 0,
+      })
     }
   })
 
