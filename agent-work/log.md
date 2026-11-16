@@ -508,3 +508,18 @@ For stage 5's planner, from 04.12's report: graphqlResponseSchema requires data,
 
 ## 169 ACCEPT 04.12
 merged bernard-04-12 as f7753f7
+
+## 170 REPORT 04.7
+DONE, kept in reports/04.7-1.md
+
+## 171 CHECK 04.7
+PASS, exit 0 at 247481b, output in evidence/04.7-1.txt
+
+## 172 PACK
+ui.md: where the network select is, optimizeDeps in browser mode, what explorerSeed serves, a click timing out under load (from 04.7's report)
+
+## 173 PLAN
+For stage 5's planner, from 04.7's report: the comments of packages/backend/src/config/backend-env.ts:92-103 tell the reader to delete UI copies that 04.7 deleted, so those sentences go. README lines for 05.3: 123, 198, 199, 224, 228, 236, 237, 238, 253, 254, 256, and the image forwards VITE_EXPLORER_API_URL. For the closing report: an unavailable network is marked in the configuration popover's select, since the network switcher switches chains, and one browser test timed out once in six cold runs at load 7 with no Vite reload
+
+## 174 ACCEPT 04.7
+merged bernard-04-7 as 5980d93
