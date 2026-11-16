@@ -1,7 +1,6 @@
 # Architecture
 
-Status: round 2. Nothing below "Design" is settled until its decision row in
-`decisions.md` reads `user` or `planner (confirmed)`.
+Status: settled in round 3. Every decision is in `decisions.md`, and none waits on the user.
 
 ## Outcomes
 
@@ -17,8 +16,6 @@ What the user asked for, in terms they would recognise as delivered or not. One 
 - O7 The repository is a yarn workspaces monorepo with the packages `ui`, `backend`, `lib` and `api`, where `api` holds both the client the UI calls and the adaptors the backend hosts.
 
 ## Design
-
-Proposed in round 1. See `decisions.md` for what is confirmed.
 
 ### Shape
 
@@ -46,8 +43,12 @@ Per network, the loop is:
    the cursor to `(target, hash at target)` on the condition that it still holds the old value.
 5. Any failure commits nothing. The loop retries with backoff from the same cursor.
 
-The source is a port with two possible adaptors: the Midnight indexer's GraphQL (the SDK's
-`signetEventSourceFromIndexer`), and a Midnight node read block by block. The indexer adaptor is the one built (D08).
+The cursor is the per-network processed block: one row that says every event up to block N is
+stored, with that block's hash (D06).
+
+The source is a port. Its one adaptor reads the Midnight indexer's GraphQL at Blockfrost through
+the SDK's `signetEventSourceFromIndexer`, with the project token from the server's environment.
+The poll interval and `maxRange` are configuration values. The indexer adaptor is the one built (D08).
 
 ### Store: one PostgreSQL schema per network
 
@@ -66,6 +67,24 @@ migrations.
   counts per event kind.
 - `lifecycle` (a view): a `requests` row joined to its events and their transactions as JSON.
   This is the row the API returns.
+
+### Deployment
+
+A Dockerfile builds the backend image. The image runs the migrations at start, reads its
+configuration from the environment, serves a liveness and a readiness endpoint, stops cleanly on
+SIGTERM, and answers CORS for a configured list of origins (D09, D14). The UI stays a static
+build on GitHub Pages and takes the backend's URL as a build variable.
+
+A wipe of one network is an operator's command of the backend. The backend never wipes on its
+own: on an identity mismatch it stops that network and reports it unhealthy (D12).
+
+### UI
+
+The request list is paged, searched and filtered by the backend. The configuration popover shows
+the network's addresses, starting block and source URL read only (D11), and keeps as editable
+only what the browser still uses itself: the MPC root public key, the EVM RPC URLs and the MPC
+output cache URL (D10). The starting block control and the indexer services are removed. The
+browser no longer loads the ledger WebAssembly (D07).
 
 ### API
 
@@ -109,4 +128,4 @@ One line each: `- Q1 [answered] <the question>`, then `[answered] <the answer>` 
 - Q3 [answered] Do EVM transaction status, EVM tracing and the MPC output cache stay in the browser as today (recommended), or move behind the backend too? Answer: They stay in the browser (D10).
 - Q4 [answered] The signer and responder addresses, the source URL and the starting block become server configuration, so the configuration popover loses those fields and the starting block control goes. A developer on a local `undeployed` stack runs the backend locally. Is that acceptable? Answer: Yes, and the UI still shows them read only (D11).
 - Q5 [answered] When the backend finds that a network's genesis hash or contract addresses differ from what its schema was indexed for: stop that network and wait for an operator's wipe command (recommended), or wipe and index again on its own? Answer: Stop and wait for the operator (D12).
-- Q6 [open] The row of the request list: is it assembled when read, by a SQL view that joins the maintained `requests` table to the `events` table (recommended, measured at 0.8 ms for 50 rows), or stored whole, with the events of the request copied as JSON into the `requests` row and rewritten on every new event?
+- Q6 [answered] The row of the request list: is it assembled when read, by a SQL view that joins the maintained `requests` table to the `events` table (recommended, measured at 0.8 ms for 50 rows), or stored whole, with the events of the request copied as JSON into the `requests` row and rewritten on every new event? Answer: assembled when read, by the view (D15).
