@@ -1,0 +1,23 @@
+{
+  "state": "synced",
+  "startBlock": 3386746,
+  "processedBlock": 3445056,
+  "killedAtBlock": 3387245,
+  "killedBeforeSynced": true,
+  "storedEvents": 16250,
+  "indexerEvents": 16250,
+  "storedRequests": 5405,
+  "secondsToSynced": 253,
+  "logLinesWithToken": 0,
+  "uiRows": 50,
+  "uiExpandedRowVerified": true,
+  "uiRequestsToMidnight": 0,
+  "uiError": null,
+  "uiRequestHosts": [
+    "127.0.0.1:21069",
+    "use.typekit.net",
+    "p.typekit.net",
+    "127.0.0.1:32797",
+    "ethereum-sepolia-rpc.publicnode.com"
+  ]
+}
