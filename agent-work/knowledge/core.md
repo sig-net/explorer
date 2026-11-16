@@ -10,10 +10,9 @@ names the rows and sections it rests on: read those, and never act against a row
 
 ## Where things are
 
-- The app is in `packages/ui/`, moved there by step 02.1 (merge commit `0c17b75`). `packages/` holds no other workspace package at HEAD: `packages/lib`, `packages/api` and `packages/backend` do not exist yet. Paths in the packs written before that move are relative to the app's folder. [run 6a2cf63]
+- `packages/` holds four workspaces: `ui` (the app, `@sig-net/explorer-ui`), `lib`, `api` and `backend`. `packages/api/src/index.ts` and `packages/backend/src/index.ts` are empty modules until stage 3. Paths in the packs written before the app moved are relative to the app's folder. [run c09a270]
 - `yarn check` is the repository's own check: typecheck, lint, format check, tests (`package.json:18`). CI runs `yarn install --immutable`, `yarn lint`, then `yarn build` (`.github/workflows/pages-deploy.yml:69-79`). [read 6a2cf63]
-- `yarn check` passed on the untouched tree: 27 test files, 143 tests, and left no untracked file. [run 4234222]
-- The test "the button excludes the typed address, and marks the box when it is not one" in `packages/ui/src/components/midnight/excluded-callers-filter.test.tsx` times out in about 1 of 10 runs of the full suite (the orchestrator saw it fail on run 7 of 25), and step 02.4 is fixing it. [run 0c17b75]
+- `yarn check` passes: 14 tests in lib and 130 in the UI, none yet in api and backend. Install, lint, `yarn check` and build together take about 20 s. It leaves no untracked file. [run c09a270]
 - `yarn lint` at the root prints nothing on a clean run: it runs `oxlint` (`package.json:14`) and exits 0 with no output. [run 6a2cf63]
 - The build context of `packages/ui/Dockerfile` is the repository root (`packages/ui/Dockerfile:4`), and `.dockerignore` carries the line `**/.env*`, which covers `packages/ui/.env.local`. [read 6a2cf63]
 - `.dockerignore` patterns are anchored at the root of the build context, so a pattern without a leading `**/` does not match files in `packages/ui/`. [unverified]
@@ -30,6 +29,6 @@ names the rows and sections it rests on: read those, and never act against a row
 - `.github/workflows/**` is never edited in this task: this machine cannot push such a change. What a workflow needs is written into the closing report of step 05.3. [read 4234222]
 - The Blockfrost token is `MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID` in the dev secrets. It is part of a URL's query string, so any error message or log that prints a URL prints the token: strip the query string before printing, and pipe command output through `redact`. [run 4234222]
 - A container or a port you start carries a name of your own (`explorer-<step>-...`) and binds `127.0.0.1`. Remove what you started before you report. [read 4234222]
-- A new step worktree has no `node_modules`: run `yarn install --immutable` before the first test or check. [unverified]
-- A workspace that lists `vitest` in its devDependencies lists `vite` beside it, or `yarn install` warns YN0002 about the missing peer. [unverified]
-- `packages/lib` holds what both runtimes use: contract address parsing, signet event decoding, the sign bidirectional lifecycle aggregation, the network set, and a `/testing` entry with the lifecycle fixture (D32). The UI and the backend both list `@sig-net/explorer-lib` as `workspace:*`. [unverified]
+- A new step worktree has no `node_modules`: run `yarn install --immutable` before the first test or check. (`node_modules` is ignored, `.gitignore:2`). [run c09a270]
+- A workspace that lists `vitest` in its devDependencies lists `vite` beside it, or `yarn install` warns YN0002 about the missing peer. All four manifests do. [read c09a270]
+- `packages/lib` holds what both runtimes use: contract address parsing, signet event decoding, the sign bidirectional lifecycle aggregation, the network set, and a `/testing` entry with the lifecycle fixture (D32). The UI and the backend both list `@sig-net/explorer-lib` as `workspace:*`. [run c09a270]

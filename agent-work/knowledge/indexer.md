@@ -22,7 +22,7 @@ Read this when your step reads the Midnight indexer, or decides how events and t
 
 ## Preprod's contracts and volume
 
-- Signer `c423fca48329307ba00383e8c40cf1b3a83a7728a2b6721e863cfa16d25fb3ec`, deployed at block 3,386,746. Responder `627ef19bb1db09b4261e31a4f87a6b299581c3d635c409bad9ac4547370ef4d5`, deployed at 3,386,749 (`src/lib/midnight/network.ts:47-55`). The SDK publishes both addresses (`getSignerContractAddress`, `getResponderContractAddress`). [read 4234222]
+- Signer `c423fca48329307ba00383e8c40cf1b3a83a7728a2b6721e863cfa16d25fb3ec`, deployed at block 3,386,746. Responder `627ef19bb1db09b4261e31a4f87a6b299581c3d635c409bad9ac4547370ef4d5`, deployed at 3,386,749 (`packages/ui/src/lib/midnight/network.ts:47-55`). The SDK publishes both addresses (`getSignerContractAddress`, `getResponderContractAddress`). [read 4234222]
 - On 2026-11-16 the signer held 5,033 events and the responder 10,103, between blocks 3,389,203 and 3,441,654. Reading all of them took 9 s and 27 s. That is about 1,400 requests and 4,200 events a day. [run 4234222]
 - A block takes 6 seconds (`src/lib/midnight/signet-events-window.ts:5`). [read 4234222]
 

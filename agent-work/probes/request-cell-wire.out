@@ -1,0 +1,10 @@
+{
+  "cellFound": true,
+  "atoms": 23,
+  "emptyAtoms": 8,
+  "wireBytes": 1677,
+  "alignmentIsPlainJson": true,
+  "decodedEqual": true,
+  "requestIdAfter": "54f6494883830237e14f8fe4e0cb14ec0c6b06046a5b8b42ffa8478564388300",
+  "lossless": true
+}
