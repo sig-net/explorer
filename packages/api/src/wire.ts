@@ -267,6 +267,7 @@ export const lifecyclePageWireSchema = z.object({
   lifecycles: z.array(lifecycleWireSchema),
   nextBefore: countSchema.nullable(),
   matchingRequests: countSchema,
+  matchingEvents: countSchema,
   totalRequests: countSchema,
   totalEvents: countSchema,
 })

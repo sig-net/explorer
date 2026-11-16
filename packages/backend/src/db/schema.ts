@@ -16,6 +16,7 @@ export type NetworkTables = {
   transactions: TransactionsTable
   events: EventsTable
   requests: RequestsTable
+  request_callers: RequestCallersTable
   lifecycle: LifecycleView
 }
 
@@ -85,8 +86,6 @@ export interface RequestsTable {
   /** Lower case hex. */
   request_id: string
   first_event_id: number
-  /** Lower case hex. Null until a notification names one. */
-  caller: string | null
   first_requested_at: Timestamp | null
   first_signature_at: Timestamp | null
   first_response_at: Timestamp | null
@@ -95,11 +94,18 @@ export interface RequestsTable {
   respond_bidirectional_count: Generated<number>
 }
 
+/** One row for each caller contract address a notification of the request names. */
+export interface RequestCallersTable {
+  /** Lower case hex. */
+  request_id: string
+  /** Lower case hex. */
+  caller: string
+}
+
 /** A `requests` row with its events in the wire's shape, in emission order. */
 export interface LifecycleView {
   request_id: ColumnType<string, never, never>
   first_event_id: ColumnType<number, never, never>
-  caller: ColumnType<string | null, never, never>
   first_requested_at: ColumnType<Date | null, never, never>
   first_signature_at: ColumnType<Date | null, never, never>
   first_response_at: ColumnType<Date | null, never, never>

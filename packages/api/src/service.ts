@@ -87,6 +87,8 @@ export interface LifecyclePage {
   readonly nextBefore: number | null
   /** How many lifecycles match the search and the excluded callers, on every page together. */
   readonly matchingRequests: number
+  /** How many events those matching lifecycles group, on every page together. */
+  readonly matchingEvents: number
   readonly totalRequests: number
   /** Every stored event of the network, including those that joined no lifecycle. */
   readonly totalEvents: number

@@ -70,6 +70,14 @@ export function createInMemoryExplorerService(seed: ExplorerSeed): ExplorerServi
         lifecycles: page,
         nextBefore: older.length > page.length ? (page.at(-1)?.firstEventId ?? null) : null,
         matchingRequests: matching.length,
+        matchingEvents: matching.reduce(
+          (count, lifecycle) =>
+            count +
+            lifecycle.signBidirectionalEvents.length +
+            lifecycle.signatureRespondedEvents.length +
+            lifecycle.respondBidirectionalEvents.length,
+          0,
+        ),
         totalRequests: lifecycles.length,
         totalEvents,
       }
