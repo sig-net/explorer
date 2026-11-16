@@ -181,3 +181,21 @@ backend.md: versions of zod and hono, lib exports, the api package's entries, ro
 
 ## 60 ACCEPT 03.1
 merged bernard-03-1 as 991a8d3
+
+## 61 DISPATCH 03.2
+model fable, branch bernard-03-2, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-03-2
+
+## 62 REPORT 03.2
+DONE, kept in reports/03.2-1.md
+
+## 63 CHECK 03.2
+PASS, exit 0 at 016a9f8, output in evidence/03.2-1.txt
+
+## 64 PACK
+backend.md: column types, openDatabase, migrate.ts, the seed and the in-memory source. core.md: yarn check needs a PostgreSQL. A5 holds numbers and no script (from 03.2's report)
+
+## 65 PLAN
+open after 03.2: requests.caller holds one caller while the api's in-memory service answers search, exclusion and callers() from every caller of a lifecycle. Left for review 03.3 to judge. If it does not raise it, it goes to the planner of stage 04 as a requirement
+
+## 66 ACCEPT 03.2
+merged bernard-03-2 as 6834aad

@@ -12,7 +12,7 @@ names the rows and sections it rests on: read those, and never act against a row
 
 - `packages/` holds four workspaces: `ui` (the app, `@sig-net/explorer-ui`), `lib`, `api` and `backend`. `packages/api/src/index.ts` and `packages/backend/src/index.ts` are empty modules until stage 3. Paths in the packs written before the app moved are relative to the app's folder. [run c09a270]
 - `yarn check` is the repository's own check: typecheck, lint, format check, tests (`package.json:18`). CI runs `yarn install --immutable`, `yarn lint`, then `yarn build` (`.github/workflows/pages-deploy.yml:69-79`). [read 6a2cf63]
-- `yarn check` passes: 14 tests in lib and 130 in the UI, none yet in api and backend. Install, lint, `yarn check` and build together take about 20 s. It leaves no untracked file. [run c09a270]
+- `yarn check` runs the tests of lib, api, backend and the UI, and the backend's fail unless `EXPLORER_TEST_DATABASE_URL` names a PostgreSQL (D24). It leaves no untracked file. [unverified]
 - `yarn lint` at the root prints nothing on a clean run: it runs `oxlint` (`package.json:14`) and exits 0 with no output. [run 6a2cf63]
 - The build context of `packages/ui/Dockerfile` is the repository root (`packages/ui/Dockerfile:4`), and `.dockerignore` carries the line `**/.env*`, which covers `packages/ui/.env.local`. [read 6a2cf63]
 - `.dockerignore` patterns are anchored at the root of the build context, so a pattern without a leading `**/` does not match files in `packages/ui/`. [unverified]
