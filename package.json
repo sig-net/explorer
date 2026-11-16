@@ -7,7 +7,10 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "yarn workspace @sig-net/explorer-ui dev",
+    "dev:ui": "yarn workspace @sig-net/explorer-ui dev",
+    "dev:backend": "yarn workspace @sig-net/explorer-backend dev",
+    "db:up": "docker compose -f packages/backend/compose.yaml up -d --wait",
+    "db:down": "docker compose -f packages/backend/compose.yaml down",
     "build": "yarn workspaces foreach -A --exclude explorer --topological run build",
     "preview": "yarn workspace @sig-net/explorer-ui preview",
     "typecheck": "yarn workspaces foreach -A --exclude explorer --topological run typecheck",

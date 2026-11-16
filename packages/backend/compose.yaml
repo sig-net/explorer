@@ -1,0 +1,21 @@
+# The local PostgreSQL the backend develops against:
+# EXPLORER_DATABASE_URL=postgres://explorer:explorer@127.0.0.1:5432/explorer
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: explorer
+      POSTGRES_PASSWORD: explorer
+      POSTGRES_DB: explorer
+    ports:
+      - 127.0.0.1:${EXPLORER_POSTGRES_PORT:-5432}:5432
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U explorer -d explorer -h 127.0.0.1]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  postgres-data:
