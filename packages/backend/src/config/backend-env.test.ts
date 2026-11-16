@@ -38,6 +38,7 @@ describe('parseBackendEnv', () => {
   it('parses a full environment', () => {
     const config = parseBackendEnv({
       EXPLORER_DATABASE_URL: 'postgresql://explorer:pw@db:5432/explorer',
+      EXPLORER_HOST: '127.0.0.1',
       EXPLORER_PORT: '9000',
       EXPLORER_CORS_ORIGINS: 'https://sig-net.github.io, http://localhost:5173',
       EXPLORER_MIDNIGHT_NETWORKS: 'preview,undeployed',
@@ -56,6 +57,7 @@ describe('parseBackendEnv', () => {
     const timing = { pollIntervalSeconds: 60, tipMargin: 0, maxRange: 500 }
     expect(config).toEqual({
       databaseUrl: 'postgresql://explorer:pw@db:5432/explorer',
+      host: '127.0.0.1',
       port: 9000,
       corsOrigins: ['https://sig-net.github.io', 'http://localhost:5173'],
       networks: [
@@ -91,6 +93,7 @@ describe('parseBackendEnv', () => {
   it('names the variable that is missing or invalid and prints no value', () => {
     const invalid: BackendEnv = {
       EXPLORER_DATABASE_URL: 'mysql://secret-db-value',
+      EXPLORER_HOST: 'secret host',
       EXPLORER_PORT: '70000secret',
       EXPLORER_CORS_ORIGINS: 'https://secret-origin.test/path',
       EXPLORER_MIDNIGHT_NETWORKS: 'preprod,preview',
@@ -180,6 +183,7 @@ describe('parseBackendEnv', () => {
       EXPLORER_DEFAULT_MAX_RANGE_BLOCKS,
     ]).toEqual([30, 6, 2_000])
     const config = parseBackendEnv(MINIMAL_PREPROD_ENV)
+    expect(config.host).toBe('0.0.0.0')
     expect(config.port).toBe(8080)
     expect(config.networks[0]).toMatchObject({
       pollIntervalSeconds: 30,
