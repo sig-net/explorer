@@ -91,3 +91,6 @@ model opus, branch bernard-02-2, worktree /home/brbussy/Projects/github.com/sig-
 
 ## 30 DISPATCH 02.4
 model opus, branch bernard-02-4, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-4
+
+## 31 PACK
+core.md: paths moved to packages/ui, the 1 in 10 test timeout, any-depth .dockerignore patterns, silent yarn lint (from 02.1's report, verified by a subagent)
