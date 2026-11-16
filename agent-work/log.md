@@ -346,3 +346,24 @@ the open steps of stage 04 name their checks by full path. For review 04.8, from
 
 ## 115 ACCEPT 04.2
 merged bernard-04-2 as 443843b
+
+## 116 DISPATCH 04.4
+model opus, branch bernard-04-4, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-4
+
+## 117 REPORT 04.3
+DONE, kept in reports/04.3-1.md
+
+## 118 CHECK 04.3
+PASS, exit 0 at 676453f, output in evidence/04.3-1.txt
+
+## 119 REPORT 04.4
+DONE, kept in reports/04.4-1.md
+
+## 120 PACK
+core.md: valid-expect, the verbose reporter, decodable synthetic payloads (from 04.3's report)
+
+## 121 DECISION
+gate of stage 04, the timed tests of 04.3: they hold, 18 to 31 ms a statement at 200,000 requests against the bound of 500 ms. D42 and D43 stand
+
+## 122 ACCEPT 04.3
+merged bernard-04-3 as 49d07aa
