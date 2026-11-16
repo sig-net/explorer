@@ -94,3 +94,21 @@ model opus, branch bernard-02-4, worktree /home/brbussy/Projects/github.com/sig-
 
 ## 31 PACK
 core.md: paths moved to packages/ui, the 1 in 10 test timeout, any-depth .dockerignore patterns, silent yarn lint (from 02.1's report, verified by a subagent)
+
+## 32 REPORT 02.2
+DONE, kept in reports/02.2-1.md
+
+## 33 CHECK 02.2
+FAIL, exit 1 at e67655a, output in evidence/02.2-1.txt
+
+## 34 REPORT 02.4
+DONE, kept in reports/02.4-1.md
+
+## 35 CHECK 02.4
+PASS, exit 0 at 0b6d0a8, output in evidence/02.4-1.txt
+
+## 36 PLAN
+02.4 check and scope named packages/ui/vitest.config.ts, which does not exist: now packages/ui/vite.config.ts. The retry guard run by hand against the step branch finds nothing
+
+## 37 ACCEPT 02.4
+merged bernard-02-4 as 53ef0ad

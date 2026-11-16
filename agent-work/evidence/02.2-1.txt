@@ -1,0 +1,182 @@
+check:  stages/02-workspace/checks/02.2.sh
+ran in: /home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-2
+head:   e67655a
+exit:   1
+
+➤ YN0000: · Yarn 4.18.0
+➤ YN0000: ┌ Resolution step
+➤ YN0000: └ Completed
+➤ YN0000: ┌ Post-resolution validation
+➤ YN0086: │ Some peer dependencies are incorrectly met by dependencies; run yarn explain peer-requirements for details.
+➤ YN0000: └ Completed
+➤ YN0000: ┌ Fetch step
+➤ YN0000: └ Completed in 0s 504ms
+➤ YN0000: ┌ Link step
+➤ YN0000: └ Completed
+➤ YN0000: · Done with warnings in 0s 727ms
+Done in 0s 820ms
+Checking formatting...
+
+All matched files use the correct format.
+Finished in 156ms on 149 files using 8 threads.
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-2/packages/lib
+
+No test files found, exiting with code 0
+
+include: **/*.{test,spec}.?(c|m)[jt]s?(x)
+exclude:  **/node_modules/**, **/.git/**
+
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-2/packages/api
+
+No test files found, exiting with code 0
+
+include: **/*.{test,spec}.?(c|m)[jt]s?(x)
+exclude:  **/node_modules/**, **/.git/**
+
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-2/packages/backend
+
+No test files found, exiting with code 0
+
+include: **/*.{test,spec}.?(c|m)[jt]s?(x)
+exclude:  **/node_modules/**, **/.git/**
+
+Plugin "vitest:mocks:interceptor" defines Vite-specific hooks (configureServer) in a plugin returned from applyToEnvironment. These hooks will be ignored.
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-2/packages/ui
+      API started at http://localhost:63316/
+
+ ❯ |chromium| src/components/midnight/excluded-callers-filter.test.tsx (4 tests | 1 failed) 15829ms
+   × the button excludes the typed address, and marks the box when it is not one 14986ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |chromium| src/components/midnight/excluded-callers-filter.test.tsx > the button excludes the typed address, and marks the box when it is not one
+VitestBrowserElementError: Cannot find element with locator: page.getByRole('button', { name: 'Stop excluding 2222222222222222222222222222222222222222222222222222222222222222' })
+
+ARIA tree:
+- text: Exclude callers
+- group:
+  - combobox "Exclude callers"
+  - group
+- button "Exclude the typed caller"
+
+HTML:
+[36m<body>[39m
+  [0m
+  
+
+[0m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"flex flex-wrap items-start gap-x-6 gap-y-2"[39m
+    [36m>[39m
+      [36m<form[39m
+        [33mclass[39m=[32m"flex items-center gap-2"[39m
+      [36m>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"[39m
+          [33mdata-slot[39m=[32m"label"[39m
+          [33mfor[39m=[32m"_r_c_"[39m
+        [36m>[39m
+          [0mExclude callers[0m
+        [36m</label>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"group/input-group relative flex h-8 min-w-0 items-center rounded-lg border border-input transition-colors outline-none in-data-[slot=combobox-content]:focus-within:border-inherit in-data-[slot=combobox-content]:focus-within:ring-0 has-disabled:bg-input/50 has-disabled:opacity-50 has-[[data-slot=input-group-control]:focus-visible]:border-ring has-[[data-slot=input-group-control]:focus-visible]:ring-3 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/50 has-[[data-slot][aria-invalid=true]]:border-destructive has-[[data-slot][aria-invalid=true]]:ring-3 has-[[data-slot][aria-invalid=true]]:ring-destructive/20 has-[>[data-align=block-end]]:h-auto has-[>[data-align=block-end]]:flex-col has-[>[data-align=block-start]]:h-auto has-[>[data-align=block-start]]:flex-col has-[>textarea]:h-auto dark:bg-input/30 dark:has-disabled:bg-input/80 dark:has-[[data-slot][aria-invalid=true]]:ring-destructive/40 has-[>[data-align=block-end]]:[&>input]:pt-3 has-[>[data-align=block-start]]:[&>input]:pb-3 has-[>[data-align=inline-end]]:[&>input]:pr-1.5 has-[>[data-align=inline-start]]:[&>input]:pl-1.5 w-80 font-mono"[39m
+          [33mdata-slot[39m=[32m"input-group"[39m
+          [33mrole[39m=[32m"group"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33maria-autocomplete[39m=[32m"list"[39m
+            [33maria-expanded[39m=[32m"false"[39m
+            [33maria-haspopup[39m=[32m"listbox"[39m
+            [33maria-invalid[39m=[32m"true"[39m
+            [33mautocapitalize[39m=[32m"none"[39m
+            [33mautocomplete[39m=[32m"off"[39m
+            [33mautocorrect[39m=[32m"off"[39m
+            [33mclass[39m=[32m"h-8 w-full min-w-0 border-input px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 md:text-sm dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent"[39m
+            [33mdata-list-empty[39m=[32m""[39m
+            [33mdata-slot[39m=[32m"input-group-control"[39m
+            [33mid[39m=[32m"_r_c_"[39m
+            [33mplaceholder[39m=[32m"Caller contract address"[39m
+            [33mrole[39m=[32m"combobox"[39m
+            [33mspellcheck[39m=[32m"false"[39m
+            [33mvalue[39m=[32m""[39m
+          [36m/>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex h-auto cursor-text items-center justify-center gap-2 py-1.5 text-sm font-medium text-muted-foreground select-none group-data-[disabled=true]/input-group:opacity-50 [&>kbd]:rounded-[calc(var(--radius)-5px)] [&>svg:not([class*='size-'])]:size-4 order-last pr-2 has-[>button]:mr-[-0.3rem] has-[>kbd]:mr-[-0.15rem]"[39m
+            [33mdata-align[39m=[32m"inline-end"[39m
+            [33mdata-slot[39m=[32m"input-group-addon"[39m
+            [33mrole[39m=[32m"group"[39m
+          [36m/>[39m
+        [36m</div>[39m
+        [36m<input[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33mid[39m=[32m"base-ui-_r_d_-hidden-input"[39m
+          [33mstyle[39m=[32m"clip-path: inset(50%); overflow: hidden; white-space: nowrap; border: 0px; padding: 0px; width: 1px; height: 1px; margin: -1px; position: fixed; top: 0px; left: 0px;"[39m
+          [33mtabindex[39m=[32m"-1"[39m
+          [33mvalue[39m=[32m""[39m
+        [36m/>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Exclude the typed caller"[39m
+          [33mclass[39m=[32m"group/button inline-flex shrink-0 items-center justify-center rounded-lg border bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 size-8"[39m
+          [33mdata-slot[39m=[32m"button"[39m
+          [33mtabindex[39m=[32m"0"[39m
+          [33mtype[39m=[32m"submit"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-corner-down-left"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M20 4v7a4 4 0 0 1-4 4H4"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m9 10-5 5 5 5"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</form>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Failure screenshot:
+  - .vitest/attachments/failure-screenshots/excluded-callers-filter.test.tsx/the-button-excludes-the-typed-address--and-marks-the-box-when-it-is-not-one.png
+
+ ❯ Proxy.__VITEST_POLL_CHAIN__ node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/index.OVGXnVRj-B_xMRr9F.js?v=f81d7e22:5764:47
+ ❯ src/components/midnight/excluded-callers-filter.test.tsx:71:87
+     69|   await userEvent.keyboard('{Escape}')
+     70|   await button.click()
+     71|   await expect.element(screen.getByRole('button', { name: `Stop exclud…
+       |                                                                                       ^
+     72|   await expect.element(screen.getByText('2222...2222')).toBeVisible()
+     73| })
+ ❯ node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.Cigb0uSy-bb7HdwXn.js?v=f81d7e22:4951:20
+
+Caused by: Error: Matcher did not succeed in time.
+ ❯ throwWithCause node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/index.OVGXnVRj-B_xMRr9F.js?v=f81d7e22:5744:34
+ ❯ promise node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/index.OVGXnVRj-B_xMRr9F.js?v=f81d7e22:5829:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 26 passed (27)
+      Tests  1 failed | 142 passed (143)
+   Start at  08:32:55
+   Duration  18.81s (worker 72%, tests 20%, import 8%)
+
+The command failed in workspace @sig-net/explorer-ui@workspace:packages/ui with exit code 1
+The command failed for workspaces that are depended upon by other workspaces; can't satisfy the dependency graph
+Failed with errors in 20s 380ms
