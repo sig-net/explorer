@@ -1,7 +1,4 @@
-import {
-  aggregateSignBidirectionalLifecycles,
-  type SignBidirectionalLifecycle,
-} from '@sig-net/explorer-lib'
+import type { InspectedSignBidirectionalLifecycle } from '@sig-net/explorer-api'
 import { notificationEvent, responseEvent } from '@sig-net/explorer-lib/testing'
 import { SignetEventName } from '@sig-net/midnight'
 import {
@@ -10,12 +7,21 @@ import {
   createRootRoute,
   createRouter,
 } from '@tanstack/react-router'
+import { type ReactNode, useEffect } from 'react'
 import { expect, test, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 
 import '@/index.css'
-import { MidnightProvider } from '@/components/contexts/MidnightContext'
+import { MidnightProvider, useMidnight } from '@/components/contexts/MidnightContext'
+import { ThemeProvider } from '@/components/contexts/ThemeContext'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { inspectedLifecycle } from '@/lib/midnight/inspected-sign-bidirectional-lifecycle.fixture'
+import {
+  SIGNED_REQUEST,
+  SIGNED_REQUEST_ID,
+  SIGNED_REQUEST_MPC_RESPONSE,
+  SIGNED_REQUEST_MPC_ROOT_KEY,
+} from '@/lib/midnight/sign-bidirectional-event.fixture'
 
 import { SignBidirectionalLifecycleTable } from './sign-bidirectional-lifecycle-table'
 
@@ -27,48 +33,91 @@ const MISSING_NOTIFICATION =
   /No Sign Bidirectional Event on the configured Signet signer declares this request id/
 
 /** A lifecycle found by its attestation alone, as the newest-first read finds an old request. */
-function attestedOnly(): SignBidirectionalLifecycle {
-  const [lifecycle] = aggregateSignBidirectionalLifecycles([
-    responseEvent(1, SignetEventName.RespondBidirectionalEvent, REQUEST, 0),
-  ])
-  if (lifecycle === undefined) {
-    throw new Error('expected a lifecycle')
-  }
-  return lifecycle
+function attestedOnly(): InspectedSignBidirectionalLifecycle {
+  return inspectedLifecycle(
+    [responseEvent(1, SignetEventName.RespondBidirectionalEvent, REQUEST, 0)],
+    { failed: 'not inspected' },
+  )
 }
 
 /** A lifecycle with its notification, so its row names a caller. */
-function notified(): SignBidirectionalLifecycle {
-  const [lifecycle] = aggregateSignBidirectionalLifecycles([
-    notificationEvent(1, REQUEST, CALLER, 0),
-  ])
-  if (lifecycle === undefined) {
-    throw new Error('expected a lifecycle')
+function notified(): InspectedSignBidirectionalLifecycle {
+  return inspectedLifecycle([notificationEvent(1, REQUEST, CALLER, 0)], {
+    failed: 'not inspected',
+  })
+}
+
+/**
+ * {@link SIGNED_REQUEST}, notified with `inspection` and answered by the MPC's signature over it.
+ */
+function signed(
+  inspection: Parameters<typeof inspectedLifecycle>[1],
+): InspectedSignBidirectionalLifecycle {
+  const lifecycle = inspectedLifecycle(
+    [
+      notificationEvent(1, SIGNED_REQUEST_ID, CALLER, 0),
+      responseEvent(2, SignetEventName.SignatureRespondedEvent, SIGNED_REQUEST_ID, 1),
+    ],
+    inspection,
+  )
+  return {
+    ...lifecycle,
+    signatureRespondedEvents: lifecycle.signatureRespondedEvents.map((event) => ({
+      ...event,
+      record: SIGNED_REQUEST_MPC_RESPONSE,
+    })),
   }
-  return lifecycle
+}
+
+/**
+ * Renders `children` once the configuration holds the root key that signed
+ * {@link SIGNED_REQUEST} and no EVM node, so a valid signature asks no node about its transaction.
+ */
+function WithSignedRequestConfig({ children }: { children: ReactNode }) {
+  const { config, setConfig } = useMidnight()
+  const configured =
+    config.mpcRootPublicKey === SIGNED_REQUEST_MPC_ROOT_KEY &&
+    config.ethereumMainnetRpcUrl === '' &&
+    config.ethereumSepoliaRpcUrl === '' &&
+    config.mpcOutputCacheUrl === ''
+  useEffect(() => {
+    if (!configured) {
+      setConfig({
+        mpcRootPublicKey: SIGNED_REQUEST_MPC_ROOT_KEY,
+        ethereumMainnetRpcUrl: '',
+        ethereumSepoliaRpcUrl: '',
+        mpcOutputCacheUrl: '',
+      })
+    }
+  }, [configured, setConfig])
+  return configured ? children : null
 }
 
 /** A row's link button builds its href through the router, so rows render inside one. */
 function renderWithRows(
-  lifecycles: readonly SignBidirectionalLifecycle[],
+  lifecycles: readonly InspectedSignBidirectionalLifecycle[],
   onExcludeCaller: (caller: string) => void = () => undefined,
 ) {
   const routeTree = createRootRoute({
     component: () => (
-      <MidnightProvider>
-        <TooltipProvider>
-          <SignBidirectionalLifecycleTable
-            lifecycles={lifecycles}
-            emptyText="No requests match the search"
-            expandSoleRow
-            loading={false}
-            filterPanel={null}
-            activeFilterCount={0}
-            onExcludeCaller={onExcludeCaller}
-            onLoadMore={null}
-          />
-        </TooltipProvider>
-      </MidnightProvider>
+      <ThemeProvider>
+        <MidnightProvider>
+          <WithSignedRequestConfig>
+            <TooltipProvider>
+              <SignBidirectionalLifecycleTable
+                lifecycles={lifecycles}
+                emptyText="No requests match the search"
+                expandSoleRow
+                loading={false}
+                filterPanel={null}
+                activeFilterCount={0}
+                onExcludeCaller={onExcludeCaller}
+                onLoadMore={null}
+              />
+            </TooltipProvider>
+          </WithSignedRequestConfig>
+        </MidnightProvider>
+      </ThemeProvider>
     ),
   })
   const router = createRouter({ routeTree, history: createMemoryHistory() })
@@ -192,4 +241,25 @@ test('the filter button carries the number of active filters while there are any
     />,
   )
   expect(screen.getByText('active filters').elements()).toHaveLength(0)
+})
+
+test('verifies a signature against the request the lifecycle carries', async () => {
+  const screen = await renderWithRows([
+    signed({ callChains: [], request: SIGNED_REQUEST, requestCell: null }),
+  ])
+  await expect.element(screen.getByText('EVM Txn Hash:')).toBeVisible()
+  const text = screen.container.textContent
+  expect(text).toContain('valid for key0x04...bdd6')
+  expect(text).not.toContain('not valid for key')
+  expect(text).toContain('EVM Txn Hash:0x84...3f13')
+})
+
+test('a failed inspection leaves the signature unverified and says why', async () => {
+  const screen = await renderWithRows([signed({ failed: 'the transaction did not deserialise' })])
+  await expect
+    .element(
+      screen.getByText('could not inspect its transaction: the transaction did not deserialise'),
+    )
+    .toBeVisible()
+  expect(screen.container.textContent).not.toContain('valid for key')
 })

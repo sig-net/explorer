@@ -1543,7 +1543,6 @@ __metadata:
     "@babel/core": "npm:^8.0.5"
     "@base-ui/react": "npm:^1.8.0"
     "@microlink/react-json-view": "npm:1.31.34"
-    "@midnightntwrk/ledger-v9": "npm:1.0.1"
     "@rolldown/plugin-babel": "npm:^0.2.4"
     "@sig-net/explorer-api": "workspace:*"
     "@sig-net/explorer-lib": "workspace:*"

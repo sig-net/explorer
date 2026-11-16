@@ -57,14 +57,14 @@ export default defineConfig({
     babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
     // @sig-net/midnight reaches the Midnight onchain-runtime WebAssembly module through the
-    // Compact runtime, and the transaction inspection imports the ledger's.
+    // Compact runtime.
     wasm(),
   ],
   optimizeDeps: {
-    // The dependency optimizer cannot inline wasm-bindgen imports. Keeping these packages out of
-    // the prebundle lets the wasm plugin serve their .wasm imports, while the rest of the SDK tree
-    // (which includes CommonJS packages) is still optimized.
-    exclude: ['@midnightntwrk/onchain-runtime-v4', '@midnightntwrk/ledger-v9'],
+    // The dependency optimizer cannot inline wasm-bindgen imports. Keeping the runtime out of the
+    // prebundle lets the wasm plugin serve its .wasm import, while the rest of the SDK tree (which
+    // includes CommonJS packages) is still optimized.
+    exclude: ['@midnightntwrk/onchain-runtime-v4'],
   },
   resolve: {
     alias: {

@@ -1,4 +1,10 @@
-import { asciiPadded, hexToBytes, type SignBidirectionalEvent } from '@sig-net/midnight'
+import {
+  asciiPadded,
+  calculateRequestId,
+  hexToBytes,
+  type SignatureRespondedEvent,
+  type SignBidirectionalEvent,
+} from '@sig-net/midnight'
 
 /**
  * A request an MPC signed, whose transaction is on Sepolia. The two schema widths are arbitrary:
@@ -43,3 +49,18 @@ export const SIGNED_REQUEST: SignBidirectionalEvent = {
 /** The root public key of the MPC that signed {@link SIGNED_REQUEST}. */
 export const SIGNED_REQUEST_MPC_ROOT_KEY =
   '0x047dd8ecafa5d9c921485b6ac33476870e98c3378e395f3c8fae92ce4943d8432847f591ab25ca454effb522ec2eaf04b7e1c83ba65ae731ea98dd52eb7d458dd4'
+
+export const SIGNED_REQUEST_ID = calculateRequestId(SIGNED_REQUEST)
+
+/** The signature the MPC posted for {@link SIGNED_REQUEST}. */
+export const SIGNED_REQUEST_MPC_RESPONSE: SignatureRespondedEvent = {
+  requestId: SIGNED_REQUEST_ID,
+  signature: {
+    bigR: {
+      x: hexToBytes('5399e44261c553b474396726a12b361a1ceec85988dfae3fbfc9935f8b3e20ce'),
+      y: hexToBytes('07298cddfd3f24215700abd074ae1b5e1a6fc795dbedd75f78952218e26fcc9e'),
+    },
+    s: hexToBytes('77cf5968439ef22a5b9528b8e6c1e2a4725281847e2d7d908eaf8fe2020fb132'),
+    recoveryId: 1n,
+  },
+}

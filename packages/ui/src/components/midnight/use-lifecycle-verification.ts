@@ -1,3 +1,4 @@
+import type { InspectedSignBidirectionalLifecycle } from '@sig-net/explorer-api'
 import type { RequestIdHex, SignBidirectionalEvent } from '@sig-net/midnight'
 import { useEffect, useState } from 'react'
 
@@ -15,8 +16,6 @@ import {
 import { evmRpcUrl } from '@/lib/midnight/evm-transaction-status'
 import { loadMpcCachedOutput } from '@/lib/midnight/mpc-output-cache'
 import type { MidnightNetworkConfig } from '@/lib/midnight/network'
-import type { SignBidirectionalLifecycle } from '@sig-net/explorer-lib'
-import { loadSignBidirectionalTransactionInspection } from '@/lib/midnight/sign-bidirectional-transaction-loader'
 import { checkSignature } from '@/lib/midnight/signature-check'
 
 export type AttestationChecksState =
@@ -132,11 +131,10 @@ async function recoverExecution(
  * read from the MPC's cache or recovered by tracing the signed transaction.
  */
 export function useLifecycleVerification(
-  lifecycle: SignBidirectionalLifecycle,
+  lifecycle: InspectedSignBidirectionalLifecycle,
 ): LifecycleVerification {
   const { network, config } = useMidnight()
   const {
-    indexerUrl,
     mpcRootPublicKey,
     ethereumMainnetRpcUrl,
     ethereumSepoliaRpcUrl,
@@ -145,7 +143,6 @@ export function useLifecycleVerification(
   } = config
   const configKey = JSON.stringify([
     network,
-    indexerUrl,
     mpcRootPublicKey,
     ethereumMainnetRpcUrl,
     ethereumSepoliaRpcUrl,
@@ -163,15 +160,8 @@ export function useLifecycleVerification(
     }
     const { requestId, signBidirectionalEvents, signatureRespondedEvents } = lifecycle
     const verify = async () => {
-      const inspections = await Promise.allSettled(
-        signBidirectionalEvents.map((notification) =>
-          loadSignBidirectionalTransactionInspection(indexerUrl, notification),
-        ),
-      )
-      const requests = inspections.flatMap((inspection) =>
-        inspection.status === 'fulfilled' && inspection.value.request !== null
-          ? [inspection.value.request]
-          : [],
+      const requests = signBidirectionalEvents.flatMap(({ inspection }) =>
+        'failed' in inspection || inspection.request === null ? [] : [inspection.request],
       )
       const signedTransactionHashes = new Map<number, string>()
       for (const { record, source } of signatureRespondedEvents) {
@@ -230,7 +220,6 @@ export function useLifecycleVerification(
   }, [
     configKey,
     network,
-    indexerUrl,
     mpcRootPublicKey,
     ethereumMainnetRpcUrl,
     ethereumSepoliaRpcUrl,

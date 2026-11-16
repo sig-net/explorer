@@ -1,3 +1,4 @@
+import type { InspectedSignBidirectionalEvent } from '@sig-net/explorer-api'
 import type { SignatureRespondedEvent } from '@sig-net/midnight'
 import { CircleCheck, CircleX } from 'lucide-react'
 
@@ -6,9 +7,6 @@ import { CopyButton } from '@/components/copy-button'
 import { CopyableHex } from '@/components/copyable-hex'
 import { ExternalLinkButton } from '@/components/external-link-button'
 import { EvmTransactionStatus } from '@/components/midnight/evm-transaction-status'
-import { useSignBidirectionalTransactionInspection } from '@/components/midnight/use-sign-bidirectional-transaction-inspection'
-import { PendingIcon } from '@/components/pending-icon'
-import type { SignBidirectionalNotificationEvent } from '@/lib/midnight/sign-bidirectional-transaction-loader'
 import { etherscanTransactionUrl } from '@/lib/midnight/evm-block-explorer'
 import { checkSignature } from '@/lib/midnight/signature-check'
 import { truncateMiddle } from '@/lib/format'
@@ -17,19 +15,20 @@ function NotificationSignatureCheck({
   notification,
   response,
 }: {
-  notification: SignBidirectionalNotificationEvent
+  notification: InspectedSignBidirectionalEvent
   response: SignatureRespondedEvent
 }) {
-  const state = useSignBidirectionalTransactionInspection(notification)
   const { network, config } = useMidnight()
+  const { inspection } = notification
 
-  if (state.status === 'loading') {
-    return <PendingIcon />
+  if ('failed' in inspection) {
+    return (
+      <span className="text-destructive">
+        could not inspect its transaction: {inspection.failed}
+      </span>
+    )
   }
-  if (state.status === 'error') {
-    return <span className="text-destructive">could not inspect its transaction</span>
-  }
-  const { request } = state.inspection
+  const { request } = inspection
   if (request === null) {
     return <span className="text-muted-foreground">its transaction stores no request</span>
   }
@@ -94,7 +93,7 @@ export function SignatureCheck({
   notifications,
   response,
 }: {
-  notifications: readonly SignBidirectionalNotificationEvent[]
+  notifications: readonly InspectedSignBidirectionalEvent[]
   response: SignatureRespondedEvent
 }) {
   return (
