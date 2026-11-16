@@ -27,7 +27,9 @@ export async function startBackend(
   const log = (entry: BackendLogEntry): void => {
     dependencies.log(entryWithoutUrlCredentials(entry))
   }
-  const db = openDatabase(config.databaseUrl)
+  const db = openDatabase(config.databaseUrl, (error) => {
+    log({ level: 'error', message: 'a database connection ended', error: error.message })
+  })
   const loopsEnd = new AbortController()
   const loops: Promise<void>[] = []
   let ready = false
@@ -188,10 +190,15 @@ export interface RunningBackend {
  * Drops the schema of the configured network `networkArgument` names and migrates it again, so
  * that a running backend indexes the network from its start block.
  *
+ * @param onConnectionError Receives the error of each connection the server ends meanwhile.
  * @returns The name of the schema.
  * @throws {Error} Before anything is opened, when `config` holds no such network.
  */
-export async function wipeNetwork(config: BackendConfig, networkArgument: string): Promise<string> {
+export async function wipeNetwork(
+  config: BackendConfig,
+  networkArgument: string,
+  onConnectionError: (error: Error) => void,
+): Promise<string> {
   const configured = isMidnightNetwork(networkArgument)
     ? config.networks.find(({ network }) => network === networkArgument)
     : undefined
@@ -201,7 +208,7 @@ export async function wipeNetwork(config: BackendConfig, networkArgument: string
       `${JSON.stringify(networkArgument)} is not a configured network: the configured networks are ${networks}`,
     )
   }
-  const db = openDatabase(config.databaseUrl)
+  const db = openDatabase(config.databaseUrl, onConnectionError)
   try {
     await wipeNetworkSchema(db, configured.network)
     await migrateNetworkSchema(db, configured.network)

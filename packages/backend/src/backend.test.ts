@@ -144,6 +144,10 @@ async function start(
   return backend
 }
 
+function failOnConnectionError(error: Error): never {
+  throw error
+}
+
 function baseUrlOf(backend: RunningBackend): string {
   return `http://127.0.0.1:${String(backend.port)}`
 }
@@ -449,7 +453,7 @@ describe('startBackend', () => {
       const preprodMigratedAt = await migrationTimes(PREPROD)
       const previewMigratedAt = await migrationTimes(PREVIEW)
 
-      expect(await wipeNetwork(config, 'preprod')).toBe('midnight_preprod')
+      expect(await wipeNetwork(config, 'preprod', failOnConnectionError)).toBe('midnight_preprod')
 
       await waitFor(
         'preprod to be stored a second time',
@@ -484,7 +488,7 @@ describe('startBackend', () => {
       const migratedAt = [await migrationTimes(PREPROD), await migrationTimes(PREVIEW)]
 
       for (const argument of ['mainnet', 'midnight_preprod', '']) {
-        await expect(wipeNetwork(config, argument)).rejects.toThrow(
+        await expect(wipeNetwork(config, argument, failOnConnectionError)).rejects.toThrow(
           `${JSON.stringify(argument)} is not a configured network: the configured networks are preprod, preview`,
         )
       }
@@ -521,6 +525,41 @@ describe('startBackend', () => {
       expect(logged).not.toContain('password')
       expect(entriesOf('shut down')).toHaveLength(1)
       await expect(readyStatus(backend)).rejects.toThrow('fetch failed')
+    },
+    TEST_TIMEOUT_MS,
+  )
+
+  it(
+    'the backend logs a connection the server ends and goes on',
+    async () => {
+      const applicationName = 'explorer_backend_under_test'
+      const databaseUrl = new URL(database.url)
+      databaseUrl.searchParams.set('application_name', applicationName)
+      const source = chainOf(1005, LIFECYCLE)
+      const backend = await start(
+        { ...configOf(PREPROD), databaseUrl: databaseUrl.href },
+        { [PREPROD]: source },
+      )
+      const client = clientOf(backend)
+      await backend.started
+      await cursorReaches(client, PREPROD, 1005)
+
+      const { rows } = await sql<{ ended: boolean }>`
+        SELECT pg_terminate_backend(pid) AS ended
+        FROM pg_stat_activity
+        WHERE application_name = ${applicationName}
+      `.execute(database.db)
+
+      expect(rows.length).toBeGreaterThan(0)
+      await waitFor(
+        'the ended connection to be logged',
+        () => entriesOf('a database connection ended').length > 0,
+      )
+      expect(entriesOf('a database connection ended')[0]).toMatchObject({ level: 'error' })
+      expect(await readyStatus(backend)).toBe(200)
+      source.appendBlock(blockOf(1006, [at(1006, notification(4, REQUEST_B))]))
+      await cursorReaches(client, PREPROD, 1006)
+      expect(await client.lifecycles(PREPROD)).toMatchObject({ totalRequests: 2 })
     },
     TEST_TIMEOUT_MS,
   )
