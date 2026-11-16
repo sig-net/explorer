@@ -538,3 +538,6 @@ D54: the three blocking findings of review 04.13 get one fix step, 04.14, with n
 
 ## 179 ACCEPT 04.13
 nothing to merge
+
+## 180 PLAN
+added 04.14 for the three blocking findings of review 04.13 and its advisory ones in the same function, check seen failing on the parent at 5980d93 for its five missing tests, and the stage check runs it. core.md and contract.md gain a fact each from the review. For the closing report, advisory findings of review 04.13 left open: nothing bounds the size of a stored inspection (20 MB is stored and served, 300 MB fails every retry), and bytesOfHex cuts silently at the first non-hex character, which the adaptor's hashSchema keeps from happening
