@@ -379,3 +379,24 @@ for steps 04.5 to 04.7 and review 04.8, from 04.4: the Blockfrost indexer URL an
 
 ## 126 ACCEPT 04.4
 merged bernard-04-4 as ec45953
+
+## 127 DISPATCH 04.5
+model opus, branch bernard-04-5, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-5
+
+## 128 DISPATCH 04.10
+model fable, branch bernard-04-10, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-10
+
+## 129 REPORT 04.10
+DONE, kept in reports/04.10-1.md
+
+## 130 CHECK 04.10
+PASS, exit 0 at 92e0d10, output in evidence/04.10-1.txt
+
+## 131 PACK
+backend.md: the ingest loop's onOutcome, the cycle's catch, the ingest test helpers, ingest_state_check (from 04.10's report)
+
+## 132 PLAN
+for the planner of stage 05, from 04.10: pass startIngestLoop a synchronous logger as onOutcome. The backoff after the n-th failure in a row is 60, 120, 240, 300 s at the default interval
+
+## 133 ACCEPT 04.10
+merged bernard-04-10 as 3295751
