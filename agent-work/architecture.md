@@ -1,6 +1,6 @@
 # Architecture
 
-Status: round 1, a proposal. Nothing below is settled until `decisions.md` holds it.
+Status: round 2. `decisions.md` holds what is settled. D10 to D15 wait for the user.
 Marks: `[run 6763bf5]` and `[read 6763bf5]` refer to this repository at that commit.
 `[read mpc 73bb9dfe]` refers to `sig-net/mpc` on `develop`. Probes ran on 2026-11-16 against
 Blockfrost's Midnight preprod with the project token from `dev-secrets`.
@@ -21,9 +21,9 @@ browser (packages/ui) --HTTP JSON--> backend (packages/backend) --SQL--> databas
   database: an indexer loop per configured network, which writes, and an HTTP API, which reads.
 - The database is the only state. A backend restart resumes from the cursor rows.
 
-### Source the backend reads (open: Q1)
+### Source the backend reads (D01)
 
-Proposed: the Midnight indexer's GraphQL API, behind a port (an interface the indexer loop
+The Midnight indexer's GraphQL API, behind a port (an interface the indexer loop
 depends on) so a node-backed source can replace it. Reads are bounded block ranges through
 `contractEvents(filter: { contractAddress, types: [MISC], fromBlock, toBlock }, limit, offset)`,
 the query the SDK's `signetEventSourceFromIndexer` already sends.
@@ -58,9 +58,9 @@ pass compares it. A different hash, or a tip below `next_block - 1`, means the n
 reset: the backend deletes that network's rows and its cursor in one transaction and starts
 again from the configured start block.
 
-### Network separation (open: Q3)
+### Network separation (D03)
 
-Proposed: one set of tables with a `network` column leading every primary key and index. A wipe
+One set of tables with a `network` column leading every primary key and index. A wipe
 is `DELETE ... WHERE network = $1`.
 
 ### Data model (proposed)
@@ -81,7 +81,7 @@ is `DELETE ... WHERE network = $1`.
   jsonb, request jsonb, error)`. The result of inspecting a notification's transaction. The raw
   transaction is not stored (12.6 KB each, mostly proofs).
 
-### Read model: aggregate table, written by the application (open: Q4)
+### Read model: aggregate table, written by the application (D04)
 
 The list page reads `sign_bidirectional_lifecycle`, a table, not a SQL view. The indexer loop
 upserts it in application code, in the transaction that stores the events. No database trigger.
@@ -117,14 +117,17 @@ Yarn workspaces, as the user set out:
 - The events context, the event store, the starting block control and the step-back logic are
   replaced by paged reads of the backend.
 - Search and the excluded callers filter become query parameters the backend answers.
-- The configuration popover loses the indexer URL, the node URL, the contract addresses and the
-  starting block. They are server configuration.
+- The configuration popover shows the indexer URL, the node URL, the contract addresses and the
+  start block read-only, filled from `GET /networks` (D07). The MPC root public key, the EVM RPC
+  URLs and the MPC output cache URL stay editable, as the browser still uses them (D05, D06).
+- The UI polls the backend for new rows (D14).
 
 ## Out of scope
 
 - The Solana and contract analyser routes.
-- Indexing from a Midnight node by replaying transactions, as `sig-net/mpc` does (unless Q1
-  decides otherwise).
+- Indexing from a Midnight node by replaying transactions, as `sig-net/mpc` does (D01).
+- Moving the EVM transaction status, the MPC output cache read, or the signature and
+  attestation checks to the backend (D05, D06).
 
 ## Assumptions
 
@@ -168,16 +171,12 @@ Yarn workspaces, as the user set out:
 
 ## Open questions
 
-- Q1 [open] What does the backend read Midnight data from: the token-gated indexer (Blockfrost
-  today), or a node directly as the mpc indexer does?
-- Q2 [open] Where do the backend and its database run, and which SQL database: Postgres or
-  SQLite?
-- Q3 [open] Network separation: a `network` column (recommended) or a set of tables per
-  network?
-- Q4 [open] Read model: an aggregate table the indexer writes (recommended) or a SQL view?
-- Q5 [open] Do the EVM transaction status and the MPC output cache reads move to the backend
-  too, or stay in the browser for now (recommended)?
-- Q6 [open] Do the signature and attestation checks stay in the browser (recommended for the
-  first version) or run in the backend with their results stored?
-- Q7 [open] May the configuration popover lose its endpoint, address and starting block fields,
-  which become server configuration?
+- Q1 [answered] The token-gated indexer. D01.
+- Q2 [answered] Postgres (D02). Where it runs was not answered: asked again as Q8.
+- Q3 [answered] A `network` column. D03.
+- Q4 [answered] An aggregate table. D04.
+- Q5 [answered] They stay in the browser. D05.
+- Q6 [answered] They stay in the browser. D06.
+- Q7 [answered] The fields stay, read-only, for information. D07.
+- Q8 [open] Where do the backend and Postgres run, and who serves the UI: GitHub Pages as today
+  with the backend on another origin, or one deployment (a compose stack) that serves both?
