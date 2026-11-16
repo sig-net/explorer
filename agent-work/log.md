@@ -661,3 +661,18 @@ merged bernard-05-8 as 305eaf8
 
 ## 220 PLAN
 No step 05.9, against what entry 218's accept says: the timeout of signet-events-section.test.tsx 'each event gets a numbered tab' was not reproduced on the parent at 305eaf8, in 6 runs of the file under 12 busy processes and 4 runs of the whole UI suite under 16 (load 22.49), all 115 passed. CPU load alone is not its cause, and a fix step has no check that fails. Seen 3 times in agents' runs (04.6, 04.7, 05.8), each while another step's check or suite ran on the machine, never in a check of the orchestrator. For the closing report as an open defect of the test suite: the click on tab 2 times out at 15 s while a screenshot shows the tab selected
+
+## 221 DISPATCH 05.2
+model opus, branch bernard-05-2, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-05-2
+
+## 222 REPORT 05.2
+DONE, kept in reports/05.2-1.md
+
+## 223 CHECK 05.2
+PASS, exit 0 at 84b1009, output in evidence/05.2-1.txt
+
+## 224 GATE
+live run: storedEvents 16250 equals indexerEvents 16250, and killedBeforeSynced is true (killed at block 3387245, synced at 3445056 in 253 s). Both gates of step 05.2 hold with no fallback taken. For the closing report: the browser calls a public Sepolia RPC (ethereum-sepolia-rpc.publicnode.com) on the explorer page, which D10 keeps in the browser, the screenshot cuts the expanded panel under the viewport, and the probe's wait loop prints 'integer expected' while the restarted backend is not answering
+
+## 225 ACCEPT 05.2
+merged bernard-05-2 as 85bdf80
