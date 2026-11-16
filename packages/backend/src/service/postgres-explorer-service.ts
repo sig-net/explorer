@@ -167,7 +167,7 @@ async function readLifecyclePage(
 
 type RequestsFilter = Pick<ResolvedLifecyclesQuery, 'fragment' | 'excludeCallers'>
 
-/** The requests that match `filter` and the events they group, by the count columns (D37). */
+/** The requests that match `filter` and the events they group, by the count columns. */
 async function countRequests(
   transaction: Transaction<NetworkTables>,
   filter: RequestsFilter,
@@ -194,7 +194,7 @@ async function countRequests(
 }
 
 /**
- * The search is the UNION form of D42, which lets each half use its trigram index, and the
+ * The search is a UNION of two index scans, which lets each half use its trigram index, and the
  * exclusion keeps a request that names no caller.
  */
 function matching(

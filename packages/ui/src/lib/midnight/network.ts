@@ -8,7 +8,7 @@ import { isMidnightNetwork, MIDNIGHT_NETWORKS } from '@sig-net/explorer-lib'
 
 import { EXPLORER_ENV } from '@/lib/explorer-env'
 
-/** What the browser itself reads with, per network, and the user may edit (D10). */
+/** What the browser itself reads with, per network, and the user may edit. */
 export interface MidnightNetworkConfig {
   mpcRootPublicKey: string
   /** JSON-RPC endpoint asked about requested transactions that target Ethereum mainnet. */

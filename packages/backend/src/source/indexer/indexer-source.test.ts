@@ -158,6 +158,18 @@ describe('createIndexerSource', () => {
     )
   })
 
+  it("an answer with errors and no data reports the server's messages", async () => {
+    stubIndexer(() => Response.json({ errors: [{ message: 'first' }, { message: 'second' }] }))
+    await expect(source().finalisedTip()).rejects.toThrow(
+      'the indexer rejected the query: first, second',
+    )
+  })
+
+  it('an answer with neither data nor errors is rejected', async () => {
+    stubIndexer(() => Response.json({}))
+    await expect(source().finalisedTip()).rejects.toThrow('the indexer answered unexpectedly')
+  })
+
   it('a request that never answers is rejected after the timeout', async () => {
     stubIndexer(() => new Promise<Response>(() => undefined))
     const silent = source(undefined, 20)
