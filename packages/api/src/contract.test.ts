@@ -509,7 +509,8 @@ describe('the client over the routes', () => {
   })
 
   it('a failed inspection crosses the wire without a token', async () => {
-    const failed = 'GET https://indexer.preprod.example/tx/7?project_id=inspection-token answered 502'
+    const failed =
+      'GET https://indexer.preprod.example/tx/7?project_id=inspection-token answered 502'
     const lifecycle = await seedLifecycle(EXPLORER_SEED_CASES.failedInspectionRequestId)
     const leaking: ExplorerService = {
       ...service,
