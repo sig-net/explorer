@@ -325,3 +325,24 @@ from 04.1, for the configuration step and review 04.8: INDEXER_REQUEST_TIMEOUT_M
 
 ## 108 ACCEPT 04.1
 merged bernard-04-1 as 06dca97
+
+## 109 DISPATCH 04.3
+model opus, branch bernard-04-3, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-3
+
+## 110 REPORT 04.2
+DONE, kept in reports/04.2-1.md
+
+## 111 CHECK 04.2
+PASS, exit 0 at eae6769, output in evidence/04.2-1.txt
+
+## 112 DECISION
+D51: a stopped network resumes when its identity matches its configuration again. For the closing report: it reads D12 by its reason, the user may want a stop to hold until a wipe
+
+## 113 PACK
+contract.md: runIngestCycle's shapes and outcomes, Kysely facts, failNextCall (from 04.2's report)
+
+## 114 PLAN
+the open steps of stage 04 name their checks by full path. For review 04.8, from 04.2: the cursor update is conditional on the cursor alone, the caught-up and stop updates run outside a transaction, and an event from a block outside the asked range is stored as served
+
+## 115 ACCEPT 04.2
+merged bernard-04-2 as 443843b
