@@ -115,3 +115,12 @@ merged bernard-02-4 as 53ef0ad
 
 ## 38 PACK
 ui.md: where the Vitest config is, waiting for a Base UI popup to unmount, the combobox input-clear reason. core.md: yarn install in a new worktree, vite beside vitest (from the reports of 02.2 and 02.4)
+
+## 39 REPORT 02.2
+DONE, kept in reports/02.2-2.md
+
+## 40 CHECK 02.2
+PASS, exit 0 at e28b444, output in evidence/02.2-2.txt
+
+## 41 ACCEPT 02.2
+merged bernard-02-2 as e924a47
