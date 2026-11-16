@@ -65,6 +65,41 @@ export default defineConfig({
     // prebundle lets the wasm plugin serve its .wasm import, while the rest of the SDK tree (which
     // includes CommonJS packages) is still optimized.
     exclude: ['@midnightntwrk/onchain-runtime-v4'],
+    // Every dependency the app and its tests reach, so a cold cache prebundles them all at start:
+    // one discovered mid test run makes Vite reload the browser and fail the tests under way.
+    include: [
+      '@base-ui/react',
+      '@base-ui/react/button',
+      '@base-ui/react/dialog',
+      '@base-ui/react/input',
+      '@base-ui/react/menu',
+      '@base-ui/react/merge-props',
+      '@base-ui/react/popover',
+      '@base-ui/react/scroll-area',
+      '@base-ui/react/select',
+      '@base-ui/react/separator',
+      '@base-ui/react/tabs',
+      '@base-ui/react/toggle',
+      '@base-ui/react/tooltip',
+      '@base-ui/react/use-render',
+      '@microlink/react-json-view',
+      '@sig-net/midnight',
+      '@tanstack/react-router',
+      '@tanstack/react-router-devtools',
+      'class-variance-authority',
+      'cn',
+      'hono',
+      'lucide-react',
+      'luxon',
+      'react',
+      'react-dom',
+      'react-dom/client',
+      'react/compiler-runtime',
+      'react/jsx-dev-runtime',
+      'react/jsx-runtime',
+      'zod',
+      ...(process.env.VITEST === undefined ? [] : ['vitest-browser-react']),
+    ],
   },
   resolve: {
     alias: {

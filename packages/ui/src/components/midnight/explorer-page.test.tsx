@@ -1,5 +1,6 @@
 import {
   ExplorerApiError,
+  type ExplorerNetwork,
   type ExplorerService,
   type LifecyclePage,
   type LifecyclesQuery,
@@ -16,7 +17,7 @@ import { userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-react'
 
 import '@/index.css'
-import { truncateMiddle } from '@/lib/format'
+import { formatLocalTimestamp, truncateMiddle } from '@/lib/format'
 import { routeTree } from '@/routeTree.gen'
 
 const EXPLORER_URL = '/midnight/explorer?networkId=preprod'
@@ -234,4 +235,111 @@ test('without a backend URL the page says none is configured', async () => {
   const { screen } = await renderExplorer(null)
   await expect.element(screen.getByText('No explorer backend configured')).toBeVisible()
   expect(screen.getByRole('table').elements()).toHaveLength(0)
+})
+
+/** The seed's preprod network, as the backend serves it. */
+function seedPreprod(): ExplorerNetwork {
+  const preprod = explorerSeed.networks.find(({ network }) => network === MidnightNetwork.Preprod)
+  if (preprod === undefined) {
+    throw new Error('expected the seed to serve preprod')
+  }
+  return preprod
+}
+
+/** Opens the configuration popover and returns its content element once it is shown. */
+async function openConfiguration(screen: Awaited<ReturnType<typeof renderExplorer>>['screen']) {
+  await screen.getByRole('button', { name: 'Midnight configuration' }).click()
+  await expect.element(screen.getByText('Indexed by the backend')).toBeVisible()
+  const popup = document.querySelector('[data-slot="popover-content"]')
+  if (popup === null) {
+    throw new Error('expected the configuration popover to be open')
+  }
+  return popup
+}
+
+test('shows the server configuration read only', async () => {
+  const { config } = seedPreprod()
+  const { screen } = await renderExplorer(seededService().service)
+  const popup = await openConfiguration(screen)
+  await expect.element(screen.getByText(config.signerContractAddress)).toBeVisible()
+  const text = popup.textContent
+  expect(text).toContain(`Responder:${config.responderContractAddress}`)
+  expect(text).toContain(`Starting block:${String(config.startBlock)}`)
+  expect(text).toContain('Source URL:https://indexer.preprod.example/api/v4/graphql')
+  expect(text).not.toContain('seed-token')
+  const values = [...popup.querySelectorAll('input')].map((input) => input.value)
+  for (const served of [
+    config.signerContractAddress,
+    config.responderContractAddress,
+    String(config.startBlock),
+  ]) {
+    expect(values).not.toContain(served)
+  }
+})
+
+test('offers only the editable fields for editing', async () => {
+  const { screen } = await renderExplorer(seededService().service)
+  const popup = await openConfiguration(screen)
+  // The network select keeps a hidden input of its own for forms, which no one types into.
+  const editable = [...popup.querySelectorAll('input')].filter(
+    (input) => input.type !== 'hidden' && input.getAttribute('aria-hidden') !== 'true',
+  )
+  const labels = editable.map(
+    (input) => popup.querySelector(`label[for="${input.id}"]`)?.textContent,
+  )
+  expect(labels).toEqual([
+    'MPC Root Public Key',
+    'Ethereum Mainnet RPC URL',
+    'Ethereum Sepolia RPC URL',
+    'MPC Output Cache URL',
+  ])
+})
+
+test('marks a network the backend does not serve', async () => {
+  const { screen } = await renderExplorer(
+    seededService().service,
+    '/midnight/explorer?networkId=mainnet',
+  )
+  await expect.element(screen.getByText('This backend does not index mainnet')).toBeVisible()
+  expect(screen.getByRole('table').elements()).toHaveLength(0)
+  const popup = await openConfiguration(screen)
+  expect(popup.textContent).toContain('This backend does not index mainnet')
+  await screen.getByRole('combobox', { name: 'Network' }).click()
+  await expect.element(screen.getByRole('option', { name: 'mainnet (unavailable)' })).toBeVisible()
+  await expect
+    .element(screen.getByRole('option', { name: 'undeployed (unavailable)' }))
+    .toBeVisible()
+  await expect.element(screen.getByRole('option', { name: 'preprod', exact: true })).toBeVisible()
+  await expect.element(screen.getByRole('option', { name: 'preview', exact: true })).toBeVisible()
+})
+
+test('shows the indexed block and its time', async () => {
+  const { sync } = seedPreprod()
+  if (sync.processedBlock === null || sync.processedBlockTime === null) {
+    throw new Error('expected the seed to have indexed preprod')
+  }
+  const { screen } = await renderExplorer(seededService().service)
+  await expect
+    .element(
+      screen.getByText(
+        `Indexed to block ${String(sync.processedBlock)} at ` +
+          `${formatLocalTimestamp(sync.processedBlockTime)} (synced)`,
+      ),
+    )
+    .toBeVisible()
+  expect(screen.getByRole('alert').elements()).toHaveLength(0)
+})
+
+test("shows a stopped network with the backend's reason", async () => {
+  const preprod = seedPreprod()
+  const reason = 'the indexer refused the token: 403 Forbidden'
+  const service: ExplorerService = {
+    ...seededService().service,
+    networks: () =>
+      Promise.resolve([{ ...preprod, sync: { ...preprod.sync, state: 'stopped', error: reason } }]),
+  }
+  const { screen } = await renderExplorer(service)
+  await expect.element(screen.getByText('The backend stopped indexing preprod')).toBeVisible()
+  await expect.element(screen.getByText(reason)).toBeVisible()
+  await expect.element(screen.getByText(/^Indexed to block 1012 at .* \(stopped\)$/)).toBeVisible()
 })

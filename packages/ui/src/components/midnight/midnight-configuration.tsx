@@ -19,14 +19,16 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useMidnight } from '@/components/contexts/MidnightContext'
-import { MidnightNetwork } from '@sig-net/midnight'
-import { MIDNIGHT_NETWORKS, parseContractAddressHex } from '@sig-net/explorer-lib'
+import { DetailLine, DetailList } from '@/components/detail-list'
 import {
-  type MidnightNetworkConfig,
-  parseMpcRootPublicKey,
-  parseSignetEventsFromBlock,
-} from '@/lib/midnight/network'
+  type ServedNetworks,
+  isUnservedNetwork,
+  useMidnight,
+} from '@/components/contexts/MidnightContext'
+import { Separator } from '@/components/ui/separator'
+import { MidnightNetwork } from '@sig-net/midnight'
+import { MIDNIGHT_NETWORKS } from '@sig-net/explorer-lib'
+import { type MidnightNetworkConfig, parseMpcRootPublicKey } from '@/lib/midnight/network'
 
 interface ConfigField {
   key: keyof MidnightNetworkConfig
@@ -36,9 +38,6 @@ interface ConfigField {
 }
 
 const CONFIG_FIELDS: readonly ConfigField[] = [
-  { key: 'indexerUrl', label: 'Indexer URL' },
-  { key: 'indexerWsUrl', label: 'Indexer WebSocket URL' },
-  { key: 'nodeUrl', label: 'Node URL' },
   {
     key: 'mpcRootPublicKey',
     label: 'MPC Root Public Key',
@@ -47,37 +46,23 @@ const CONFIG_FIELDS: readonly ConfigField[] = [
         ? 'Expected a secp256k1 public key: SEC1 hex or secp256k1:<base58>.'
         : null,
   },
-  {
-    key: 'signerContractAddress',
-    label: 'Signet Signer Address',
-    problem: contractAddressProblem,
-  },
-  {
-    key: 'responderContractAddress',
-    label: 'Signet Responder Address',
-    problem: contractAddressProblem,
-  },
-  {
-    key: 'signetEventsFromBlock',
-    label: 'Signet Events From Block',
-    problem: (value) =>
-      parseSignetEventsFromBlock(value) === null
-        ? 'Expected a block height (a whole number, 0 for the whole history), or nothing for the default window.'
-        : null,
-  },
   { key: 'ethereumMainnetRpcUrl', label: 'Ethereum Mainnet RPC URL' },
   { key: 'ethereumSepoliaRpcUrl', label: 'Ethereum Sepolia RPC URL' },
   { key: 'mpcOutputCacheUrl', label: 'MPC Output Cache URL' },
 ]
 
-function contractAddressProblem(value: string): string | null {
-  return parseContractAddressHex(value) === null ? 'Expected 32 bytes of hex (64 digits).' : null
-}
-
 export function MidnightConfiguration() {
   const navigate = useNavigate()
   const { pathname, searchStr } = useLocation()
-  const { network, config, isDefaultConfig, setConfig, resetDefaults } = useMidnight()
+  const {
+    network,
+    config,
+    isDefaultConfig,
+    servedNetworks,
+    servedNetwork,
+    setConfig,
+    resetDefaults,
+  } = useMidnight()
 
   // The URL owns the selected network and the route layout copies it into the context, so
   // selecting here rewrites the query string of whichever Midnight page is open.
@@ -118,11 +103,46 @@ export function MidnightConfiguration() {
                 {MIDNIGHT_NETWORKS.map((option) => (
                   <SelectItem key={option} value={option}>
                     {option}
+                    {isUnservedNetwork(servedNetworks, option) && (
+                      <span className="text-muted-foreground">(unavailable)</span>
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+          <section aria-labelledby="midnight-served-config" className="flex flex-col gap-2">
+            <h3 id="midnight-served-config" className="text-sm font-medium">
+              Indexed by the backend
+            </h3>
+            {servedNetwork === null ? (
+              <p className="text-muted-foreground text-sm">
+                {unservedText(servedNetworks, network)}
+              </p>
+            ) : (
+              <div className="text-sm">
+                <DetailList>
+                  <DetailLine label="Signer">
+                    <span className="font-mono break-all">
+                      {servedNetwork.config.signerContractAddress}
+                    </span>
+                  </DetailLine>
+                  <DetailLine label="Responder">
+                    <span className="font-mono break-all">
+                      {servedNetwork.config.responderContractAddress}
+                    </span>
+                  </DetailLine>
+                  <DetailLine label="Starting block">
+                    {String(servedNetwork.config.startBlock)}
+                  </DetailLine>
+                  <DetailLine label="Source URL">
+                    <span className="break-all">{servedNetwork.config.sourceUrl}</span>
+                  </DetailLine>
+                </DetailList>
+              </div>
+            )}
+          </section>
+          <Separator />
           {CONFIG_FIELDS.map(({ key, label, problem }) => {
             const message = config[key] === '' ? null : (problem?.(config[key]) ?? null)
             return (
@@ -150,4 +170,18 @@ export function MidnightConfiguration() {
       </PopoverContent>
     </Popover>
   )
+}
+
+/** Why the backend's configuration of `network` is not shown. */
+function unservedText(servedNetworks: ServedNetworks, network: MidnightNetwork): string {
+  if (servedNetworks.status === 'no-backend') {
+    return 'No explorer backend is configured.'
+  }
+  if (servedNetworks.status === 'loading') {
+    return 'Loading'
+  }
+  if (servedNetworks.status === 'loaded') {
+    return `This backend does not index ${network}`
+  }
+  return `The explorer backend could not list its networks: ${servedNetworks.error}`
 }

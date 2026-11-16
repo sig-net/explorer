@@ -9,12 +9,13 @@ import { CircleAlert, RefreshCw, Unplug, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useExplorerApi } from '@/components/contexts/ExplorerApiContext'
-import { useMidnight } from '@/components/contexts/MidnightContext'
+import { isUnservedNetwork, useMidnight } from '@/components/contexts/MidnightContext'
 import {
   type MidnightLifecyclesContextValue,
   useMidnightLifecycles,
 } from '@/components/contexts/MidnightLifecyclesContext'
 import { ExcludedCallersFilter } from '@/components/midnight/excluded-callers-filter'
+import { NetworkSyncAlert, NetworkSyncStatus } from '@/components/midnight/network-sync-status'
 import { SignBidirectionalLifecycleTable } from '@/components/midnight/sign-bidirectional-lifecycle-table'
 import { useLinkedLifecycle } from '@/components/midnight/use-linked-lifecycle'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -129,10 +130,27 @@ function NoBackendAlert() {
   )
 }
 
+/** Why nothing is listed for a network the backend does not serve. */
+function UnservedNetworkAlert({ network }: { network: string }) {
+  return (
+    <Alert>
+      <Unplug />
+      <AlertTitle>This backend does not index {network}</AlertTitle>
+      <AlertDescription>
+        <p>Select a network it serves.</p>
+      </AlertDescription>
+    </Alert>
+  )
+}
+
 function ExplorerPage() {
   const service = useExplorerApi()
+  const { network, servedNetworks } = useMidnight()
   if (service === null) {
     return <NoBackendAlert />
+  }
+  if (isUnservedNetwork(servedNetworks, network)) {
+    return <UnservedNetworkAlert network={network} />
   }
   return <ExplorerList />
 }
@@ -140,7 +158,7 @@ function ExplorerPage() {
 function ExplorerList() {
   const service = useExplorerApi()
   const lifecycles = useMidnightLifecycles()
-  const { network } = useMidnight()
+  const { network, servedNetworks, servedNetwork, refreshServedNetworks } = useMidnight()
   const { requestId, excludeCallers } = Route.useSearch()
   const navigate = Route.useNavigate()
   const [linkedReads, setLinkedReads] = useState(0)
@@ -176,6 +194,7 @@ function ExplorerList() {
   }
   const refresh = () => {
     lifecycles.refresh()
+    refreshServedNetworks()
     setLinkedReads((reads) => reads + 1)
   }
   const boxValue = requestId ?? search
@@ -223,13 +242,24 @@ function ExplorerList() {
             </p>
           )}
         </div>
-        <p className="text-muted-foreground ml-auto self-center text-sm">
-          {loadStatusText(lifecycles)}
-        </p>
+        <div className="ml-auto flex flex-col items-end self-center">
+          <p className="text-muted-foreground text-sm">{loadStatusText(lifecycles)}</p>
+          {servedNetwork !== null && <NetworkSyncStatus served={servedNetwork} />}
+        </div>
         <Button variant="outline" size="icon" aria-label="Refresh" onClick={refresh}>
           <RefreshCw />
         </Button>
       </div>
+      {servedNetwork !== null && <NetworkSyncAlert served={servedNetwork} />}
+      {servedNetworks.status === 'error' && (
+        <Alert variant="destructive">
+          <CircleAlert />
+          <AlertTitle>The explorer backend could not list its networks</AlertTitle>
+          <AlertDescription>
+            <p>{servedNetworks.error}</p>
+          </AlertDescription>
+        </Alert>
+      )}
       {error !== null && (
         <Alert variant="destructive">
           <CircleAlert />
