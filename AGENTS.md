@@ -1,7 +1,8 @@
 # Engineering rules
 
 Apply these requirements to new and changed code. Existing violations are not precedent.
-Keep setup instructions and application reference material in README.md and docs/.
+Keep setup instructions and reference material in `README.md` and the READMEs of `packages/ui` and `packages/backend`,
+and why the system is built as it is in `DECISIONS.md`.
 
 ## Precise types
 
@@ -40,6 +41,14 @@ Keep setup instructions and application reference material in README.md and docs
   must work in every consuming runtime. Pass validated immutable configuration into resources.
   Apply related edits atomically and invalidate only affected sessions. Browser input cannot
   redefine server funding authority or privileged configuration.
+- The UI reads Midnight data from the backend alone, through the client of `packages/api`. It never
+  reads an indexer or a node. Browser code calls EVM RPC nodes and the MPC output cache only for
+  the checks it runs itself.
+- No API response and no log line carries a URL's query string or credentials: an indexer URL
+  holds a secret token there. Cut every text that may hold a URL with `textWithoutUrlCredentials`
+  of `packages/api` before it leaves the server.
+- A database test fails without `EXPLORER_TEST_DATABASE_URL`, it never skips: a skipped test passes
+  with nothing tested.
 - Keep heavy SDK assemblies off the first page load. A static import of
   `@midnight-ntwrk/midnight-js-indexer-public-data-provider` drags the Midnight ledger WebAssembly
   (about 20MB) and Apollo Client into the importing chunk, even when only constructed. Never import
@@ -76,7 +85,17 @@ Keep setup instructions and application reference material in README.md and docs
 
 ## File layout
 
-- File code by what it is and who owns it, never by feature name. `packages/ui/src/lib` holds every
+- Code goes in the workspace of the runtime that runs it. `packages/ui` is the browser app,
+  `packages/backend` the Node backend, `packages/api` the HTTP contract between them (service
+  interface, wire schemas, routes, client), and `packages/lib` what both runtimes run. A module
+  moves to `packages/lib` or `packages/api` at its second real consumer, never before. Neither of
+  them reads `import.meta.env` or `process.env`.
+- `packages/backend/src` files code by its part of the backend: `config` (the environment),
+  `db` (the schema types, the migrations runner and the SQL migrations under `db/migrations`),
+  `source` (the port the ingest reads through and its adaptors), `inspection`, `ingest`, `service`
+  (the PostgreSQL implementation of the api's service) and `http`. `main.ts` is the process,
+  `backend.ts` wires the parts together.
+- File UI code by what it is and who owns it, never by feature name. `packages/ui/src/lib` holds every
   non-React module: domain sets, defaults, parsers, formatters. A domain with several modules
   gets a folder under it (`packages/ui/src/lib/midnight/`). `packages/ui/src/components` holds React components,
   `packages/ui/src/components/ui` only what the shadcn CLI writes, `packages/ui/src/components/contexts` React

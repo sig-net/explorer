@@ -1,75 +1,146 @@
 # Explorer
 
-A React single-page application for exploring sig.network activity across supported networks.
+The explorer shows sig.network activity across supported networks. On Midnight it lists every
+request made to the Signet contracts, with the MPC's signatures and attestations, and checks each
+of them in the browser.
 
-## Stack
+## How it fits together
 
-| Concern              | Tool                                                                           |
-| -------------------- | ------------------------------------------------------------------------------ |
-| UI                   | React 19.3 with the React Compiler enabled                                     |
-| Build and dev server | Vite 8 (Rolldown bundler) with `@vitejs/plugin-react` 6                        |
-| Language             | TypeScript 7 (native compiler), strict mode                                    |
-| Routing              | TanStack Router, file based, routes in `packages/ui/src/routes`                |
-| Styling              | Tailwind CSS 4 through `@tailwindcss/vite`                                     |
-| Tests                | Vitest 5 in browser mode (Chromium via Playwright) with `vitest-browser-react` |
-| Lint and format      | Oxlint (type aware) and Oxfmt                                                  |
-| Package manager      | Yarn 4 (pinned in `package.json`, resolved by Corepack)                        |
+The explorer is three parts.
+
+- **The UI** is a React single-page application, served as static files from GitHub Pages or from
+  its own image. It reads Midnight data from the backend alone, through the backend's HTTP API,
+  whose URL it takes from `VITE_EXPLORER_API_URL` at build or start time. It checks signatures
+  and attestations itself, and asks EVM RPC nodes and the MPC's output cache directly from the
+  browser for what those checks need.
+- **The backend** is a Node process. For each configured Midnight network it reads the Signet
+  contracts' events from an indexer (Blockfrost's, on preprod), inspects the transaction behind
+  each request, and stores everything in PostgreSQL. It serves what it stored to the UI as
+  read-only JSON, across origins under CORS. The indexer's credentials stay on the server.
+- **PostgreSQL** 17 holds one schema per network. Only the backend writes them: it creates and
+  migrates the schemas at start.
+
+Why it is built this way is recorded in [DECISIONS.md](DECISIONS.md).
+
+## Workspaces
+
+The repository is a Yarn workspaces root with four packages:
+
+| Folder             | Package                     | What it holds                                                                                                                                           |
+| ------------------ | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/ui`      | `@sig-net/explorer-ui`      | The browser app. Its reference is [packages/ui/README.md](packages/ui/README.md)                                                                        |
+| `packages/backend` | `@sig-net/explorer-backend` | The backend and its image. Its reference is [packages/backend/README.md](packages/backend/README.md)                                                    |
+| `packages/api`     | `@sig-net/explorer-api`     | The HTTP contract between them: the service interface, the wire format, the routes and the client the UI calls                                          |
+| `packages/lib`     | `@sig-net/explorer-lib`     | What the browser and Node both run: the network set, contract address parsing, Signet event decoding and the grouping of events into request lifecycles |
 
 ## Requirements
 
-- Node.js 22.12 or newer.
+- Node.js 24 or newer: the backend runs its TypeScript sources directly.
 - Corepack, which ships with Node.js. Running `yarn` picks up the version pinned in
   `package.json`. If the shim is missing, run `corepack enable` once.
-- The Chromium build used by the test runner, installed once with:
+- Docker, for the local PostgreSQL and the images.
+- The Chromium build the UI's tests run in, installed once with:
 
 ```bash
-yarn playwright install chromium
+yarn workspace @sig-net/explorer-ui playwright install chromium
 ```
 
 ## Scripts
 
-| Command             | What it does                                                               |
-| ------------------- | -------------------------------------------------------------------------- |
-| `yarn dev`          | Start the dev server with hot module replacement                           |
-| `yarn build`        | Type-check every project and emit a production build to `packages/ui/dist` |
-| `yarn preview`      | Serve the production build locally                                         |
-| `yarn typecheck`    | Type-check without emitting                                                |
-| `yarn lint`         | Run Oxlint                                                                 |
-| `yarn format`       | Format the tree with Oxfmt                                                 |
-| `yarn format:check` | Fail if any file is not formatted                                          |
-| `yarn test`         | Run the test suite once in headless Chromium                               |
-| `yarn check`        | Typecheck, lint, format check and test in sequence                         |
+| Command             | What it does                                                             |
+| ------------------- | ------------------------------------------------------------------------ |
+| `yarn dev:ui`       | Start the UI's dev server with hot module replacement                    |
+| `yarn dev:backend`  | Start the backend with `packages/backend/.env.local`                     |
+| `yarn db:up`        | Start a local PostgreSQL 17 for the backend and wait until it is healthy |
+| `yarn db:down`      | Stop the local PostgreSQL, keeping its data                              |
+| `yarn build`        | Type-check the UI and emit its production build to `packages/ui/dist`    |
+| `yarn preview`      | Serve the UI's production build locally                                  |
+| `yarn typecheck`    | Type-check every workspace                                               |
+| `yarn lint`         | Run Oxlint over the repository                                           |
+| `yarn format`       | Format the repository with Oxfmt                                         |
+| `yarn format:check` | Fail if any file is not formatted                                        |
+| `yarn test`         | Run every workspace's tests once                                         |
+| `yarn check`        | Typecheck, lint, format check and test in sequence                       |
 
-The repository is a Yarn workspaces root, and the app is the `@sig-net/explorer-ui` workspace in
-`packages/ui`. At the root, `yarn typecheck`, `yarn test` and `yarn build` run that script in every
-workspace that has one, `yarn dev` and `yarn preview` run the app's, and `yarn lint` and
-`yarn format` cover the whole repository. `yarn test:watch` belongs to the app alone: run it as
-`yarn workspace @sig-net/explorer-ui test:watch`.
+## Running it locally against preprod
 
-## Docker image
+Install the dependencies:
 
-`packages/ui/Dockerfile` builds the explorer into a standalone image: the production build, served
-by nginx on port 8080 as a single page application, with no build step at run time. Its build
-context is the repository root. Build and run it locally from the root with:
+```bash
+yarn install
+```
+
+Start PostgreSQL. It listens on `127.0.0.1:5432`, or on the port `EXPLORER_POSTGRES_PORT` names,
+which the database URL below then carries:
+
+```bash
+yarn db:up
+```
+
+The backend reads preprod from Blockfrost, which needs a project id: create a project for Midnight
+Preprod at <https://blockfrost.io> and copy its id. Write the backend's configuration to
+`packages/backend/.env.local`, which git ignores:
+
+```dotenv
+EXPLORER_DATABASE_URL=postgres://explorer:explorer@127.0.0.1:5432/explorer
+EXPLORER_HOST=127.0.0.1
+EXPLORER_CORS_ORIGINS=http://localhost:5173
+EXPLORER_MIDNIGHT_NETWORKS=preprod
+EXPLORER_MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID=<your project id>
+```
+
+Start the backend. It listens on `127.0.0.1:8080`, migrates the database and starts reading
+preprod from the block the Signet contracts were deployed in, logging each range it stores:
+
+```bash
+yarn dev:backend
+```
+
+Point the UI at it in `packages/ui/.env.local`:
+
+```dotenv
+VITE_EXPLORER_API_URL=http://127.0.0.1:8080
+```
+
+Start the UI and open <http://localhost:5173/>:
+
+```bash
+yarn dev:ui
+```
+
+The page lists the requests stored so far and says how far the backend has indexed. Every variable
+the backend reads is in [packages/backend/README.md](packages/backend/README.md), and every variable
+the UI reads in [packages/ui/README.md](packages/ui/README.md).
+
+## Tests
+
+The backend's tests that touch the database need a PostgreSQL 17 named by
+`EXPLORER_TEST_DATABASE_URL`, and fail without it. With `yarn db:up` running:
+
+```bash
+EXPLORER_TEST_DATABASE_URL=postgres://explorer:explorer@127.0.0.1:5432/explorer yarn check
+```
+
+The UI's tests run in headless Chromium.
+
+## Images
+
+There are two images, and both are built with the repository root as context:
 
 ```bash
 docker build -f packages/ui/Dockerfile -t explorer .
 ```
 
 ```bash
-docker run --rm -p 8080:8080 --env-file packages/ui/.env.local explorer
+docker build -f packages/backend/Dockerfile -t explorer-backend .
 ```
 
-The image takes the same `VITE_MIDNIGHT_*` variables as `.env.local` (see
-[Midnight configuration](#midnight-configuration)) from its runtime environment, so one image serves
-every configuration. At start, `packages/ui/docker/30-explorer-env.sh` writes every `VITE_MIDNIGHT_*` variable
-it finds into `env.js`, which `index.html` loads before the app. `packages/ui/src/lib/explorer-env.ts` reads
-that object over the values inlined at build time, so a variable set on the container wins over one
-an env file held when the image was built, and an unset one leaves the build's value in place. The
-`env.js` in `packages/ui/public` sets nothing, so the dev server and GitHub Pages take the build's values alone. Any value a
-browser can read is public: a keyed RPC URL given to the container is served to its visitors.
+The UI's image serves the production build with nginx on port 8080 and takes its `VITE_` variables
+from the container's environment at start. The backend's image runs the backend on port 8080 and
+is meant for a Kubernetes deployment of one replica. Each package's README says how to run its
+image.
 
-The `docker-publish` workflow publishes the image to GitHub Packages on a release tag:
+The `docker-publish` workflow publishes the UI's image to GitHub Packages on a release tag:
 
 ```bash
 git tag v1.2.0-rc.1 && git push origin v1.2.0-rc.1
@@ -84,605 +155,18 @@ over as a run artifact, which only the publishing job pushes.
 
 ## GitHub Pages
 
-The `pages-deploy` workflow builds the app and deploys it to GitHub Pages, at
+The `pages-deploy` workflow builds the UI and deploys it to GitHub Pages, at
 <https://sig-net.github.io/explorer/>. There is one environment, so the release flow is short:
 merge `dev` into `main`, tag the commit on `main` as `vX.Y.Z`, and push the tag. The workflow runs
 for that tag form alone, and it fails before building anything when the tagged commit is not on
 `main`. Pages holds one site, so each deploy replaces the one before it.
 
-Two things make a single-page app work there:
-
-- The base path. The site lives under `/explorer/`, not at a domain root. The build reads the path
-  it is served under from `EXPLORER_BASE_PATH` (default `/`, and it must start and end with a
-  slash): Vite prefixes every emitted asset with it, the router takes it as its base path, and
-  `publicAssetUrl` in `packages/ui/src/lib/public-asset-url.ts` prefixes files from `packages/ui/public`. The workflow asks
-  GitHub for the site's base path, so a custom domain needs no change here. To try a sub-path build
-  locally:
-
-  ```bash
-  EXPLORER_BASE_PATH=/explorer/ yarn build && EXPLORER_BASE_PATH=/explorer/ yarn preview
-  ```
-
-- Deep links. Pages serves `404.html` for any path that is not a file, so the workflow copies
-  `index.html` to `404.html`. A link such as `/explorer/midnight/explorer?requestId=...` then loads
-  the app, which routes it. The response carries the status 404, which browsers show as one console
-  error and otherwise ignore.
-
-The deployment runs in the `github-pages` environment, whose deployment rules must allow release
-tags (a tag rule `v[0-9]*.[0-9]*.[0-9]*`). Under Settings, Pages, the source is "GitHub Actions".
-
-The footer shows the build's version. The workflow passes the release tag to the build as
-`EXPLORER_VERSION`. A build without that variable describes its checkout instead, as the latest
-release tag and the short commit (`v1.2.0-bc90655`), with `vX.X.X` standing in while the checkout
-has no release tag.
-
-Vite inlines `VITE_*` values at build time. The workflow builds from a clean checkout, where no
-`.env.local` exists, and sets no `VITE_` variable, so the site serves the SDK's published network
-defaults. It carries no Blockfrost project token either, so the site opens on preprod with no
-indexer until a visitor enters one in the configuration popover (see
-[Preprod and Blockfrost](#preprod-and-blockfrost)).
-
-## Canonical Tailwind classes
-
-`yarn lint` also checks that every Tailwind class is written in its canonical form, the check the
-Tailwind CSS IntelliSense extension surfaces as `suggestCanonicalClasses`. It comes from
-`eslint-plugin-better-tailwindcss`, which Oxlint loads as a JS plugin, and only that plugin's
-`enforce-canonical-classes` rule is switched on. A non-canonical class fails the run, and
-`yarn lint --fix` rewrites it: `[&>[data-slot=table-container]]:h-full` becomes
-`*:data-[slot=table-container]:h-full`.
-
-The rule reads the theme from `packages/ui/src/index.css`, so an arbitrary value that names a theme token is
-reported as well: `bg-[var(--color-clamshell-100)]` is flagged in favour of `bg-clamshell-100`.
-
-`packages/ui/src/components/ui` is exempt, since the shadcn CLI writes those files and they are not hand
-edited here.
-
-## Theme and palette
-
-`packages/ui/src/index.css` declares every sig.network colour scale (brand, clamshell, dark-neutral, the
-near-white tints, and the error, gray-blue, success and warning utility scales) as Tailwind theme
-tokens, so classes such as `bg-clamshell-100` or `text-dark-neutral-400` work anywhere. The shadcn
-semantic variables (`--background`, `--primary`, `--muted` and so on) are mapped onto those scales
-for light mode under `:root` and for dark mode under `.dark`.
-
-Dark mode is a class on the root element. `ThemeProvider` in `packages/ui/src/components/contexts/ThemeContext.tsx` reads the stored choice,
-falls back to the system preference, and the toggle in the app bar flips it and persists it in
-local storage.
-
-Typography follows the sig.network brand assets in Notion: Elza Text for interface text and
-Söhne Mono for hashes, identifiers and other technical content.
-
-- Elza Text is served by the sig.network Adobe Fonts kit, linked from `packages/ui/index.html`, and reached
-  through the `font-sans` utility (`--font-sans` in `packages/ui/src/index.css`). The kit provides weights 300
-  to 700 in upright and italic.
-- Söhne Mono is licensed from Klim Type Foundry. Its WOFF2 files live in `packages/ui/src/fonts` and are
-  declared with `@font-face` at the top of `packages/ui/src/index.css`, reached through the `font-mono`
-  utility. Weights 200 (Extraleicht), 300 (Leicht), 400 (Buch) and 500 (Kräftig) are included.
-
-Tailwind leaves buttons on the default cursor, and shadcn pins `cursor-default` on menu and select
-items. One unlayered rule at the end of `packages/ui/src/index.css` gives every enabled control a click
-activates (buttons, tabs, menu items, select options and their kin) the pointer cursor. Disabled
-controls keep their own cursor.
-
-To add a shadcn component, run the CLI from `packages/ui`, where `components.json` lives:
-
-```bash
-yarn dlx shadcn@latest add dropdown-menu
-```
-
-## Networks
-
-Supported networks are declared once in `packages/ui/src/lib/networks.ts`, which owns the id set, display labels
-and icon paths. Icons live in `packages/ui/public/icons`. Midnight and sig.network ship black and white
-variants, swapped by the dark class, and Solana uses one icon for both modes.
-
-## Midnight configuration
-
-`packages/ui/src/lib/midnight/network.ts` owns the list of Midnight networks (the `MidnightNetwork` enum
-from `@sig-net/midnight`), the default indexer, indexer websocket and node URLs for each, the MPC
-root public key and the Signet signer and responder addresses where the SDK publishes them, and the
-parser that turns a raw query value into a network.
-
-Signet runs as two contracts. Requester contracts notify the signer of their requests, and the
-signer emits the Sign Bidirectional Events. The MPC posts its responses through the responder, which
-emits the Signature Responded and Respond Bidirectional Events. The explorer reads both.
-
-A local `undeployed` stack generates its own MPC root public key and Signet signer and responder,
-so the SDK publishes none of them. To avoid re-entering them after every reload, put them in
-`packages/ui/.env.local` (ignored by git, and in the app's folder because Vite reads env files from
-there) and restart `yarn dev`, which also restarts on its own when the file
-changes:
-
-```dotenv
-VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY=0x04...
-VITE_MIDNIGHT_UNDEPLOYED_SIGNER_CONTRACT_ADDRESS=380b...
-VITE_MIDNIGHT_UNDEPLOYED_RESPONDER_CONTRACT_ADDRESS=4f1a...
-```
-
-The app opens on `preprod`. To open on another network, such as that local stack, name it in the
-same file:
-
-```dotenv
-VITE_MIDNIGHT_DEFAULT_NETWORK=undeployed
-```
-
-It takes a network id: `undeployed`, `preview`, `preprod` or `mainnet`. A `networkId` in the URL
-still wins over it.
-
-The key and the addresses become the `undeployed` defaults, so Reset Defaults returns to them. Unset
-variables leave the fields empty.
-
-Preprod is the network the explorer is populated for: it takes its MPC root public key, Signet
-signer and responder addresses and MPC output cache URL from the SDK. Preview and mainnet are listed
-with their endpoint defaults and empty Signet values, so they read no events until those are entered
-in the configuration popover.
-
-### Preprod and Blockfrost
-
-Preprod's public indexer and node are served by Blockfrost, and they answer only requests that carry
-a Blockfrost project token in a `project_id` query parameter. To get a token, create a project for
-Midnight Preprod at <https://blockfrost.io> and copy its project id. A token works on its own
-network only. Name it in `packages/ui/.env.local`:
-
-```dotenv
-VITE_MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID=preprod...
-```
-
-The preprod indexer, indexer websocket and node URLs then default to Blockfrost's, each carrying the
-token:
-
-| Field                 | Default                                                             |
-| --------------------- | ------------------------------------------------------------------- |
-| Indexer URL           | `https://midnight-preprod.blockfrost.io/api/v0?project_id=<token>`  |
-| Indexer WebSocket URL | `wss://midnight-preprod.blockfrost.io/api/v0/ws?project_id=<token>` |
-| Node URL              | `https://rpc.midnight-preprod.blockfrost.io?project_id=<token>`     |
-
-Without the variable those three fields are empty, and the app opens on preprod with no indexer:
-the explorer page says so and reads nothing until an indexer URL is entered in the configuration
-popover. A token holding whitespace stops the app from loading, and the error names the variable.
-
-**Warning:** every `VITE_` value ends up in the browser, inlined into the build or served in the
-Docker image's `env.js`, so anyone who can load the built app can read it, this token included.
-Keep the token to `.env.local` and local use unless publishing it is intended.
-
-To point preprod at another MPC deployment, such as one the SDK does not publish yet, name its
-values in the same file:
-
-```dotenv
-VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY=secp256k1:54hU...
-VITE_MIDNIGHT_PREPROD_SIGNER_CONTRACT_ADDRESS=c423...
-VITE_MIDNIGHT_PREPROD_RESPONDER_CONTRACT_ADDRESS=627e...
-VITE_MIDNIGHT_PREPROD_MPC_OUTPUT_CACHE_URL=https://storage.example/v1
-VITE_MIDNIGHT_PREPROD_SIGNET_EVENTS_FROM_BLOCK=3386746
-```
-
-Each is optional, and an unset variable keeps the SDK's value. They become the `preprod` defaults,
-so Reset Defaults returns to them. The last names the block the events of both contracts are read
-from (see [Signet signer and responder events](#signet-signer-and-responder-events)): a block
-height, 0 for the whole history. Unset, the explorer reads from the default window before the chain
-tip.
-
-The EVM RPC endpoints default to keyless public nodes, which do not serve `debug_traceTransaction`.
-To default to endpoints of your own on every network, name them in the same file:
-
-```dotenv
-VITE_MIDNIGHT_ETHEREUM_MAINNET_RPC_URL=https://mainnet.example/v3/<key>
-VITE_MIDNIGHT_ETHEREUM_SEPOLIA_RPC_URL=https://sepolia.example/v3/<key>
-```
-
-Each takes an http or https URL, and an unset variable keeps the public node for its chain. The
-browser calls the endpoint directly, so a key in the URL is readable by anyone the build is served
-to: keep keyed URLs to `.env.local` and local use.
-
-A value that is not a valid secp256k1 public key, 32-byte hex contract address, network id, http URL
-or Blockfrost project token stops the app from loading, and the error names the variable. Only
-variables prefixed `VITE_` reach the browser, and each one read is declared in `packages/ui/src/vite-env.d.ts`.
-
-`@sig-net/midnight` loads the Midnight onchain-runtime WebAssembly module through the Compact
-runtime. Vite's dependency optimizer cannot inline it, so `packages/ui/vite.config.ts` adds `vite-plugin-wasm`
-and keeps that package out of the prebundle. The rest of the SDK tree is still optimized, which
-matters because it includes CommonJS packages. `MidnightProvider` in
-`packages/ui/src/components/contexts/MidnightContext.tsx` is mounted at the root and exposes the selected network, the effective
-configuration (defaults plus any edits), the indexer services, and actions to edit or reset the
-configuration. Read it with the `useMidnight` hook from the same file. Edits live in memory only
-and are kept per network until the page reloads.
-
-The indexer services hold the Signet event source, which reads any Signet contract's events from
-the indexer's query URL directly. `packages/ui/src/lib/midnight/indexer-services.ts` owns them: they are rebuilt
-only when the effective indexer URL changes, so the same URL always yields the same event source,
-which is what the event store keys its loads on. They are `null` until the first build completes,
-just after the provider mounts, and stay `null` while the indexer URL is empty or blank.
-
-### WebAssembly and bundle weight
-
-The first page load carries one WebAssembly module, the 1.6MB onchain runtime
-(`@midnightntwrk/onchain-runtime-v4` 4.0.1), inside about 3.0MB of output. Keep it that way when
-adding Midnight features. The build also emits the 10.8MB Midnight ledger module
-(`@midnightntwrk/ledger-v9`), which only the lazy transaction inspection chunk references: the
-browser fetches it the first time a lifecycle row is expanded (see "Transaction inspection" below).
-`packages/ui/vite.config.ts` keeps both wasm packages out of the prebundle.
-`@midnight-ntwrk/midnight-js-indexer-public-data-provider` is the package to watch. A static import
-of it pulls in `@midnight-ntwrk/midnight-js-types`, which imports the Midnight ledger as runtime
-values. Measured at 5.0.0-beta.6, that added two builds of the ledger WebAssembly (20.8MB, one of
-them never fetched) plus Apollo Client, taking the output to 22.4MB. A feature that needs that
-provider, for example to read contract state, loads it with a dynamic `import()` inside the route
-that needs it, so the weight stays off the first page load. Check the `.wasm` files listed by `yarn
-build` after adding any Midnight dependency.
-
-The selected network is owned by the URL: every `/midnight` page carries `?networkId=<network>`.
-A missing or unknown value is rewritten to `preprod` before the page loads, and the route
-layout copies the validated value into the context. The cog at the right of the Midnight bar
-opens the configuration popover, where changing the network rewrites the query string of the
-current page.
-
-## Signet signer and responder events
-
-Once the indexer services exist and the selected network names a Signet signer and responder
-address, `MidnightSignetEventsProvider` in `packages/ui/src/components/contexts/MidnightSignetEventsContext.tsx`,
-mounted at the root inside `MidnightProvider`, loads every event both contracts have emitted from
-the configured starting block up to the chain tip read at page load. It reads that range in slices
-of an eighth of a day of blocks, newest slice first, so the latest requests show while the rest of
-the window is still arriving. Each slice goes through the SDK's `streamSignetEvents` once per
-contract, with `fromBlock` and `toBlock` bounds, an async generator that requests one indexer page
-of 100 events at a time. The two reads of a slice run side by side, and their events are merged by
-the indexer's event id, which is one cursor across contracts, so the merged list is in emission
-order. A slice joins the loaded events only once both reads of it have finished, and a failure of
-either fails the load. A signer and responder configured at one address are read once. Refresh
-reads the tip again and reloads the range up to it.
-
-With no indexer URL configured (preprod without a Blockfrost token, or a field cleared in the
-popover), no tip is read and nothing loads: the explorer page shows an alert saying how to configure
-one, and the starting block's status is `no-indexer`.
-
-The starting block is shown beside the load status, as Starting Block, and is the Signet Events
-From Block field of the configuration popover: a block height, 0 for the whole history, or empty
-for the default. The default is a window of two days of blocks before the chain tip, read from the
-indexer's latest block once per page load, and never before the earliest block
-`packages/ui/src/lib/midnight/network.ts` lists for the configured pair: the lower of the signer's and the
-responder's deployment blocks, as a contract has no events before it. The floor applies only while
-both addresses are listed, which today means preprod's published pair.
-`packages/ui/src/lib/midnight/signet-events-window.ts` holds the arithmetic: preprod's block time was measured
-at 6.0 seconds over the 100,000 blocks before block 3375000, so a day is 14,400 blocks and the
-window 28,800. Editing the Starting Block field (Enter or leaving it) and the button beside
-it, which reads from half a day of blocks (7,200) earlier, both set the configuration's value, so
-Reset Defaults returns to the window. Stepping back extends the loaded range downwards without
-reading the newer blocks again, and stops at the pair's listed earliest block, or zero. A link
-to a request (`?requestId=`) whose notification is not in the window steps the block back the same
-way, once the window is read, until the notification is found or the floor is reached. While that
-search runs and no row matches, the table shows a searching splash (a spinner and "Looking back
-through Sig Network events for this request") in place of "No requests match the search", which
-appears only once the search is over: the window is read and either the request was found or the
-floor leaves no step back. Before that, while the events are read and no row has arrived, the table
-shows a loading splash ("Loading Sig Network events") in place of "No requests yet", so the empty
-texts appear only once the read is over. `SpinnerSplash` in `packages/ui/src/components/spinner-splash.tsx` is
-the splash behind both, built from the shadcn `Empty` and `Spinner` components. The block
-belongs with the addresses beside it: another pair of contracts needs its own block, and a block
-above the one wanted hides events without any error.
-
-A lifecycle can hold responses and no request notification: the MPC answering a request notified
-on another Signet signer, or anyone posting a response for a request that never was. Its row says
-so in place of the request time, caller and duration, and the expanded notification section says
-what is missing. Those are verdicts, so they wait for the search: the window is read newest first
-and a response is posted about 15 minutes of foreign-chain finality after its request, so a linked
-request's response lands slices before its signature and notification do. While the search for the
-linked request continues, the row's request time, caller, signature and duration cells say
-"searching" beside a spinner, and the expanded notification and signature sections show the splash
-with "Still searching for event data". The SDK queries
-the indexer's GraphQL endpoint itself and selects each event's transaction, so every event arrives
-with its transaction hash and the height, hash and time of its block. Each event goes
-through the SDK's `tryDecodeSignetEvent`, which yields a union over the three Signet event names
-(SignBidirectionalEvent, SignatureRespondedEvent, RespondBidirectionalEvent) carrying the declared
-request id and the decoded record. `packages/ui/src/lib/midnight/signet-events.ts` adds the explorer's own
-policy on top: the explorer shows everything either contract emitted, so a name that is not a
-Signet event becomes an unrecognised entry and a payload that fails to decode becomes an
-undecodable entry that keeps the error. Every entry carries `roles`, the part the emitting contract
-is configured in (`signer`, `responder`, or both when one address is configured for both), and
-`source`, the event as the indexer served it: the event id, the transaction hash, and the block
-height, hash and timestamp.
-
-The events live in memory in `packages/ui/src/lib/midnight/signet-event-store.ts`, so switching tabs or moving
-between the Midnight and Solana pages does not reload them. Each slice is published as it arrives,
-with the range of blocks read so far. Loads are cached per indexer URL, signer address and
-responder address: switching networks and back reuses the completed set, a lower starting block
-extends a load downwards, and a new tip, address or indexer starts a fresh load and abandons any
-load that no longer matches. Only completed loads are kept. Each address typed into the
-configuration popover (Signet Signer Address and Signet Responder Address) reaches the store only
-once it is 32 bytes of hex, in canonical form (lowercase, `0x` prefix dropped), and the starting
-block once it is a whole number or empty, so a half-typed value starts no load and the popover marks
-the field invalid. The popover checks the MPC root public key the same way: any spelling the SDK
-accepts (SEC1 hex, compressed or uncompressed, or NEAR's `secp256k1:<base58>`) is valid, and
-anything else is marked. Networks without both addresses (preview, mainnet, and undeployed without
-the environment variables) stay unconfigured. Nothing is written to local storage.
-
-Read the state with the `useMidnightSignetEvents` hook from the same file as the provider. It
-returns the status (`unconfigured`, `loading`, `loaded` or `error`), the events, the lifecycles
-described below, the last and tip ids, the error message, and a `refresh` action that re-runs the
-backfill.
-
-### Sign bidirectional lifecycles
-
-Every published snapshot also carries `lifecycles`, a view of the events built by
-`packages/ui/src/lib/midnight/sign-bidirectional-lifecycle.ts`. It groups the decoded events by the request id
-they declare into one `SignBidirectionalLifecycle` each, with a list per event kind:
-`signBidirectionalEvents`, `signatureRespondedEvents` and `respondBidirectionalEvents`. Each is a
-list since the signer and responder are unauthenticated: nothing stops a kind being emitted twice
-under one request id, or a response being emitted for a request that never was, and the view keeps
-all of it so such cases can be seen. The grouping is by declared id only and verifies nothing.
-Events that did not decode declare no request id and are left out. Lifecycles are ordered newest
-first, by the indexer id of their earliest event.
-
-The Explorer tab renders them with `SignBidirectionalLifecycleTable` in
-`packages/ui/src/components/midnight/sign-bidirectional-lifecycle-table.tsx`, one row per lifecycle. The table
-fills the height the page has left below the search and status line, with a sticky header, and
-scrolls inside its body. The app shell in `packages/ui/src/routes/__root.tsx` is exactly one viewport tall, which is
-what gives the table a height to fill. Times are block times as
-`DD-MM-YY HH:MM:SS` in the browser's time zone, a cell lists at most three entries before an ellipsis, each signature
-time carries how long after the request it came, a clock marks a signature or response that has
-not arrived (hovering it says what is being waited for), and Duration runs from the first request
-to the first response. A row of the request a link points at shows "searching" in place of a
-missing request time, caller, signature or duration while older blocks are still being read for
-them. Hovering a truncated request id or caller shows the full value, and the copy button
-beside it puts the full value on the clipboard. The eye button after a caller's copy button hides
-all requests from that caller, which adds it to the excluded callers in the filter panel. The link button beside a request id copies a URL
-to share, naming the selected network and that request, which opens the explorer on that request
-alone, and the button after it opens that URL in a new tab. The search box filters
-rows as you type by a fragment of the request id or of a caller contract address. The display
-formatters live in `packages/ui/src/lib/format.ts`.
-
-The filter button at the end of the header row opens a panel under the header, shows as pressed
-while the panel is open, and carries a bright bubble with the number of active filters (the
-excluded callers) while there are any. Hovering it says how many filters are active, or "Show more
-filters" when none is. Its Exclude callers box takes a caller contract address, typed in
-full or picked from the callers seen so far as the typed fragment narrows them (a `0x` prefix and
-letter case are ignored), and Enter, the button beside the box or a pick excludes it. Each excluded
-caller is a chip whose cross lets it back in. A request from an excluded caller is left out of the
-rows and of the status line's matching counts. The excluded callers are the `excludeCallers` query
-parameter, a comma-separated list of addresses, so the page opens with the filter a link names
-and every change to the filter rewrites the address bar. The panel is `ExcludedCallersFilter` in
-`packages/ui/src/components/midnight/excluded-callers-filter.tsx`, built from the shadcn `Combobox`, `Badge`
-and `Toggle` components, and `signBidirectionalLifecycleCalledBy` in the lifecycle module decides
-the exclusion.
-
-Expanding a row shows one section per event kind, with a numbered tab per event: the contract that
-emitted it, as a Signet Signer or Signet Responder badge, and where the event was emitted
-(transaction hash, block hash, block height, block time), then every field of its decoded record. A
-kind with no event shows a clock, the notification section its explanation of what is missing, and,
-while the search for a linked request continues, both the notification and signature sections the
-searching splash instead.
-
-### Transaction inspection
-
-The Sign Bidirectional Notification section also shows what the emitting transaction did, read
-from the transaction's own bytes. `packages/ui/src/lib/midnight/sign-bidirectional-transaction-loader.ts`
-fetches the raw transaction from the indexer by hash and hands it to
-`packages/ui/src/lib/midnight/sign-bidirectional-transaction-inspection.ts`, which deserialises it with the
-Midnight ledger and returns two things:
-
-- The call chains. Every contract call carries its entry point name and address. A caller's
-  transcript claims each call it makes by callee address, entry point hash and communication
-  commitment, and a call matching all three is nested under its caller. Calls nobody claims are
-  the top level calls, and each is listed as its own chain, separated by a divider.
-- The request at the requests path. The caller's transcript holds the map insert that stores the
-  request: the write whose path equals the notification's requests path and whose key equals the
-  request id. Its value is decoded with the SDK's `decodeEvmType2SignBidirectionalEvent` and shown
-  as JSON (`packages/ui/src/lib/midnight/sign-bidirectional-event-json.ts`: bytes as hex, text fields as text,
-  integers as numbers while exactly representable) in a viewport that scrolls both ways.
-
-Above the JSON, the Signing Key and Signing Key Address lines show the request signing key, the key
-the MPC derives for the request's `sender` and `path` and signs the requested transaction with: its
-public key as uncompressed SEC1 hex, and that key's EVM address.
-`packages/ui/src/lib/midnight/request-signing-key.ts` derives both from the configured MPC root public key
-with the SDK's `deriveSignBidirectionalEventSigningKey` and
-`deriveSignBidirectionalEventSignerEvmAddress`, so the Signing Key line asks for a valid root key
-while the configuration holds none.
-Each of the two labels has an info icon whose tooltip says what the value is and how the two differ.
-The address carries a link to its Etherscan page (`packages/ui/src/lib/midnight/evm-block-explorer.ts`):
-Etherscan when the selected Midnight network is mainnet, Sepolia Etherscan for every other network.
-
-The JSON viewport resizes vertically by dragging its bottom right corner (the browser's own resize
-grip). Two buttons float in the bottom right corner of the viewport
-(`packages/ui/src/components/midnight/sign-bidirectional-request-json.tsx`): one copies the whole JSON, indented,
-and one opens the same tree in a dialog sized to 90% of the window.
-
-Results are cached per indexer URL, transaction and request id for the life of the page, since a
-finalised transaction never changes. The inspection's test runs against a real preprod
-transaction kept in `sign-bidirectional-transaction-inspection.fixture.ts`, a `sendDeposit` whose
-nested `signBidirectional` call goes to the preprod signer, and checks that the request record it
-finds hashes to the request id the signer's event declares.
-
-### Signature check
-
-The Signet contracts' events are unauthenticated: anyone can post a Signature Responded Event
-declaring any request id. Under each posted signature, the Signature Check list judges it against
-every Sign Bidirectional Notification of the same request id, numbered as the notification tabs are.
-For each notification it takes the request record from the transaction inspection, derives that
-request's signing key, and asks the SDK's `verifySignatureRespondedEvent` whether the signature,
-over the transaction the request describes, recovers to that key
-(`packages/ui/src/lib/midnight/signature-check.ts`). A line reads "valid for key" or "not valid for key" with
-the key it was judged against. A notification whose transaction stores no request has nothing to
-check.
-
-A valid line also carries the EVM transaction hash, with a link to the transaction on Etherscan. The
-hash is the Keccak-256 of the signed transaction's bytes, signature included, so it exists only for
-a request paired with a signature, never for a request alone, and it is shown only where that
-signature is valid. The SDK's `signBidirectionalEventToSignedEvmTransaction` assembles the signed
-transaction. The hash says what the transaction's id is, not that anyone broadcast it: Etherscan
-finds nothing for a signed transaction that was never sent.
-
-Next comes the Signed Txn line: the raw signed transaction, as the hex a node's
-`eth_sendRawTransaction` takes, with a copy button.
-
-Below the hash, the On Chain line asks an EVM RPC node what became of the transaction, with a
-spinner while it waits and a button to ask again (`packages/ui/src/lib/midnight/evm-transaction-status.ts`). The
-node is chosen by the request's own `txParams.chainId`: the configuration holds one endpoint for
-Ethereum mainnet (chain 1) and one for Sepolia (chain 11155111), both defaulting to keyless public
-endpoints that accept calls from a browser, or to the ones the environment names, and both editable
-in the Midnight configuration popover.
-A request for any other chain says it has no endpoint.
-
-| Node reports                                         | Line                                                          |
-| ---------------------------------------------------- | ------------------------------------------------------------- |
-| A receipt with status 1                              | submitted, succeeded, with block, confirmations and finality  |
-| A receipt with status 0                              | submitted, reverted, with block, confirmations and finality   |
-| No receipt, and it holds the transaction in a block  | included with an unknown outcome: the node pruned the receipt |
-| No receipt, and it holds the transaction in no block | submitted, waiting for a block                                |
-| Nothing, and the sender's nonce has passed it        | not found, and another transaction has used its nonce         |
-| Nothing                                              | not found by this node, with the submittable verdict below    |
-| An error, or no answer                               | could not check, with the reason                              |
-
-A transaction the node does not know, whose nonce is still free, gets a verdict: "still
-submittable", or "not submittable as things stand" with the reasons. The reasons are a gap before
-its nonce (the sender's next nonce is lower), a balance below the gas limit at the maximum fee plus
-the value, and a maximum fee below the latest block's base fee. Beside the verdict, a link opens
-Etherscan's broadcast page with the signed transaction filled in
-(`etherscanBroadcastUrl` in `packages/ui/src/lib/midnight/evm-block-explorer.ts`). The explorer itself never
-broadcasts: the visitor sends from Etherscan's page. Broadcasting is permanent, and a signed
-transaction can be sent by anyone who holds it.
-
-A mined transaction is laid out as a block explorer does: a status badge, the block with its
-confirmations and finality as badges, and how long ago it was included with the exact local time.
-That time is the block's timestamp, since the chain does not record when a transaction was first
-sent. Confirmations count the blocks from the transaction's block to the node's head, both included, and
-a transaction is finalised when its block is at or below the node's `finalized` block. The line is
-best effort and its info icon says so: it is one node's view, "not found" and "could not check"
-never mean "not submitted", and a block can still be reorganised away until it is finalised. Public
-endpoints are rate limited and see only their own pending pool, so set a keyed endpoint when the
-answer matters.
-
-### Attestation check
-
-A Respond Bidirectional Event is the MPC's attestation of what the foreign transaction did. It
-declares the request id, the height of the finalised target-chain block, an output kind, the byte
-width and hash of the serialised output and the digest the signature is over, followed by the
-signature. The output kind is the MPC's verdict:
-
-| Output kind | Meaning                                                                      |
-| ----------- | ---------------------------------------------------------------------------- |
-| Executed    | The transaction was finalised and succeeded                                  |
-| Failed      | The transaction was finalised and reverted, and the output is empty          |
-| Unviable    | Another signet request's transaction took the nonce, and the output is empty |
-
-The event's own fields are shown as declared, and the responder emits them unverified. Under each
-event, the Attestation Check judges it in two steps (`packages/ui/src/lib/midnight/attestation-check.ts`).
-
-The first step needs nothing from the foreign chain. The response key is derived with the SDK's
-`deriveMidnightResponseKey` from the configured MPC root public key and the notification's caller
-address, under the reserved path "midnight response key". It is fixed for a contract, and it is
-shown on every line that has a valid root key. The SDK's `verifyRespondBidirectionalAttestation`
-then says whether the signature is by that key over the request id, block height, output kind,
-output width and output hash the event declares. A line reads "valid for response key" or "not
-valid for response key", and a valid line states the verdict in words with the target block height,
-since both are covered by the signature.
-
-The second step, for a valid attestation that declares output bytes, obtains those bytes and asks
-the SDK's `verifyAttestedOutput` whether they have the declared width and hash. An attestation
-that declares a width of zero is over no bytes, so nothing is obtained for it: every failed and
-unviable attestation, and an executed one whose transaction returns nothing. The bytes come from:
-
-- The MPC's output cache. The MPC writes each request's attested bytes to a public bucket before
-  it posts the attestation, at `<cache URL>/<network id>/<signer address>/<request id>.bin`, under
-  the Signet signer's address, not the responder's.
-  The SDK's `MpcOutputCacheReader` reads it (`packages/ui/src/lib/midnight/mpc-output-cache.ts`) from the
-  MPC Output Cache URL in the configuration, which defaults to the one the SDK publishes for the
-  network and is empty where it publishes none. The bytes come serialised, so this route shows no
-  decoded output.
-- A trace of the transaction. The signed transaction's hash comes from the valid signature
-  responses, and its top call frame is read with `debug_traceTransaction` from the EVM RPC endpoint
-  configured for the request's chain (`packages/ui/src/lib/midnight/evm-transaction-output.ts`). The SDK reads
-  the frame by the MPC's own rules (`evmTraceOutputFromCallFrame`) and rebuilds the attested bytes
-  from it (`executedEvmRespondOutput`): the return data decoded by the request's output
-  deserialisation schema, then Borsh serialised with one member per schema field. `deserializeEvmOutput`
-  gives the decoded output that is shown beside the bytes.
-
-| Finding                                                 | Line                                                                            |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| The signature is not by the response key                | not valid, with the reason                                                      |
-| The signature is valid and the output declares no bytes | valid, with the verdict and no attested bytes                                   |
-| The obtained bytes have the declared width and hash     | valid, with the attested bytes and their source                                 |
-| The obtained bytes differ in width or hash              | valid, and the output from that source is not the attested one, with the reason |
-| The attestation declares bytes and none were obtained   | valid, and attested bytes not obtained, with both reasons                       |
-
-A trace whose top call errored yields no executed output, so it counts as an output that is not the
-attested one. Hosted nodes often gate `debug_traceTransaction`, the default public endpoints among
-them, so without the cache the bytes of an executed attestation are obtained only once the
-configuration names an endpoint that serves it. The bucket must allow cross-origin reads: a browser
-cannot read an object from a bucket without a CORS policy, whatever the object's status. The tab of
-an event with a valid attestation is green, as the tab of a valid signature response is.
-
-## Local SDK link
-
-The explorer depends on the published `@sig-net/midnight`. To try SDK changes that are not
-released yet, link a local checkout of the `sig-net/midnight-integration` repository. The link is a
-local arrangement and is never committed.
-
-Add `portal:` resolutions to the root `package.json` for the SDK and for its sibling
-`@sig-net/midnight-serde`, which the SDK depends on as a workspace package, beside the
-resolutions already there. Paths are relative to this repository, here for a checkout named
-`midnight-integration` sitting beside it:
-
-```json
-"resolutions": {
-  "@sig-net/midnight": "portal:../midnight-integration/packages/signet-midnight",
-  "@sig-net/midnight-serde": "portal:../midnight-integration/packages/midnight-serde-ts"
-}
-```
-
-Then install:
-
-```bash
-yarn install
-```
-
-A portal consumes the SDK as TypeScript source, and the SDK declares enums, so set
-`erasableSyntaxOnly` to `false` in `packages/ui/tsconfig.app.json` while the link is in place. Vite erases the
-enums, and the published package is unaffected since it ships compiled JavaScript. To return to the
-published package, remove the two resolutions, restore `erasableSyntaxOnly`, and run `yarn install`
-again.
-
-Yarn holds back any package published within the last 24 hours. `.yarnrc.yml` pre-approves the
-`@sig-net` scope, so a fresh SDK release installs at once while every other package keeps that
-protection.
-
-## Routing
-
-Files under `packages/ui/src/routes` map to URLs by name: `index.tsx` is `/`, `solana.tsx` is `/solana`,
-and `__root.tsx` is the layout every route renders inside. `index.tsx` renders nothing: it
-redirects `/` to `/midnight` with the default network, and bare `/midnight` redirects on to
-`/midnight/explorer`, so a visitor landing on the site arrives at the Midnight explorer.
-`midnight.tsx` is the layout for every
-`/midnight` page: it renders the Midnight bar with the Explorer and Contract Analyser tabs, and
-the files under `packages/ui/src/routes/midnight` are the tab pages. The Solana page carries a coming soon
-banner while its explorer is being built. The switcher in the top app bar navigates between
-network roots, and the
-current network is derived from the first path segment, so loading a network URL directly selects
-that network. The Vite plugin regenerates
-`packages/ui/src/routeTree.gen.ts` whenever a route file changes. That file is committed so a fresh
-checkout type-checks before the first dev server run, and it is excluded from lint and
-format.
-
-The explorer page takes an optional `requestId` query parameter, so a request can be linked to:
-`/midnight/explorer?networkId=preprod&requestId=<64 hex digits>`. It fills the search box, which
-filters the table to that request and opens its row. The parameter is a link target and nothing more: the box also
-searches caller addresses, so the first edit to the box removes the parameter from the address bar.
-A value that is not a request id is dropped from the URL, and one spelled with `0x` or capitals is
-rewritten in canonical form.
-
-The page also takes an optional `excludeCallers` query parameter, a comma-separated list of caller
-contract addresses whose requests the filter panel hides:
-`/midnight/explorer?networkId=preprod&excludeCallers=<64 hex digits>,<64 hex digits>`. The
-parameter is the filter's value: the panel opens with those callers excluded, and excluding or
-restoring a caller rewrites it. Entries that are not contract addresses are dropped, duplicates are
-kept once, and `0x`, capitals and spaces are rewritten in canonical form.
-
-A row that is the only result of a search starts expanded, whether the search came from a link or
-was typed, and it collapses again when the search widens. A row toggled by hand keeps that choice.
-Without a search nothing opens by itself: while the page loads, the first request to arrive is
-briefly the only row.
-
-Route components are code split automatically, so each route ships as its own chunk.
-
-## Tests
-
-Test files match `packages/ui/src/**/*.test.tsx` and run in a real browser. Render with `render` from
-`vitest-browser-react`, query with `page` from `vitest/browser`, and assert with
-`expect.element`, which retries until the assertion passes or times out.
+The site is served under `/explorer/`, which the workflow passes to the build as
+`EXPLORER_BASE_PATH`, and the workflow copies `index.html` to `404.html` so that a deep link loads
+the app. [packages/ui/README.md](packages/ui/README.md) explains both. The deployment runs in the
+`github-pages` environment, whose deployment rules must allow release tags (a tag rule
+`v[0-9]*.[0-9]*.[0-9]*`). Under Settings, Pages, the source is "GitHub Actions".
+
+Vite inlines `VITE_` values at build time, and the site reaches its backend only when the build
+sets `VITE_EXPLORER_API_URL`. The backend must then list `https://sig-net.github.io` in its
+`EXPLORER_CORS_ORIGINS`.
