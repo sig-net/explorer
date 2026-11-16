@@ -238,3 +238,21 @@ for the planner of stage 04, from 03.4: the lifecycle event count is written twi
 
 ## 79 ACCEPT 03.4
 merged bernard-03-4 as 47ac04e
+
+## 80 DISPATCH 03.5
+model fable, branch bernard-03-5, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-03-5
+
+## 81 DISPATCH 03.6
+model fable, branch none, worktree /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol
+
+## 82 REPORT 03.5
+DONE, kept in reports/03.5-1.md
+
+## 83 CHECK 03.5
+PASS, exit 0 at b885362, output in evidence/03.5-1.txt
+
+## 84 PACK
+split backend.md, over its budget: the facts about the api package and the schema as built are the new pack contract.md, added to every step of stages 04 and 05 that reads backend
+
+## 85 ACCEPT 03.5
+merged bernard-03-5 as 24b9136
