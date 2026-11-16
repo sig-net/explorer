@@ -13,6 +13,7 @@ import {
   ExplorerApiError,
   type ExplorerService,
   type InspectedSignBidirectionalLifecycle,
+  type LifecyclePage,
 } from './service.ts'
 import {
   createInMemoryExplorerService,
@@ -258,6 +259,46 @@ describe('the client over the routes', () => {
     expect(withoutSecondCaller.matchingRequests).toBe(5)
   })
 
+  it('a page counts the events of the matching requests', async () => {
+    const eventsOf = (page: LifecyclePage): number =>
+      page.lifecycles.reduce(
+        (count, lifecycle) =>
+          count +
+          lifecycle.signBidirectionalEvents.length +
+          lifecycle.signatureRespondedEvents.length +
+          lifecycle.respondBidirectionalEvents.length,
+        0,
+      )
+    const all = await client.lifecycles(PREPROD)
+    // Two of the twelve events of the seed belong to no request.
+    expect(all.totalEvents).toBe(12)
+    expect(all.matchingEvents).toBe(10)
+    expect(all.matchingEvents).toBe(eventsOf(all))
+
+    const searched = await client.lifecycles(PREPROD, {
+      search: EXPLORER_SEED_CASES.completeCaller.slice(10, 30),
+    })
+    expect(searched.matchingRequests).toBe(2)
+    expect(searched.matchingEvents).toBe(4)
+    expect(searched.matchingEvents).toBe(eventsOf(searched))
+
+    const excluded = await client.lifecycles(PREPROD, {
+      excludeCallers: [EXPLORER_SEED_CASES.notifiedTwiceCallers[1]],
+    })
+    expect(excluded.matchingRequests).toBe(5)
+    expect(excluded.matchingEvents).toBe(7)
+    expect(excluded.matchingEvents).toBe(eventsOf(excluded))
+
+    const firstPage = await client.lifecycles(PREPROD, { limit: 2 })
+    expect(firstPage.nextBefore).not.toBeNull()
+    expect(eventsOf(firstPage)).toBeLessThan(10)
+    expect(firstPage.matchingEvents).toBe(10)
+    const lastPage = await client.lifecycles(PREPROD, { limit: 2, before: 6 })
+    expect(lastPage.lifecycles).toHaveLength(2)
+    expect(lastPage.matchingEvents).toBe(10)
+    expect((await client.lifecycles(PREPROD, { before: 2 })).matchingEvents).toBe(10)
+  })
+
   it('answers 404 for an unknown network and an unknown request', async () => {
     const unknownRequestId = parseRequestIdHex('ab'.repeat(32))
     for (const path of ['lifecycles', `lifecycles/${unknownRequestId}`, 'callers']) {
@@ -426,6 +467,7 @@ describe('the seed', () => {
       lifecycles: [],
       nextBefore: null,
       matchingRequests: 0,
+      matchingEvents: 0,
       totalRequests: 0,
       totalEvents: 0,
     })

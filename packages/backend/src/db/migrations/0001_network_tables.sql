@@ -42,7 +42,6 @@ CREATE INDEX events_request_id_id ON events (request_id, id);
 CREATE TABLE requests (
   request_id text PRIMARY KEY CHECK (request_id ~ '^[0-9a-f]{64}$'),
   first_event_id bigint NOT NULL REFERENCES events (id),
-  caller text CHECK (caller ~ '^[0-9a-f]{64}$'),
   first_requested_at timestamptz,
   first_signature_at timestamptz,
   first_response_at timestamptz,
@@ -53,7 +52,16 @@ CREATE TABLE requests (
 
 CREATE INDEX requests_first_event_id ON requests (first_event_id DESC);
 CREATE INDEX requests_request_id_trgm ON requests USING gin (request_id public.gin_trgm_ops);
-CREATE INDEX requests_caller_trgm ON requests USING gin (caller public.gin_trgm_ops);
+
+-- One row for each caller contract address a notification of the request names.
+CREATE TABLE request_callers (
+  request_id text NOT NULL REFERENCES requests (request_id),
+  caller text NOT NULL CHECK (caller ~ '^[0-9a-f]{64}$'),
+  PRIMARY KEY (request_id, caller)
+);
+
+CREATE INDEX request_callers_caller_request_id ON request_callers (caller, request_id);
+CREATE INDEX request_callers_caller_trgm ON request_callers USING gin (caller public.gin_trgm_ops);
 
 -- Each element of `events` is one event of the API's lifecycle, in emission order.
 CREATE VIEW lifecycle AS

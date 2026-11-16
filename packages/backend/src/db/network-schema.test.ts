@@ -125,6 +125,15 @@ async function seedEvents(
     WHERE e.request_id IS NOT NULL
     GROUP BY e.request_id
   `.execute(database.db)
+  for (const event of events) {
+    if (event.kind === 'decoded' && event.name === SignetEventName.SignBidirectionalEvent) {
+      await networkDb(database.db, network)
+        .insertInto('request_callers')
+        .values({ request_id: event.requestId, caller: event.record.callerAddress })
+        .onConflict((conflict) => conflict.doNothing())
+        .execute()
+    }
+  }
 }
 
 /** The same event, emitted by `transactionHash` in the block of `block`. */
@@ -203,6 +212,139 @@ describe('a network schema', () => {
       SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'
     `.execute(database.db)
     expect(extensions.rows).toHaveLength(1)
+  })
+})
+
+describe('the callers of a request', () => {
+  it('the store keeps every caller of a request', async () => {
+    const requestId = 'a1'.repeat(32)
+    const firstCaller = 'c0'.repeat(32)
+    const secondCaller = 'c1'.repeat(32)
+    await migrateNetworkSchema(database.db, PREPROD)
+    await seedEvents(
+      PREPROD,
+      [
+        notificationEvent(1, Buffer.from(requestId, 'hex'), Buffer.from(firstCaller, 'hex'), 1),
+        notificationEvent(2, Buffer.from(requestId, 'hex'), Buffer.from(secondCaller, 'hex'), 2),
+      ],
+      new Map(),
+    )
+    const db = networkDb(database.db, PREPROD)
+
+    const requests = await db.selectFrom('requests').select('request_id').execute()
+    const requestsOf = async (fragment: string): Promise<string[]> => {
+      const rows = await db
+        .selectFrom('request_callers')
+        .select('request_id')
+        .where('caller', 'like', `%${fragment}%`)
+        .execute()
+      return rows.map((row) => row.request_id)
+    }
+    const callers = await db
+      .selectFrom('request_callers')
+      .select('caller')
+      .distinct()
+      .orderBy('caller')
+      .execute()
+
+    expect(requests).toEqual([{ request_id: requestId }])
+    expect(await requestsOf('c0c0c0')).toEqual([requestId])
+    expect(await requestsOf('c1c1c1')).toEqual([requestId])
+    expect(callers).toEqual([{ caller: firstCaller }, { caller: secondCaller }])
+  })
+
+  it('a caller search reads no table in full', { timeout: 120_000 }, async () => {
+    await migrateNetworkSchema(database.db, PREPROD)
+    await sql`
+      INSERT INTO ${table(PREPROD, 'transactions')} (hash, block_height, block_hash, block_time)
+      SELECT
+        decode(lpad(to_hex(n), 64, '0'), 'hex'),
+        n,
+        decode(lpad(to_hex(n), 64, 'b'), 'hex'),
+        timestamptz '2026-09-07T12:00:00Z' + n * interval '6 seconds'
+      FROM generate_series(1, 20000) AS n
+    `.execute(database.db)
+    await sql`
+      INSERT INTO ${table(PREPROD, 'events')}
+        (id, transaction_hash, contract_roles, name, payload, request_id)
+      SELECT
+        n,
+        decode(lpad(to_hex(n), 64, '0'), 'hex'),
+        ARRAY['signer'],
+        'SignBidirectionalEvent',
+        '\\x00',
+        'aa' || lpad(to_hex(n), 62, '0')
+      FROM generate_series(1, 20000) AS n
+    `.execute(database.db)
+    await sql`
+      INSERT INTO ${table(PREPROD, 'requests')} (request_id, first_event_id)
+      SELECT 'aa' || lpad(to_hex(n), 62, '0'), n
+      FROM generate_series(1, 20000) AS n
+    `.execute(database.db)
+    // Request n has one of 1,000 callers, and every third request one of two others as well.
+    await sql`
+      INSERT INTO ${table(PREPROD, 'request_callers')} (request_id, caller)
+      SELECT 'aa' || lpad(to_hex(n), 62, '0'), md5('first ' || n % 1000) || md5('caller ' || n % 1000)
+      FROM generate_series(1, 20000) AS n
+      UNION ALL
+      SELECT 'aa' || lpad(to_hex(n), 62, '0'), md5('second ' || (n / 3) % 2) || repeat('d', 32)
+      FROM generate_series(3, 20000, 3) AS n
+    `.execute(database.db)
+    // VACUUM writes the statistics the planner costs a GIN index from.
+    await sql`VACUUM (ANALYZE)`.execute(database.db)
+    const callersOfNewest = await networkDb(database.db, PREPROD)
+      .selectFrom('request_callers')
+      .select('caller')
+      .where('request_id', '=', 'aa' + (19923).toString(16).padStart(62, '0'))
+      .orderBy('caller')
+      .execute()
+    const [firstCaller, secondCaller] = callersOfNewest
+      .map((row) => row.caller)
+      .toSorted((a, b) => Number(a.endsWith('d')) - Number(b.endsWith('d')))
+    if (firstCaller === undefined || secondCaller === undefined) {
+      throw new Error('request 19923 has fewer than two callers')
+    }
+
+    // The first caller of request 19923 is the one of the 20 requests 923, 1923, and so on.
+    const matching = networkDb(database.db, PREPROD)
+      .selectFrom('lifecycle')
+      .selectAll()
+      .where((eb) =>
+        eb.exists(
+          eb
+            .selectFrom('request_callers')
+            .select('request_callers.caller')
+            .whereRef('request_callers.request_id', '=', 'lifecycle.request_id')
+            .where('request_callers.caller', 'like', `%${firstCaller.slice(20, 44)}%`),
+        ),
+      )
+      .orderBy('first_event_id', 'desc')
+      .limit(50)
+    // Seven of those 20 requests have the second caller of request 19923, and 18923 has none.
+    const withoutOneCaller = matching.where((eb) =>
+      eb.not(
+        eb.exists(
+          eb
+            .selectFrom('request_callers')
+            .select('request_callers.caller')
+            .whereRef('request_callers.request_id', '=', 'lifecycle.request_id')
+            .where('request_callers.caller', '=', secondCaller),
+        ),
+      ),
+    )
+
+    for (const [query, newest, count] of [
+      [matching, 19923, 20],
+      [withoutOneCaller, 18923, 13],
+    ] as const) {
+      const rows = await query.execute()
+      const plan = (await query.explain()).map((line) => line['QUERY PLAN']).join('\n')
+      expect(rows).toHaveLength(count)
+      expect(rows[0]?.first_event_id).toBe(newest)
+      expect(rows.every((row) => row.events.length === 1)).toBe(true)
+      expect(plan).toContain('request_callers_caller_trgm')
+      expect(plan).not.toContain('Seq Scan')
+    }
   })
 })
 
@@ -341,7 +483,6 @@ describe('the lifecycle view', () => {
       {
         request_id: requestId,
         first_event_id: 7,
-        caller: null,
         first_requested_at: null,
         first_signature_at: null,
         first_response_at: response.source.blockTimestamp,
@@ -392,8 +533,8 @@ describe('the lifecycle view', () => {
       FROM generate_series(1, 60000) AS n
     `.execute(database.db)
     await sql`
-      INSERT INTO ${table(PREPROD, 'requests')} (request_id, first_event_id, caller)
-      SELECT 'aa' || lpad(to_hex(n), 62, '0'), n * 3 - 2, lpad(to_hex(n % 7), 64, 'c')
+      INSERT INTO ${table(PREPROD, 'requests')} (request_id, first_event_id)
+      SELECT 'aa' || lpad(to_hex(n), 62, '0'), n * 3 - 2
       FROM generate_series(1, 20000) AS n
     `.execute(database.db)
     await sql`ANALYZE`.execute(database.db)
