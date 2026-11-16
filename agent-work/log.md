@@ -724,3 +724,9 @@ For the closing report, from 05.9: a network's row is written before the first r
 
 ## 241 ACCEPT 05.9
 merged bernard-05-9 as 17fc60e
+
+## 242 CHECK 05-integrate
+PASS, exit 0 at 35fb194, output in evidence/05-integrate-1.txt
+
+## 243 CHECKPOINT 05-integrate
+stage done at 35fb194
