@@ -10,31 +10,31 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { migrateNetworkSchema, wipeNetworkSchema } from '../db/migrate.ts'
 import { networkDb, type StoredInspection } from '../db/schema.ts'
 import { createTestDatabase, seedNetworkEvents, type TestDatabase } from '../db/testing.ts'
-import {
-  createInMemoryMidnightSource,
-  type InMemoryBlock,
-  type InMemoryMidnightSource,
-} from '../source/in-memory.ts'
-import type { MidnightSource, SourceBlockRange, SourceSignetEvent } from '../source/port.ts'
+import { createInMemoryMidnightSource } from '../source/in-memory.ts'
+import type { MidnightSource, SourceBlockRange } from '../source/port.ts'
 import {
   type IngestCycleOutcome,
   type IngestCycleSettings,
   type InspectTransaction,
   runIngestCycle,
 } from './ingest-cycle.ts'
+import {
+  at,
+  blockOf,
+  chainOf,
+  FIRST_BLOCK,
+  GENESIS_HASH,
+  inspectedWithoutCells,
+  rawOf,
+  SETTINGS,
+  sourceEventOf,
+  transactionHashOf,
+  blockHash,
+  blockTime,
+} from './testing.ts'
 
-const NETWORK = MidnightNetwork.Preprod
+const NETWORK = SETTINGS.network
 const REBUILD_NETWORK = MidnightNetwork.Preview
-const GENESIS_HASH = '9e'.repeat(32)
-const FIRST_BLOCK = 1001
-const SETTINGS: IngestCycleSettings = {
-  network: NETWORK,
-  signerContractAddress: 'a0'.repeat(32),
-  responderContractAddress: 'b0'.repeat(32),
-  startBlock: FIRST_BLOCK,
-  maxRange: 100,
-  tipMargin: 2,
-}
 
 const REQUEST_A = new Uint8Array(32).fill(0xa1)
 const REQUEST_B = new Uint8Array(32).fill(0xb2)
@@ -62,81 +62,6 @@ beforeEach(async () => {
   await migrateNetworkSchema(database.db, NETWORK)
 })
 
-/** An event of the lifecycle fixture, to be emitted in the block at `height`. */
-interface PlacedEvent {
-  readonly height: number
-  readonly event: SignetContractEvent
-  /** The fixture's own hash when omitted: one transaction for each event. */
-  readonly transactionHash?: string
-}
-
-function at(height: number, event: SignetContractEvent, transactionHash?: string): PlacedEvent {
-  return transactionHash === undefined ? { height, event } : { height, event, transactionHash }
-}
-
-function blockHash(height: number, fork = 0): string {
-  return `${fork.toString(16).padStart(2, '0')}${height.toString(16).padStart(62, '0')}`
-}
-
-function blockTime(height: number): Date {
-  return new Date(Date.UTC(2026, 8, 7, 12, 0, 0) + height * 6000)
-}
-
-function transactionHashOf(placed: PlacedEvent): string {
-  return placed.transactionHash ?? placed.event.source.transactionHash
-}
-
-function rawOf(transactionHash: string): string {
-  return `aa${transactionHash.slice(-6)}`
-}
-
-function sourceEventOf(placed: PlacedEvent, fork = 0): SourceSignetEvent {
-  return {
-    roles: placed.event.roles,
-    source: {
-      ...placed.event.source,
-      transactionHash: transactionHashOf(placed),
-      blockHeight: placed.height,
-      blockHash: blockHash(placed.height, fork),
-      blockTimestamp: blockTime(placed.height),
-    },
-  }
-}
-
-/** The block at `height` with the events placed in it, serving every transaction but `withoutRaw`. */
-function blockOf(
-  height: number,
-  placed: readonly PlacedEvent[],
-  fork = 0,
-  withoutRaw: readonly string[] = [],
-): InMemoryBlock {
-  const mine = placed.filter((event) => event.height === height)
-  return {
-    height,
-    hash: blockHash(height, fork),
-    time: blockTime(height),
-    events: mine.map((event) => sourceEventOf(event, fork)),
-    rawTransactions: Object.fromEntries(
-      mine
-        .map(transactionHashOf)
-        .filter((hash) => !withoutRaw.includes(hash))
-        .map((hash) => [hash, rawOf(hash)]),
-    ),
-  }
-}
-
-function chainOf(
-  toHeight: number,
-  placed: readonly PlacedEvent[],
-  withoutRaw: readonly string[] = [],
-): InMemoryMidnightSource {
-  const blocks: InMemoryBlock[] = []
-  for (let height = FIRST_BLOCK; height <= toHeight; height += 1) {
-    blocks.push(blockOf(height, placed, 0, withoutRaw))
-  }
-  return createInMemoryMidnightSource(GENESIS_HASH, blocks)
-}
-
 function notification(id: number, requestId = REQUEST_A, caller = CALLER_1): SignetContractEvent {
   return notificationEvent(id, requestId, caller, 0)
 }
@@ -148,13 +73,6 @@ function signature(id: number, requestId = REQUEST_A): SignetContractEvent {
 function attestation(id: number, requestId = REQUEST_A): SignetContractEvent {
   return responseEvent(id, SignetEventName.RespondBidirectionalEvent, requestId, 0)
 }
-
-const inspectedWithoutCells: InspectTransaction = (_raw, notifications) => ({
-  callChains: [],
-  requests: Object.fromEntries(
-    notifications.map(({ source }) => [String(source.id), { cell: null }]),
-  ),
-})
 
 interface InspectCall {
   readonly raw: string
