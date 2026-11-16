@@ -1,6 +1,6 @@
 {
   "limit": 2,
-  "seq": 94,
+  "seq": 96,
   "stages": {
     "01-ground": {
       "check_dirty": true,
@@ -31,7 +31,7 @@
     },
     "04-build": {
       "checkpoint": "",
-      "provisional": true,
+      "provisional": false,
       "status": "pending"
     },
     "05-integrate": {

@@ -37,10 +37,10 @@ Per network, the loop is:
 2. Check identity: the genesis hash equals the stored one, and the source's block hash at the
    cursor height equals the stored cursor hash. A mismatch stops the network's loop and marks it
    unhealthy.
-3. Choose `target = min(tip, cursor + maxRange)`. Read every event both contracts emitted in
+3. Choose `target = min(tip - tipMargin, cursor + maxRange)` (D28). Read every event both contracts emitted in
    `(cursor, target]`, the raw transaction of each, and inspect it for the request record.
-4. In ONE SQL transaction: insert the events and transactions, upsert the request rows, and move
-   the cursor to `(target, hash at target)` on the condition that it still holds the old value.
+4. In ONE SQL transaction: move the cursor to `(target, hash at target)` on the condition that it
+   still holds the old value (D46), then insert the events and transactions and upsert the request rows.
 5. Any failure commits nothing. The loop retries with backoff from the same cursor.
 
 The cursor is the per-network processed block: one row that says every event up to block N is

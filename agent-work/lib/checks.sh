@@ -1,8 +1,10 @@
 # Sourced by the exit checks: what several of them share. Every function exits non-zero on failure.
 
 # A scratch PostgreSQL 17 for this check alone, removed when the check exits. Exports
-# EXPLORER_TEST_DATABASE_URL. It starts one container on a port Docker picks.
+# EXPLORER_TEST_DATABASE_URL. It starts one container on a port Docker picks. Inside a stage
+# check that runs step checks (EXPLORER_STAGE_CHECK=1) the stage's own container is used.
 with_postgres() {
+  if test "${EXPLORER_STAGE_CHECK:-}" = 1 && test -n "${EXPLORER_TEST_DATABASE_URL:-}"; then return 0; fi
   local name="explorer-check-pg-$$-$RANDOM" tries=0 port
   docker run -d --rm --name "$name" -e POSTGRES_PASSWORD=check -p 127.0.0.1::5432 postgres:17 >/dev/null
   # shellcheck disable=SC2064
@@ -28,10 +30,20 @@ with_preprod() {
 
 # What CI runs, in CI's order (install, then lint), then the rest of `yarn check` and the build.
 repo_checks() {
+  if test "${EXPLORER_STAGE_CHECK:-}" = 1 && test -n "${EXPLORER_REPO_CHECKED:-}"; then return 0; fi
   yarn install --immutable
   yarn lint
   yarn check
   yarn build
+  export EXPLORER_REPO_CHECKED=1
+}
+
+# For a stage check: every step check it runs after this shares its PostgreSQL, its repository
+# checks and one test run per workspace.
+as_stage_check() {
+  export EXPLORER_STAGE_CHECK=1
+  EXPLORER_TEST_REPORTS="$(mktemp -d)"
+  export EXPLORER_TEST_REPORTS
 }
 
 # need_tests <workspace> <test title>...: runs the workspace's tests and requires each title to
@@ -39,8 +51,9 @@ repo_checks() {
 need_tests() {
   local workspace="$1" out
   shift
-  out="$(mktemp)"
-  yarn workspace "$workspace" vitest run --reporter=json --outputFile="$out" >/dev/null 2>&1 || true
+  if test -n "${EXPLORER_TEST_REPORTS:-}"; then out="$EXPLORER_TEST_REPORTS/${workspace##*/}.json"; else out="$(mktemp)"; fi
+  test -s "$out" ||
+    yarn workspace "$workspace" vitest run --reporter=json --outputFile="$out" >/dev/null 2>&1 || true
   node - "$out" "$@" <<'JS'
 const fs = require('node:fs')
 const [file, ...titles] = process.argv.slice(2)

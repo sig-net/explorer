@@ -9,6 +9,11 @@ need_tests @sig-net/explorer-ui \
   'a failed inspection leaves the signature unverified and says why' \
   'shows the call chains and the request of an inspection' \
   'shows the reason of a failed inspection'
+for gone in lib/midnight/sign-bidirectional-transaction-inspection.ts lib/midnight/sign-bidirectional-transaction-loader.ts lib/midnight/indexer-services.ts components/midnight/use-sign-bidirectional-transaction-inspection.ts; do
+  test ! -e "packages/ui/src/$gone" || { echo "packages/ui/src/$gone still exists" >&2; exit 1; }
+done
+! grep -n 'packages/ui/src/lib/midnight/sign-bidirectional-transaction-inspection' AGENTS.md ||
+  { echo "AGENTS.md still names the UI's inspection module" >&2; exit 1; }
 ! grep -q 'ledger-v9' packages/ui/package.json || { echo "the UI still depends on the ledger" >&2; exit 1; }
 ! grep -rnE "ledger-v9|loadSignBidirectionalTransactionInspection|signetEventSourceFromIndexer|indexerServices" packages/ui/src packages/ui/vite.config.ts ||
   { echo "the UI still names the ledger, the loader or the indexer services" >&2; exit 1; }

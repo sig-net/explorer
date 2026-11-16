@@ -283,3 +283,9 @@ PASS, exit 0 at 84bd834, output in evidence/03-contract-1.txt
 
 ## 94 CHECKPOINT 03-contract
 stage done at 84bd834
+
+## 95 PLAN 04-build
+re-planned against the stages before it, and confirmed
+
+## 96 PLAN
+04-build re-planned by a fresh planner and confirmed: 04.9 (contract amendments) and 04.10 (the ingest loop, split from 04.2) added, D41 to D50. For the closing report: D41, a search under 3 characters is no search

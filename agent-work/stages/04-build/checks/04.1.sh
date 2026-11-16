@@ -11,7 +11,13 @@ need_tests @sig-net/explorer-backend \
   'rejects an event outside the range' \
   'answers null for a block above the tip' \
   'rejects a response that does not validate' \
+  'rejects when the indexer holds no such transaction' \
+  'a request that never answers is rejected after the timeout' \
   'an error carries no query string' \
-  'stores a failed inspection with its reason' \
-  'stores the call chains and the request cell' \
+  'stores the call chains and the request cell of the fixture transaction' \
+  'stores a null cell for a notification the transaction does not write' \
+  'stores one failed notification beside a read one' \
+  'stores a transaction that does not deserialise as failed' \
   'reads preprod'
+grep -q 'export function inspectTransactionForStorage' packages/backend/src/inspection/sign-bidirectional-transaction-inspection.ts ||
+  { echo "the inspection module does not export inspectTransactionForStorage" >&2; exit 1; }
