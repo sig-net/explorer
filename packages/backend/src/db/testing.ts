@@ -17,7 +17,8 @@ export interface TestDatabase {
 }
 
 /**
- * Makes an empty database with a random name on the server `EXPLORER_TEST_DATABASE_URL` names.
+ * Makes an empty database with a random name on the server `EXPLORER_TEST_DATABASE_URL` names. A
+ * connection of `db` that the server ends goes unreported: the query on it fails the test.
  *
  * @throws {Error} When the variable is unset: a database test fails without a server.
  */
@@ -29,7 +30,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     )
   }
   const name = `explorer_test_${randomBytes(8).toString('hex')}`
-  const server = openDatabase(serverUrl)
+  const server = openDatabase(serverUrl, () => {})
   try {
     await sql`CREATE DATABASE ${sql.id(name)}`.execute(server)
   } catch (error) {
@@ -38,7 +39,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   }
   const databaseUrl = new URL(serverUrl)
   databaseUrl.pathname = `/${name}`
-  const db = openDatabase(databaseUrl.href)
+  const db = openDatabase(databaseUrl.href, () => {})
   return {
     db,
     url: databaseUrl.href,

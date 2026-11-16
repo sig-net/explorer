@@ -27,7 +27,10 @@ async function main(args: readonly string[]): Promise<void> {
   }
   if (isWipe) {
     try {
-      console.log(`dropped and migrated the schema ${await wipeNetwork(config, network)}`)
+      const schema = await wipeNetwork(config, network, (error) => {
+        console.error(errorMessage(error))
+      })
+      console.log(`dropped and migrated the schema ${schema}`)
       process.exit(0)
     } catch (error) {
       console.error(errorMessage(error))

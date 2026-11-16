@@ -4,7 +4,7 @@
     {
       "name": "explorer",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "yarn dev --port \"$PORT\" --strictPort"],
+      "runtimeArgs": ["-c", "yarn dev:ui --port \"$PORT\" --strictPort"],
       "port": 5173,
       "autoPort": true
     },
