@@ -85,3 +85,9 @@ merged bernard-02-1 as 0c17b75
 
 ## 28 PLAN
 Added step 02.4 (find and fix the cause of the excluded callers filter test timing out about 1 in 10 full runs, present on base fc68397), 02.3 now waits on it
+
+## 29 DISPATCH 02.2
+model opus, branch bernard-02-2, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-2
+
+## 30 DISPATCH 02.4
+model opus, branch bernard-02-4, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-4

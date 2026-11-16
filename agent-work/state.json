@@ -1,6 +1,6 @@
 {
   "limit": 3,
-  "seq": 28,
+  "seq": 30,
   "stages": {
     "01-ground": {
       "check_dirty": true,
@@ -80,6 +80,24 @@
       "reports": 1,
       "status": "done",
       "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-1"
+    },
+    "02.2": {
+      "base": "8e7ba3d",
+      "branch": "bernard-02-2",
+      "checks": 0,
+      "redos": 0,
+      "reports": 0,
+      "status": "running",
+      "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-2"
+    },
+    "02.4": {
+      "base": "8e7ba3d",
+      "branch": "bernard-02-4",
+      "checks": 0,
+      "redos": 0,
+      "reports": 0,
+      "status": "running",
+      "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-4"
     }
   }
 }
