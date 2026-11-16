@@ -7,7 +7,7 @@ with_postgres
 with_preprod
 as_stage_check
 repo_checks
-for step in 04.9 04.1 04.2 04.10 04.3 04.4 04.5 04.6 04.7 04.11 04.12; do
+for step in 04.9 04.1 04.2 04.10 04.3 04.4 04.5 04.6 04.7 04.11 04.12 04.14; do
   bash "$AGENT_WORK/stages/04-build/checks/$step.sh" || { echo "the check of step $step fails on the merged branch" >&2; exit 1; }
 done
 test "$(git ls-files | grep -c 'sign-bidirectional-transaction-inspection\.ts$')" -eq 1 ||

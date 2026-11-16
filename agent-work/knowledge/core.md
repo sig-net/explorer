@@ -35,3 +35,4 @@ names the rows and sections it rests on: read those, and never act against a row
 - oxlint enforces `vitest(require-to-throw-message)`, `vitest(require-mock-type-parameters)` and `typescript(no-base-to-string)` on tests. [unverified]
 - oxlint enforces `vitest(valid-expect)`, so `expect(value, message)` is refused. vitest prints the console output of passing tests only with `--reporter=verbose`. [unverified]
 - A synthetic seed whose rows pass through the `lifecycle` view and `lifecycleFromWire` needs payloads that decode: `packages/backend/src/service/postgres-explorer-service.large.test.ts` builds them in SQL. [unverified]
+- A step with `worktree: none` works in the parent's worktree, which moves when other steps merge. A review pins itself to its commit with `git archive <commit>` into a scratch folder. [unverified]

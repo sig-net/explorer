@@ -523,3 +523,18 @@ For stage 5's planner, from 04.7's report: the comments of packages/backend/src/
 
 ## 174 ACCEPT 04.7
 merged bernard-04-7 as 5980d93
+
+## 175 REPORT 04.13
+DONE, kept in reports/04.13-1.md
+
+## 176 REPORT 04.13
+DONE, kept in reports/04.13-2.md
+
+## 177 CHECK 04.13
+PASS, exit 0 at c211352, output in evidence/04.13-1.txt
+
+## 178 DECISION
+D54: the three blocking findings of review 04.13 get one fix step, 04.14, with no review after it, since the gate's two reviews are spent
+
+## 179 ACCEPT 04.13
+nothing to merge
