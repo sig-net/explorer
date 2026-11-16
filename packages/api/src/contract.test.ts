@@ -28,6 +28,7 @@ import {
   lifecycleToWire,
   type LifecycleWire,
   lifecycleWireSchema,
+  networksToWire,
 } from './wire.ts'
 
 const PREPROD = MidnightNetwork.Preprod
@@ -409,6 +410,39 @@ describe('the client over the routes', () => {
     expect(body).not.toContain('?')
     const answered = JSON.stringify({
       networks: [{ ...explorerSeed.networks[1], config: explorerSeed.networks[0]?.config }],
+    })
+    expect(await codeOf(clientAnswered(answered).networks())).toBe('invalid_response')
+  })
+
+  it('the source URL crosses the wire without credentials', async () => {
+    const [preprod] = explorerSeed.networks
+    if (preprod === undefined) {
+      throw new Error('the seed holds no network')
+    }
+    const configured = {
+      ...preprod,
+      config: {
+        ...preprod.config,
+        sourceUrl: 'https://indexer-user:indexer-p@ss@indexer.preprod.example/api/v4/graphql?k=v',
+      },
+    }
+    const cut = 'https://indexer.preprod.example/api/v4/graphql'
+    const inMemory = createInMemoryExplorerService({ ...explorerSeed, networks: [configured] })
+    const leaking: ExplorerService = { ...service, networks: () => Promise.resolve([configured]) }
+
+    for (const answering of [inMemory, clientOf(leaking)]) {
+      expect((await answering.networks()).map((network) => network.config.sourceUrl)).toEqual([cut])
+    }
+    const body = await (await explorerApiRoutes(leaking).request('/v1/networks')).text()
+    expect(body).not.toContain('indexer-user')
+    expect(body).not.toContain('ss@')
+    const answered = JSON.stringify({
+      networks: [
+        {
+          ...networksToWire([preprod]).networks[0],
+          config: { ...preprod.config, sourceUrl: cut.replace('//', '//user:password@') },
+        },
+      ],
     })
     expect(await codeOf(clientAnswered(answered).networks())).toBe('invalid_response')
   })

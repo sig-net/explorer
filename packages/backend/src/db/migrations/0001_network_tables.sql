@@ -11,7 +11,9 @@ CREATE TABLE ingest_state (
   cursor_hash bytea,
   cursor_block_time timestamptz,
   tip_height bigint,
-  state text NOT NULL,
+  state text NOT NULL
+    CONSTRAINT ingest_state_state_known
+    CHECK (state IN ('starting', 'syncing', 'synced', 'stopped')),
   last_success_at timestamptz,
   last_error text,
   CHECK (num_nulls(cursor_height, cursor_hash, cursor_block_time) IN (0, 3))
@@ -89,16 +91,19 @@ CROSS JOIN LATERAL (
               'inspection',
               jsonb_build_object('failed', transactions.inspection -> 'failed')
             )
+          WHEN request_inspection.entry IS NULL THEN
+            '{"inspection": {"failed": "not inspected"}}'::jsonb
+          WHEN request_inspection.entry ? 'failed' THEN
+            jsonb_build_object(
+              'inspection',
+              jsonb_build_object('failed', request_inspection.entry -> 'failed')
+            )
           ELSE
             jsonb_build_object(
               'inspection',
               jsonb_build_object(
                 'callChains', transactions.inspection -> 'callChains',
-                'requestCell',
-                coalesce(
-                  transactions.inspection -> 'requestCells' -> events.id::text,
-                  'null'::jsonb
-                )
+                'requestCell', coalesce(request_inspection.entry -> 'cell', 'null'::jsonb)
               )
             )
         END
@@ -108,5 +113,8 @@ CROSS JOIN LATERAL (
     ) AS events
   FROM events
   JOIN transactions ON transactions.hash = events.transaction_hash
+  CROSS JOIN LATERAL (
+    SELECT transactions.inspection -> 'requests' -> events.id::text AS entry
+  ) AS request_inspection
   WHERE events.request_id = requests.request_id
 ) AS request_events;

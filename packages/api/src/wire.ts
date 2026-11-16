@@ -289,7 +289,7 @@ const networkWireSchema = z.object({
     signerContractAddress: z.string(),
     responderContractAddress: z.string(),
     startBlock: countSchema,
-    sourceUrl: z.string().refine((url) => url === withoutQueryString(url)),
+    sourceUrl: z.string().refine((url) => url === urlWithoutCredentials(url)),
   }),
   sync: z.object({
     state: z.enum(EXPLORER_SYNC_STATES),
@@ -305,12 +305,12 @@ export const networksWireSchema = z.object({ networks: z.array(networkWireSchema
 
 export type NetworksWire = z.infer<typeof networksWireSchema>
 
-/** The wire form of `networks`, each source URL cut before its query string. */
+/** The wire form of `networks`, each source URL without its credentials. */
 export function networksToWire(networks: readonly ExplorerNetwork[]): NetworksWire {
   return {
     networks: networks.map(({ network, config, sync }) => ({
       network,
-      config: { ...config, sourceUrl: withoutQueryString(config.sourceUrl) },
+      config: { ...config, sourceUrl: urlWithoutCredentials(config.sourceUrl) },
       sync: {
         ...sync,
         processedBlockTime: sync.processedBlockTime?.toISOString() ?? null,
@@ -333,9 +333,9 @@ export function networksFromWire(wire: NetworksWire): ExplorerNetwork[] {
   }))
 }
 
-/** `url` up to its query string or fragment: a hosted indexer carries its token in the query. */
-export function withoutQueryString(url: string): string {
-  return url.replace(/[?#].*$/s, '')
+/** `url` without its user and password and cut before its query string or fragment. */
+export function urlWithoutCredentials(url: string): string {
+  return url.replace(/[?#].*$/s, '').replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/\\]*@/i, '$1')
 }
 
 export const callersWireSchema = z.object({ callers: z.array(hash32Schema) })

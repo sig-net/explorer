@@ -40,7 +40,7 @@ export interface ExplorerNetworkConfig {
   readonly responderContractAddress: string
   /** The lowest block height the explorer reads events from. */
   readonly startBlock: number
-  /** The indexer the explorer reads, as a URL without its query string. */
+  /** The indexer's URL as configured, token included: the wire carries it cut of its credentials. */
   readonly sourceUrl: string
 }
 

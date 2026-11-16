@@ -1,4 +1,5 @@
 import {
+  EXPLORER_SYNC_STATES,
   lifecycleFromWire,
   lifecycleToWire,
   lifecycleWireSchema,
@@ -215,6 +216,34 @@ describe('a network schema', () => {
   })
 })
 
+describe('the ingest state', () => {
+  it('the store refuses an unknown sync state', async () => {
+    await migrateNetworkSchema(database.db, PREPROD)
+    const withState = (state: string): Promise<unknown> =>
+      sql`
+        INSERT INTO ${table(PREPROD, 'ingest_state')}
+          (genesis_hash, signer_address, responder_address, start_block, state)
+        VALUES ('\\x00', '\\x01', '\\x02', 0, ${state})
+      `.execute(database.db)
+    const { rows } = await sql<{ definition: string }>`
+      SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint
+      WHERE conname = 'ingest_state_state_known'
+        AND connamespace = ${networkSchemaName(PREPROD)}::regnamespace
+    `.execute(database.db)
+    const admitted = rows.flatMap((row) =>
+      [...row.definition.matchAll(/'([^']*)'::text/g)].map((match) => match[1]),
+    )
+
+    expect(rows).toHaveLength(1)
+    expect(admitted).toEqual([...EXPLORER_SYNC_STATES])
+    await expect(withState('paused')).rejects.toThrow('ingest_state_state_known')
+    for (const state of EXPLORER_SYNC_STATES) {
+      await withState(state)
+      await sql`DELETE FROM ${table(PREPROD, 'ingest_state')}`.execute(database.db)
+    }
+  })
+})
+
 describe('the callers of a request', () => {
   it('the store keeps every caller of a request', async () => {
     const requestId = 'a1'.repeat(32)
@@ -364,7 +393,7 @@ describe('the lifecycle view', () => {
             ? inspection
             : {
                 callChains: inspection.callChains,
-                requestCells: { [String(source.id)]: inspection.requestCell },
+                requests: { [String(source.id)]: { cell: inspection.requestCell } },
               },
         )
       }
@@ -430,7 +459,10 @@ describe('the lifecycle view', () => {
       new Map([
         [
           first.source.transactionHash,
-          { callChains: [], requestCells: { '1': PREPROD_REQUEST_CELL_WIRE, '2': secondCell } },
+          {
+            callChains: [],
+            requests: { '1': { cell: PREPROD_REQUEST_CELL_WIRE }, '2': { cell: secondCell } },
+          },
         ],
       ]),
     )
@@ -464,6 +496,53 @@ describe('the lifecycle view', () => {
         ],
       ],
     ])
+  })
+
+  it('the view keeps a failed notification beside a read one', async () => {
+    const caller = new Uint8Array(32).fill(0xc0)
+    const read = notificationEvent(1, new Uint8Array(32).fill(0xa1), caller, 1)
+    const [failed, absent] = [2, 3].map((id) =>
+      inTransactionOf(notificationEvent(id, new Uint8Array(32).fill(0xa0 + id), caller, 1), read),
+    )
+    if (failed === undefined || absent === undefined) {
+      throw new Error('two more notifications were built')
+    }
+    await migrateNetworkSchema(database.db, PREPROD)
+    await seedEvents(
+      PREPROD,
+      [read, failed, absent],
+      new Map([
+        [
+          read.source.transactionHash,
+          {
+            callChains: [],
+            requests: {
+              '1': { cell: PREPROD_REQUEST_CELL_WIRE },
+              '2': { failed: 'the transcript holds no request record' },
+            },
+          },
+        ],
+      ]),
+    )
+
+    const rows = await networkDb(database.db, PREPROD)
+      .selectFrom('lifecycle')
+      .select('events')
+      .orderBy('first_event_id')
+      .execute()
+
+    expect(
+      rows.flatMap((row) =>
+        row.events.map((event) => [event.id, 'inspection' in event ? event.inspection : null]),
+      ),
+    ).toEqual([
+      [1, { callChains: [], requestCell: PREPROD_REQUEST_CELL_WIRE }],
+      [2, { failed: 'the transcript holds no request record' }],
+      [3, { failed: 'not inspected' }],
+    ])
+    for (const row of rows) {
+      expect(() => lifecycleWireSchema.shape.events.parse(row.events)).not.toThrow()
+    }
   })
 
   it('the view lists a response that has no request', async () => {
