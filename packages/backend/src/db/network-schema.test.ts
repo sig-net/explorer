@@ -235,7 +235,7 @@ describe('the ingest state', () => {
     )
 
     expect(rows).toHaveLength(1)
-    expect(admitted.toSorted()).toEqual([...EXPLORER_SYNC_STATES].toSorted())
+    expect(admitted).toEqual([...EXPLORER_SYNC_STATES])
     await expect(withState('paused')).rejects.toThrow('ingest_state_state_known')
     for (const state of EXPLORER_SYNC_STATES) {
       await withState(state)
