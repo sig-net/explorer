@@ -541,3 +541,27 @@ nothing to merge
 
 ## 180 PLAN
 added 04.14 for the three blocking findings of review 04.13 and its advisory ones in the same function, check seen failing on the parent at 5980d93 for its five missing tests, and the stage check runs it. core.md and contract.md gain a fact each from the review. For the closing report, advisory findings of review 04.13 left open: nothing bounds the size of a stored inspection (20 MB is stored and served, 300 MB fails every retry), and bytesOfHex cuts silently at the first non-hex character, which the adaptor's hashSchema keeps from happening
+
+## 181 DISPATCH 04.14
+model fable, branch bernard-04-14, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-14
+
+## 182 REPORT 04.14
+DONE, kept in reports/04.14-1.md
+
+## 183 REPORT 04.14
+DONE, kept in reports/04.14-2.md
+
+## 184 CHECK 04.14
+PASS, exit 0 at 0608ee2, output in evidence/04.14-1.txt
+
+## 185 DECISION
+D55: a stored inspection nests at most 64 JSON levels
+
+## 186 PACK
+backend.md: where the service is, the view builds the wire inspection, storedInspectionSchema (from 04.14's report)
+
+## 187 PLAN
+For the closing report, from 04.14: an event whose name held a NUL is stored under the cleaned name with no request id, so the lifecycle view skips it. The timing test asserts 100 ms of wall time on a shared machine (measured 1 to 31 ms)
+
+## 188 ACCEPT 04.14
+merged bernard-04-14 as 0fd0aa3
