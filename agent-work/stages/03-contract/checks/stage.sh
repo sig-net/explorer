@@ -7,5 +7,7 @@ source "$AGENT_WORK/lib/checks.sh"
 with_postgres
 bash "$AGENT_WORK/stages/03-contract/checks/03.1.sh"
 bash "$AGENT_WORK/stages/03-contract/checks/03.2.sh"
+bash "$AGENT_WORK/stages/03-contract/checks/03.4.sh"
+bash "$AGENT_WORK/stages/03-contract/checks/03.5.sh"
 grep -qE '^\| D[0-9]+ \|.*review 03\.3' "$AGENT_WORK/decisions.md" ||
   { echo "decisions.md has no row recording how the findings of review 03.3 were closed" >&2; exit 1; }

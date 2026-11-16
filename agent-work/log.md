@@ -199,3 +199,24 @@ open after 03.2: requests.caller holds one caller while the api's in-memory serv
 
 ## 66 ACCEPT 03.2
 merged bernard-03-2 as 6834aad
+
+## 67 DISPATCH 03.3
+model fable, branch none, worktree /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol
+
+## 68 REPORT 03.3
+DONE, kept in reports/03.3-1.md
+
+## 69 CHECK 03.3
+PASS, exit 0 at 6ee98b5, output in evidence/03.3-1.txt
+
+## 70 DECISION
+D36 to D39: review 03.3's two blocking findings closed by request_callers and matchingEvents, the stored inspection per notification, the source URL without credentials
+
+## 71 PLAN
+added 03.4 (fix of the two blocking findings), 03.5 (advisory fixes: sync state CHECK, D38, D39, sourceUrl doc) and 03.6 (review of 03.4 alone). Each check seen failing on the parent at 6ee98b5. stage.sh runs 03.4 and 03.5. For the planner of stage 04, from review 03.3: escape %, _ and backslash in the served LIKE search. Count on requests and never through the view (1466 ms against 7 ms). totalEvents as an index scan of events grows with the table, 18 ms at 200,000 requests. The cursor condition is written IS NOT DISTINCT FROM since the cursor starts null. The ingest needs a rebuild-and-compare test of requests against events, and a requests row with no event fails the whole page. With signer and responder as one contract the adaptor merges events by id. last_error and inspection.failed reach the browser unfiltered: strip URLs and tokens from them. The service step reruns the review's timings on its own statements. For the user at the end: one event the browser cannot decode rejects the whole page (wire.ts:179)
+
+## 72 PACK
+backend.md and core.md: redactUrlQuery, the api entry, raw sql fragments, scratch imports, the report budget (from 03.3's report)
+
+## 73 ACCEPT 03.3
+nothing to merge

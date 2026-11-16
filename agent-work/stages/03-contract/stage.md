@@ -16,7 +16,7 @@ Each line was checked by a command at `c09a270` when this stage was revised.
 
 ## Shape
 
-03.1, then 03.2, then 03.3: a chain. The view of 03.2 returns events in the wire shape 03.1 defines, and the review reads both.
+03.1, then 03.2, then 03.3: a chain. After the review: 03.4 (the fix of its two blocking findings), then 03.5 (its advisory fixes) beside 03.6 (the review of 03.4 alone). The view of 03.2 returns events in the wire shape 03.1 defines, and the review reads both.
 
 What one step's check starts: 03.1 the repository's checks (install, lint, typecheck, the UI's tests in a Chromium, the build: about 20 s) and the api package's tests under Node. 03.2 the same with one PostgreSQL 17 container. 03.3 nothing in its check, and during its work one PostgreSQL container that the reviewer seeds with 200,000 requests. The stage check starts two PostgreSQL containers and runs the repository's checks twice.
 

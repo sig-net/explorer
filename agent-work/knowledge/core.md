@@ -10,7 +10,7 @@ names the rows and sections it rests on: read those, and never act against a row
 
 ## Where things are
 
-- `packages/` holds four workspaces: `ui` (the app, `@sig-net/explorer-ui`), `lib`, `api` and `backend`. `packages/api/src/index.ts` and `packages/backend/src/index.ts` are empty modules until stage 3. Paths in the packs written before the app moved are relative to the app's folder. [run c09a270]
+- `packages/` holds four workspaces: `ui` (the app, `@sig-net/explorer-ui`), `lib`, `api` and `backend`. `packages/api/src/index.ts` exports the client, the routes, the service types and the wire. `packages/backend/src/index.ts` is an empty module until stage 4. Paths in the packs written before the app moved are relative to the app's folder. [run c09a270]
 - `yarn check` is the repository's own check: typecheck, lint, format check, tests (`package.json:18`). CI runs `yarn install --immutable`, `yarn lint`, then `yarn build` (`.github/workflows/pages-deploy.yml:69-79`). [read 6a2cf63]
 - `yarn check` runs the tests of lib, api, backend and the UI, and the backend's fail unless `EXPLORER_TEST_DATABASE_URL` names a PostgreSQL (D24). It leaves no untracked file. [unverified]
 - `yarn lint` at the root prints nothing on a clean run: it runs `oxlint` (`package.json:14`) and exits 0 with no output. [run 6a2cf63]
