@@ -46,13 +46,13 @@ Keep setup instructions and application reference material in README.md and docs
   it, or anything that reaches `@midnight-ntwrk/midnight-js-types` at runtime, from shared or
   root-mounted code. A feature that needs it loads it with a dynamic `import()` inside its own
   route. The Midnight ledger WebAssembly (`@midnightntwrk/ledger-v9`, about 10MB) follows the
-  same rule: only `src/lib/midnight/sign-bidirectional-transaction-inspection.ts` imports it as
+  same rule: only `packages/ui/src/lib/midnight/sign-bidirectional-transaction-inspection.ts` imports it as
   values, and that module is reached by dynamic `import()` alone. After adding any Midnight
   dependency, run `yarn build` and check the emitted `.wasm` files: the expected set is the
   onchain runtime, plus one ledger build referenced only by the lazy inspection chunk.
 - The app is served under a base path: `/` by the dev server, `/explorer/` on GitHub Pages. Never write
-  a root-absolute URL to the app's own files or routes. A file in `public` goes through
-  `publicAssetUrl` (`src/lib/public-asset-url.ts`), a route through the router (`Link`, `navigate`,
+  a root-absolute URL to the app's own files or routes. A file in `packages/ui/public` goes through
+  `publicAssetUrl` (`packages/ui/src/lib/public-asset-url.ts`), a route through the router (`Link`, `navigate`,
   `redirect`), which applies the base path itself. After touching either, build with
   `EXPLORER_BASE_PATH=/explorer/` and load the preview: a root-absolute path works at `/` and
   breaks only there.
@@ -64,11 +64,11 @@ Keep setup instructions and application reference material in README.md and docs
 ## UI components
 
 - Every UI element is built from shadcn/ui components. Before building anything, check
-  `src/components/ui` for the component it needs. If it is not there, install it with the shadcn
-  CLI (`yarn dlx shadcn@latest add <component>`) rather than writing it by hand.
+  `packages/ui/src/components/ui` for the component it needs. If it is not there, install it with the shadcn
+  CLI from `packages/ui` (`yarn dlx shadcn@latest add <component>`) rather than writing it by hand.
 - If shadcn has no component for what is asked, stop and say so. Do not invent a substitute,
   hand-roll a primitive, or pull in another component library.
-- Never put a cursor class on a control. One unlayered rule at the end of `src/index.css` gives
+- Never put a cursor class on a control. One unlayered rule at the end of `packages/ui/src/index.css` gives
   every enabled clickable control the pointer cursor, by element and ARIA role, and it outranks
   the `cursor-default` utility shadcn sets on menu and select items. A per-component
   `cursor-pointer` hides a gap in that rule from every other component with the same gap. When a
@@ -77,16 +77,16 @@ Keep setup instructions and application reference material in README.md and docs
 
 ## File layout
 
-- File code by what it is and who owns it, never by feature name. `src/lib` holds every
+- File code by what it is and who owns it, never by feature name. `packages/ui/src/lib` holds every
   non-React module: domain sets, defaults, parsers, formatters. A domain with several modules
-  gets a folder under it (`src/lib/midnight/`). `src/components` holds React components,
-  `src/components/ui` only what the shadcn CLI writes, `src/components/contexts` React
-  contexts, and `src/routes` route files only. Do not create new top-level folders under `src`
+  gets a folder under it (`packages/ui/src/lib/midnight/`). `packages/ui/src/components` holds React components,
+  `packages/ui/src/components/ui` only what the shadcn CLI writes, `packages/ui/src/components/contexts` React
+  contexts, and `packages/ui/src/routes` route files only. Do not create new top-level folders under `packages/ui/src`
   for a feature; the folder name is decided by the kind of code, then the domain.
 - Split files by ownership, not by export type. A React context, its provider and its accessor
   hook are one unit with one owner and always change together, so they live in one file:
-  `src/components/contexts/<Name>Context.tsx` exporting the value type, the provider and the
+  `packages/ui/src/components/contexts/<Name>Context.tsx` exporting the value type, the provider and the
   `use<Name>` hook. The same holds for any cluster that only ever changes as a whole. Split a
   file only when a piece gains a consumer that must not import the rest (a non-React runtime, a
   test that must avoid JSX). The Fast Refresh lint warning about mixed exports is not a reason
-  to split; it is switched off for `src/components/contexts`.
+  to split; it is switched off for `packages/ui/src/components/contexts`.

@@ -20,26 +20,26 @@
   },
   "overrides": [
     {
-      "files": ["src/routes/**/*.tsx"],
+      "files": ["packages/ui/src/routes/**/*.tsx"],
       "rules": {
         "react/only-export-components": "off"
       }
     },
     {
-      "files": ["src/components/ui/**/*.tsx"],
+      "files": ["packages/ui/src/components/ui/**/*.tsx"],
       "rules": {
         "react/only-export-components": "off"
       }
     },
     {
-      "files": ["src/components/contexts/**/*.tsx"],
+      "files": ["packages/ui/src/components/contexts/**/*.tsx"],
       "rules": {
         "react/only-export-components": "off"
       }
     },
     {
-      "files": ["src/**/*.{ts,tsx}"],
-      "excludeFiles": ["src/components/ui/**"],
+      "files": ["packages/ui/src/**/*.{ts,tsx}"],
+      "excludeFiles": ["packages/ui/src/components/ui/**"],
       "jsPlugins": ["eslint-plugin-better-tailwindcss"],
       "rules": {
         "better-tailwindcss/enforce-canonical-classes": "error"
@@ -48,8 +48,8 @@
   ],
   "settings": {
     "better-tailwindcss": {
-      "entryPoint": "src/index.css"
+      "entryPoint": "packages/ui/src/index.css"
     }
   },
-  "ignorePatterns": ["agent-work", "dist", "src/routeTree.gen.ts"]
+  "ignorePatterns": ["agent-work", "**/dist", "packages/ui/src/routeTree.gen.ts"]
 }
