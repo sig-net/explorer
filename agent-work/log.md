@@ -676,3 +676,15 @@ live run: storedEvents 16250 equals indexerEvents 16250, and killedBeforeSynced 
 
 ## 225 ACCEPT 05.2
 merged bernard-05-2 as 85bdf80
+
+## 226 REPORT 05.3
+DONE, kept in reports/05.3-1.md
+
+## 227 CHECK 05.3
+PASS, exit 0 at 3dfef81, output in evidence/05.3-1.txt
+
+## 228 PLAN
+For the closing report, from 05.3: a caught-up preprod backend at the 30 s poll makes about 31,000 Blockfrost requests a day (114 in 320 s, measured), not the 11,000 the step assumed, and genesisHash is read again every cycle. The Blockfrost quota is the user's to confirm (D29). Root engines says node >=22.12.0 while the backend needs Node 24. yarn db:up uses the Compose project backend, shared by every checkout of a machine. /readyz stays 200 while a network is stopped. Three backend timing tests failed once at load 13.75 while two images built. The four workflow changes the user makes are in reports/05.3-1.md under FOR THE USER
+
+## 229 ACCEPT 05.3
+merged bernard-05-3 as 1e08358

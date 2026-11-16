@@ -1,6 +1,6 @@
 {
   "limit": 3,
-  "seq": 225,
+  "seq": 229,
   "stages": {
     "01-ground": {
       "check_dirty": true,
@@ -390,10 +390,13 @@
     "05.3": {
       "base": "bcc40d0",
       "branch": "bernard-05-3",
-      "checks": 0,
+      "check_dirty": false,
+      "check_head": "3dfef81",
+      "check_passed": true,
+      "checks": 1,
       "redos": 0,
-      "reports": 0,
-      "status": "running",
+      "reports": 1,
+      "status": "done",
       "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-bernard-05-3"
     },
     "05.5": {

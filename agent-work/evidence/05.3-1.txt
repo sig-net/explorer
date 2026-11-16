@@ -1,0 +1,20 @@
+check:  stages/05-integrate/checks/05.3.sh
+ran in: /home/brbussy/Projects/github.com/sig-net/explorer-bernard-05-3
+head:   3dfef81
+exit:   0
+
+➤ YN0000: · Yarn 4.18.0
+➤ YN0000: ┌ Resolution step
+➤ YN0000: └ Completed
+➤ YN0000: ┌ Post-resolution validation
+➤ YN0086: │ Some peer dependencies are incorrectly met by dependencies; run yarn explain peer-requirements for details.
+➤ YN0000: └ Completed
+➤ YN0000: ┌ Fetch step
+➤ YN0000: └ Completed in 0s 470ms
+➤ YN0000: ┌ Link step
+➤ YN0000: └ Completed
+➤ YN0000: · Done with warnings in 0s 704ms
+Checking formatting...
+
+All matched files use the correct format.
+Finished in 180ms on 189 files using 8 threads.
