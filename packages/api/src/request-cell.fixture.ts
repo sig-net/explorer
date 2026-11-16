@@ -1,0 +1,58 @@
+import type { RequestCellWire } from './wire.ts'
+
+/** The request id the record of {@link PREPROD_REQUEST_CELL_WIRE} hashes to. */
+export const PREPROD_REQUEST_ID = '54f6494883830237e14f8fe4e0cb14ec0c6b06046a5b8b42ffa8478564388300'
+
+/** The request cell a preprod transaction wrote, in wire form. */
+export const PREPROD_REQUEST_CELL_WIRE: RequestCellWire = {
+  value: [
+    '01',
+    '4890aeb5fb2eaee7dafe6c87ca73d34807ce61b92d4542c1c82e2296e5e2a728',
+    'bad98eb937feab871303240f667a90141071b40780c58612430ed158b5cf11',
+    '',
+    '',
+    'a736aa',
+    '',
+    '00ca9a3b',
+    '00ac23fc06',
+    'a08601',
+    '1c7d4b196cb0c7b01d743fbc6116a902379c7238',
+    '',
+    '01',
+    'a9059cbb',
+    '02',
+    '00000000000000000000000033935df7dc34f4b26cfe9a92d918f9e3e30095df',
+    '00000000000000000000000000000000000000000000000000000000000dbba0',
+    '',
+    '6569703135353a31',
+    '',
+    '',
+    '5b7b226e616d65223a2273756363657373222c2274797065223a22626f6f6c227d5d',
+    '',
+  ],
+  alignment: [
+    { tag: 'atom', value: { tag: 'bytes', length: 1 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 32 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 32 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 1 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 1 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 8 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 8 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 16 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 16 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 8 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 20 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 16 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 1 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 4 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 2 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 32 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 32 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 1 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 64 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 1 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 64 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 34 } },
+    { tag: 'atom', value: { tag: 'bytes', length: 0 } },
+  ],
+}
