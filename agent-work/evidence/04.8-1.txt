@@ -1,0 +1,5 @@
+check:  stages/04-build/checks/04.8.sh
+ran in: /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol
+head:   99fa02c with uncommitted changes
+exit:   0
+

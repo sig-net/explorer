@@ -418,3 +418,27 @@ ui.md: two lint rules, router.load in tests, where the page's tests and the api 
 
 ## 139 ACCEPT 04.5
 merged bernard-04-5 as 8d493d7
+
+## 140 DISPATCH 04.6
+model opus, branch bernard-04-6, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-6
+
+## 141 REPORT 04.8
+DONE, kept in reports/04.8-1.md
+
+## 142 REPORT 04.8
+DONE, kept in reports/04.8-2.md
+
+## 143 CHECK 04.8
+PASS, exit 0 at 99fa02c, output in evidence/04.8-1.txt
+
+## 144 DECISION
+D52 and D53: review 04.8's blocking finding (a NUL in an inspection stops the network) gets fix step 04.11 and review 04.13, its advisory findings on the cursor's identity, token masking and the URL cut get step 04.12
+
+## 145 PLAN
+added 04.11, 04.12, 04.13, each check seen failing on the parent at 8d493d7. 04.7 gains the cold Vite cache fix and its check clears the cache: the UI's tests failed 2 runs of 4 on the merged parent (mid-run dependency optimisation, and timeouts under load). For the closing report, from review 04.8: the SDK's event stream ends on a short page and drops ids above the first row's maxId, so an indexer that caps pages under 100 loses events silently and only tipMargin guards a row moving between pages. A process still running with an old configuration records its identity in a wiped schema. After a lost commit answer last_error stays until the next cycle. No test covers a database that is down or a lost commit
+
+## 146 PACK
+indexer path corrected, backend.md: U+0000, ui.md: the cold Vite cache (from review 04.8 and my own runs)
+
+## 147 ACCEPT 04.8
+nothing to merge
