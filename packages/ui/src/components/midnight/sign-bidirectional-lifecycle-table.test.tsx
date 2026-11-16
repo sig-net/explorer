@@ -1,6 +1,12 @@
-import type { InspectedSignBidirectionalLifecycle } from '@sig-net/explorer-api'
+import type {
+  ExplorerNetwork,
+  ExplorerService,
+  InspectedSignBidirectionalLifecycle,
+} from '@sig-net/explorer-api'
 import { notificationEvent, responseEvent } from '@sig-net/explorer-lib/testing'
-import { SignetEventName } from '@sig-net/midnight'
+import { createInMemoryExplorerService } from '@sig-net/explorer-api/testing'
+import { MIDNIGHT_NETWORKS } from '@sig-net/explorer-lib'
+import { bytesToHex, SignetEventName } from '@sig-net/midnight'
 import {
   RouterProvider,
   createMemoryHistory,
@@ -12,9 +18,11 @@ import { expect, test, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 
 import '@/index.css'
+import { ExplorerApiProvider } from '@/components/contexts/ExplorerApiContext'
 import { MidnightProvider, useMidnight } from '@/components/contexts/MidnightContext'
 import { ThemeProvider } from '@/components/contexts/ThemeContext'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { DEFAULT_MIDNIGHT_NETWORK, type MidnightNetworkConfig } from '@/lib/midnight/network'
 import { inspectedLifecycle } from '@/lib/midnight/inspected-sign-bidirectional-lifecycle.fixture'
 import {
   SIGNED_REQUEST,
@@ -22,6 +30,10 @@ import {
   SIGNED_REQUEST_MPC_RESPONSE,
   SIGNED_REQUEST_MPC_ROOT_KEY,
 } from '@/lib/midnight/sign-bidirectional-event.fixture'
+import {
+  EXECUTED_TRUE_ATTESTATION,
+  FIXTURE_MPC_ROOT_KEY,
+} from '@/lib/midnight/respond-bidirectional-event.fixture'
 
 import { SignBidirectionalLifecycleTable } from './sign-bidirectional-lifecycle-table'
 
@@ -69,54 +81,69 @@ function signed(
   }
 }
 
+/** The root key that signed {@link SIGNED_REQUEST} and no EVM node or MPC output cache. */
+const SIGNED_REQUEST_CONFIG: MidnightNetworkConfig = {
+  mpcRootPublicKey: SIGNED_REQUEST_MPC_ROOT_KEY,
+  ethereumMainnetRpcUrl: '',
+  ethereumSepoliaRpcUrl: '',
+  mpcOutputCacheUrl: '',
+}
+
 /**
- * Renders `children` once the configuration holds the root key that signed
- * {@link SIGNED_REQUEST} and no EVM node, so a valid signature asks no node about its transaction.
+ * Renders `children` once the selected network's configuration is `config`, so a valid signature
+ * asks no node about its transaction unless `config` names one.
  */
-function WithSignedRequestConfig({ children }: { children: ReactNode }) {
-  const { config, setConfig } = useMidnight()
+function WithConfig({ config, children }: { config: MidnightNetworkConfig; children: ReactNode }) {
+  const { config: current, setConfig } = useMidnight()
   const configured =
-    config.mpcRootPublicKey === SIGNED_REQUEST_MPC_ROOT_KEY &&
-    config.ethereumMainnetRpcUrl === '' &&
-    config.ethereumSepoliaRpcUrl === '' &&
-    config.mpcOutputCacheUrl === ''
+    current.mpcRootPublicKey === config.mpcRootPublicKey &&
+    current.ethereumMainnetRpcUrl === config.ethereumMainnetRpcUrl &&
+    current.ethereumSepoliaRpcUrl === config.ethereumSepoliaRpcUrl &&
+    current.mpcOutputCacheUrl === config.mpcOutputCacheUrl
   useEffect(() => {
     if (!configured) {
-      setConfig({
-        mpcRootPublicKey: SIGNED_REQUEST_MPC_ROOT_KEY,
-        ethereumMainnetRpcUrl: '',
-        ethereumSepoliaRpcUrl: '',
-        mpcOutputCacheUrl: '',
-      })
+      setConfig(config)
     }
-  }, [configured, setConfig])
+  }, [configured, setConfig, config])
   return configured ? children : null
+}
+
+interface RowsOptions {
+  readonly onExcludeCaller?: (caller: string) => void
+  readonly config?: MidnightNetworkConfig
+  readonly service?: ExplorerService | null
 }
 
 /** A row's link button builds its href through the router, so rows render inside one. */
 function renderWithRows(
   lifecycles: readonly InspectedSignBidirectionalLifecycle[],
-  onExcludeCaller: (caller: string) => void = () => undefined,
+  {
+    onExcludeCaller = () => undefined,
+    config = SIGNED_REQUEST_CONFIG,
+    service = null,
+  }: RowsOptions = {},
 ) {
   const routeTree = createRootRoute({
     component: () => (
       <ThemeProvider>
-        <MidnightProvider>
-          <WithSignedRequestConfig>
-            <TooltipProvider>
-              <SignBidirectionalLifecycleTable
-                lifecycles={lifecycles}
-                emptyText="No requests match the search"
-                expandSoleRow
-                loading={false}
-                filterPanel={null}
-                activeFilterCount={0}
-                onExcludeCaller={onExcludeCaller}
-                onLoadMore={null}
-              />
-            </TooltipProvider>
-          </WithSignedRequestConfig>
-        </MidnightProvider>
+        <ExplorerApiProvider service={service}>
+          <MidnightProvider>
+            <WithConfig config={config}>
+              <TooltipProvider>
+                <SignBidirectionalLifecycleTable
+                  lifecycles={lifecycles}
+                  emptyText="No requests match the search"
+                  expandSoleRow
+                  loading={false}
+                  filterPanel={null}
+                  activeFilterCount={0}
+                  onExcludeCaller={onExcludeCaller}
+                  onLoadMore={null}
+                />
+              </TooltipProvider>
+            </WithConfig>
+          </MidnightProvider>
+        </ExplorerApiProvider>
       </ThemeProvider>
     ),
   })
@@ -203,7 +230,7 @@ test('the filter button opens the filter panel under the header and shows as pre
 
 test('the hide button beside a caller hands that caller over, and says what it does on hover', async () => {
   const onExcludeCaller = vi.fn<(caller: string) => void>()
-  const screen = await renderWithRows([notified()], onExcludeCaller)
+  const screen = await renderWithRows([notified()], { onExcludeCaller })
   const button = screen.getByRole('button', { name: 'Hide all requests from this caller' })
   await button.hover()
   await expect.element(screen.getByText('Hide all requests from this caller')).toBeVisible()
@@ -262,4 +289,69 @@ test('a failed inspection leaves the signature unverified and says why', async (
     )
     .toBeVisible()
   expect(screen.container.textContent).not.toContain('valid for key')
+})
+
+test("reads the MPC output cache with the server's signer address", async () => {
+  const serverSigner = 'cd'.repeat(32)
+  const served: ExplorerNetwork[] = MIDNIGHT_NETWORKS.map((network) => ({
+    network,
+    config: {
+      signerContractAddress: serverSigner,
+      responderContractAddress: 'ce'.repeat(32),
+      startBlock: 0,
+      sourceUrl: 'https://indexer.example/api/v4/graphql',
+    },
+    sync: {
+      state: 'synced',
+      processedBlock: 1,
+      processedBlockTime: null,
+      tipBlock: 1,
+      lastSuccessAt: null,
+      error: null,
+    },
+  }))
+  const service: ExplorerService = {
+    ...createInMemoryExplorerService({ networks: [] }),
+    networks: () => Promise.resolve(served),
+  }
+  const requested: string[] = []
+  vi.stubGlobal('fetch', (url: string) => {
+    requested.push(url)
+    return Promise.resolve(new Response(new Uint8Array([1])))
+  })
+  try {
+    const lifecycle = inspectedLifecycle(
+      [
+        notificationEvent(1, SIGNED_REQUEST_ID, SIGNED_REQUEST.sender.bytes, 0),
+        responseEvent(2, SignetEventName.RespondBidirectionalEvent, SIGNED_REQUEST_ID, 1),
+      ],
+      { callChains: [], request: SIGNED_REQUEST, requestCell: null },
+    )
+    await renderWithRows(
+      [
+        {
+          ...lifecycle,
+          respondBidirectionalEvents: lifecycle.respondBidirectionalEvents.map((event) => ({
+            ...event,
+            record: EXECUTED_TRUE_ATTESTATION,
+          })),
+        },
+      ],
+      {
+        config: {
+          ...SIGNED_REQUEST_CONFIG,
+          mpcRootPublicKey: FIXTURE_MPC_ROOT_KEY,
+          mpcOutputCacheUrl: 'https://cache.example/v1/',
+        },
+        service,
+      },
+    )
+    await expect
+      .poll(() => requested)
+      .toContain(
+        `https://cache.example/v1/${DEFAULT_MIDNIGHT_NETWORK}/${serverSigner}/${bytesToHex(SIGNED_REQUEST_ID)}.bin`,
+      )
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })

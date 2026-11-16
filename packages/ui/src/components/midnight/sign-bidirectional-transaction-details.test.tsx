@@ -7,6 +7,7 @@ import { expect, test } from 'vitest'
 import { render } from 'vitest-browser-react'
 
 import '@/index.css'
+import { ExplorerApiProvider } from '@/components/contexts/ExplorerApiContext'
 import { MidnightProvider } from '@/components/contexts/MidnightContext'
 import { ThemeProvider } from '@/components/contexts/ThemeContext'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -34,11 +35,13 @@ function inspectedNotification(
 function renderDetails(event: InspectedSignBidirectionalEvent) {
   return render(
     <ThemeProvider>
-      <MidnightProvider>
-        <TooltipProvider>
-          <SignBidirectionalTransactionDetails event={event} />
-        </TooltipProvider>
-      </MidnightProvider>
+      <ExplorerApiProvider service={null}>
+        <MidnightProvider>
+          <TooltipProvider>
+            <SignBidirectionalTransactionDetails event={event} />
+          </TooltipProvider>
+        </MidnightProvider>
+      </ExplorerApiProvider>
     </ThemeProvider>,
   )
 }

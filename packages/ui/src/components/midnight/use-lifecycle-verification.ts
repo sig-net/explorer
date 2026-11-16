@@ -75,11 +75,10 @@ function failureMessage(error: unknown): string {
 async function recoverExecution(
   config: Pick<
     MidnightNetworkConfig,
-    | 'ethereumMainnetRpcUrl'
-    | 'ethereumSepoliaRpcUrl'
-    | 'mpcOutputCacheUrl'
-    | 'signerContractAddress'
+    'ethereumMainnetRpcUrl' | 'ethereumSepoliaRpcUrl' | 'mpcOutputCacheUrl'
   >,
+  /** The signer the backend indexes, which names the cache's objects, or null when unknown. */
+  signerContractAddress: string | null,
   networkId: string,
   requestId: RequestIdHex,
   request: SignBidirectionalEvent | undefined,
@@ -88,13 +87,15 @@ async function recoverExecution(
   const reasons: string[] = []
   if (config.mpcOutputCacheUrl.trim() === '') {
     reasons.push('no MPC output cache URL is configured')
+  } else if (signerContractAddress === null) {
+    reasons.push('the backend serves no signer address for this network')
   } else {
     try {
       const serializedOutput = await loadMpcCachedOutput(
         {
           cacheUrl: config.mpcOutputCacheUrl,
           networkId,
-          signerContractAddress: config.signerContractAddress,
+          signerContractAddress,
         },
         requestId,
       )
@@ -133,14 +134,10 @@ async function recoverExecution(
 export function useLifecycleVerification(
   lifecycle: InspectedSignBidirectionalLifecycle,
 ): LifecycleVerification {
-  const { network, config } = useMidnight()
-  const {
-    mpcRootPublicKey,
-    ethereumMainnetRpcUrl,
-    ethereumSepoliaRpcUrl,
-    mpcOutputCacheUrl,
-    signerContractAddress,
-  } = config
+  const { network, config, servedNetwork } = useMidnight()
+  const { mpcRootPublicKey, ethereumMainnetRpcUrl, ethereumSepoliaRpcUrl, mpcOutputCacheUrl } =
+    config
+  const signerContractAddress = servedNetwork?.config.signerContractAddress ?? null
   const configKey = JSON.stringify([
     network,
     mpcRootPublicKey,
@@ -183,12 +180,8 @@ export function useLifecycleVerification(
       }
       const recoverExecutionOnce = once(() =>
         recoverExecution(
-          {
-            ethereumMainnetRpcUrl,
-            ethereumSepoliaRpcUrl,
-            mpcOutputCacheUrl,
-            signerContractAddress,
-          },
+          { ethereumMainnetRpcUrl, ethereumSepoliaRpcUrl, mpcOutputCacheUrl },
+          signerContractAddress,
           network,
           requestId,
           requests[0],
