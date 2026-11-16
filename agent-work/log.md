@@ -256,3 +256,30 @@ split backend.md, over its budget: the facts about the api package and the schem
 
 ## 85 ACCEPT 03.5
 merged bernard-03-5 as 24b9136
+
+## 86 REPORT 03.6
+DONE, kept in reports/03.6-1.md
+
+## 87 REPORT 03.6
+DONE, kept in reports/03.6-2.md
+
+## 88 CHECK 03.6
+PASS, exit 0 at 84bd834, output in evidence/03.6-1.txt
+
+## 89 DECISION
+D40: the gate of stage 3 is closed, review 03.6 found nothing blocking
+
+## 90 PLAN
+for the planner of stage 04, from review 03.6 at 200,000 requests: the UNION form of the search (pages 1.4 to 7.3 ms, counts under 3 ms) against the OR form (55 to 103 ms), and the UNION form loses on a fragment matching 80,000 requests (129 ms). A fragment of 1 or 2 characters has no trigram: counts took up to 1006 ms, so decide a minimum length or a bounded count. Every page carries four counts that read a growing table in full (matchingRequests, matchingEvents, totalRequests 5 to 9 ms, totalEvents 25 ms): keep totals in a maintained row or accept. Exclusion counts scan requests (18 to 45 ms). Distinct callers scan request_callers (23 ms at 260,000 rows). request_callers does not say which event named a caller and its foreign key has no ON DELETE: matters only if the ingest ever removes an event. The lifecycle event sum has three copies (api testing.ts, contract.test.ts eventsOf, the UI). architecture.md now lists request_callers
+
+## 91 PACK
+contract.md: the UNION search form, LIKE escaping, with_postgres and its trap (from 03.6's report)
+
+## 92 ACCEPT 03.6
+nothing to merge
+
+## 93 CHECK 03-contract
+PASS, exit 0 at 84bd834, output in evidence/03-contract-1.txt
+
+## 94 CHECKPOINT 03-contract
+stage done at 84bd834

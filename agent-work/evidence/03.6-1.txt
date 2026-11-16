@@ -1,0 +1,5 @@
+check:  stages/03-contract/checks/03.6.sh
+ran in: /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol
+head:   84bd834 with uncommitted changes
+exit:   0
+

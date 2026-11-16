@@ -63,8 +63,9 @@ migrations.
 - `events`: the indexer's event id (emission order, D19), transaction hash, contract roles, name,
   payload bytes, request id (null when the event did not decode), decode failure.
 - `requests` (maintained by the ingest transaction, one row per declared request id): request id,
-  first event sequence, caller, first request time, first signature time, first response time,
+  first event sequence, first request time, first signature time, first response time,
   counts per event kind.
+- `request_callers`: one row per request id and caller that notified it (D36).
 - `lifecycle` (a view): a `requests` row joined to its events and their transactions as JSON.
   This is the row the API returns.
 

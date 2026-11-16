@@ -1,0 +1,353 @@
+check:  stages/03-contract/checks/stage.sh
+ran in: /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol
+head:   84bd834 with uncommitted changes
+exit:   0
+
+➤ YN0000: · Yarn 4.18.0
+➤ YN0000: ┌ Resolution step
+➤ YN0000: └ Completed
+➤ YN0000: ┌ Post-resolution validation
+➤ YN0086: │ Some peer dependencies are incorrectly met by dependencies; run yarn explain peer-requirements for details.
+➤ YN0000: └ Completed
+➤ YN0000: ┌ Fetch step
+➤ YN0000: └ Completed in 0s 470ms
+➤ YN0000: ┌ Link step
+➤ YN0000: └ Completed
+➤ YN0000: · Done with warnings in 0s 681ms
+Done in 1s 781ms
+Checking formatting...
+
+All matched files use the correct format.
+Finished in 152ms on 168 files using 8 threads.
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/lib
+
+
+ Test Files  3 passed (3)
+      Tests  14 passed (14)
+   Start at  09:50:17
+   Duration  204ms (import 79%, transform 16%, tests 3%, worker 2%)
+
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/api
+
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  09:50:17
+   Duration  325ms (import 53%, tests 24%, transform 22%, worker 1%)
+
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/backend
+
+
+ Test Files  2 passed (2)
+      Tests  15 passed (15)
+   Start at  09:50:18
+   Duration  3.76s (tests 89%, import 8%, transform 3%)
+
+Plugin "vitest:mocks:interceptor" defines Vite-specific hooks (configureServer) in a plugin returned from applyToEnvironment. These hooks will be ignored.
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/ui
+      API started at http://localhost:63315/
+
+
+ Test Files  25 passed (25)
+      Tests  130 passed (130)
+   Start at  09:50:22
+   Duration  4.49s (worker 83%, tests 9%, import 8%)
+
+Done in 10s 350ms
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 3007 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                         1.36 kB │ gzip:     0.56 kB
+dist/assets/soehne-mono-extraleicht-DKuTsRod.woff2                     24.69 kB
+dist/assets/soehne-mono-leicht-DRGDRErV.woff2                          24.90 kB
+dist/assets/soehne-mono-kraftig-BZXYhV-w.woff2                         25.32 kB
+dist/assets/soehne-mono-buch-CZ9eD1eB.woff2                            25.38 kB
+dist/assets/midnight_onchain_runtime_wasm_bg-DR0b9GVI.wasm          1,582.91 kB │ gzip:   465.76 kB
+dist/assets/midnight_ledger_wasm_v9_bg-jd1Qr8Ws.wasm               10,777.17 kB │ gzip: 4,822.00 kB
+dist/assets/index-kEGoWwzq.css                                         76.21 kB │ gzip:    12.60 kB
+dist/assets/rolldown-runtime-hePW80VL.js                                0.71 kB │ gzip:     0.42 kB
+dist/assets/solana-BxUoMq7C.js                                          0.86 kB │ gzip:     0.51 kB
+dist/assets/contract-analyser-CxP-Os91.js                               1.49 kB │ gzip:     0.85 kB
+dist/assets/alert-Dgc6EXaW.js                                           1.86 kB │ gzip:     0.80 kB
+dist/assets/empty-CGB1gX5a.js                                           3.78 kB │ gzip:     1.17 kB
+dist/assets/midnight-DK4hPHW7.js                                        6.78 kB │ gzip:     2.72 kB
+dist/assets/explorer-BeagogDb.js                                        8.54 kB │ gzip:     3.80 kB
+dist/assets/tabs-COlinOBJ.js                                           22.67 kB │ gzip:     8.26 kB
+dist/assets/MidnightContext-XZ0AsvHL.js                                31.34 kB │ gzip:    11.89 kB
+dist/assets/dist-BS4bdatO.js                                           37.57 kB │ gzip:    15.15 kB
+dist/assets/midnight-D46WI7Jd.js                                       45.12 kB │ gzip:    15.10 kB
+dist/assets/tooltip-lP6cwrMZ.js                                       125.40 kB │ gzip:    43.29 kB
+dist/assets/sign-bidirectional-transaction-inspection-CHIhoXV3.js     173.44 kB │ gzip:    26.51 kB
+dist/assets/dist-IbszQkbo.js                                          291.29 kB │ gzip:    80.70 kB
+dist/assets/index-CFvKl2SD.js                                         294.54 kB │ gzip:    95.46 kB
+dist/assets/explorer-BbFI0-h-.js                                      328.41 kB │ gzip:   102.01 kB
+
+✓ built in 1.55s
+Done in 2s 544ms
+➤ YN0000: · Yarn 4.18.0
+➤ YN0000: ┌ Resolution step
+➤ YN0000: └ Completed
+➤ YN0000: ┌ Post-resolution validation
+➤ YN0086: │ Some peer dependencies are incorrectly met by dependencies; run yarn explain peer-requirements for details.
+➤ YN0000: └ Completed
+➤ YN0000: ┌ Fetch step
+➤ YN0000: └ Completed in 0s 480ms
+➤ YN0000: ┌ Link step
+➤ YN0000: └ Completed
+➤ YN0000: · Done with warnings in 0s 693ms
+Done in 1s 730ms
+Checking formatting...
+
+All matched files use the correct format.
+Finished in 153ms on 168 files using 8 threads.
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/lib
+
+
+ Test Files  3 passed (3)
+      Tests  14 passed (14)
+   Start at  09:50:42
+   Duration  199ms (import 74%, transform 21%, tests 3%, worker 2%)
+
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/api
+
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  09:50:43
+   Duration  315ms (import 50%, tests 26%, transform 22%, worker 1%)
+
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/backend
+
+
+ Test Files  2 passed (2)
+      Tests  15 passed (15)
+   Start at  09:50:43
+   Duration  3.73s (tests 90%, import 7%, transform 3%)
+
+Plugin "vitest:mocks:interceptor" defines Vite-specific hooks (configureServer) in a plugin returned from applyToEnvironment. These hooks will be ignored.
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/ui
+      API started at http://localhost:63315/
+
+
+ Test Files  25 passed (25)
+      Tests  130 passed (130)
+   Start at  09:50:48
+   Duration  4.47s (worker 83%, tests 9%, import 8%)
+
+Done in 10s 148ms
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 3007 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                         1.36 kB │ gzip:     0.56 kB
+dist/assets/soehne-mono-extraleicht-DKuTsRod.woff2                     24.69 kB
+dist/assets/soehne-mono-leicht-DRGDRErV.woff2                          24.90 kB
+dist/assets/soehne-mono-kraftig-BZXYhV-w.woff2                         25.32 kB
+dist/assets/soehne-mono-buch-CZ9eD1eB.woff2                            25.38 kB
+dist/assets/midnight_onchain_runtime_wasm_bg-DR0b9GVI.wasm          1,582.91 kB │ gzip:   465.76 kB
+dist/assets/midnight_ledger_wasm_v9_bg-jd1Qr8Ws.wasm               10,777.17 kB │ gzip: 4,822.00 kB
+dist/assets/index-kEGoWwzq.css                                         76.21 kB │ gzip:    12.60 kB
+dist/assets/rolldown-runtime-hePW80VL.js                                0.71 kB │ gzip:     0.42 kB
+dist/assets/solana-BxUoMq7C.js                                          0.86 kB │ gzip:     0.51 kB
+dist/assets/contract-analyser-CxP-Os91.js                               1.49 kB │ gzip:     0.85 kB
+dist/assets/alert-Dgc6EXaW.js                                           1.86 kB │ gzip:     0.80 kB
+dist/assets/empty-CGB1gX5a.js                                           3.78 kB │ gzip:     1.17 kB
+dist/assets/midnight-DK4hPHW7.js                                        6.78 kB │ gzip:     2.72 kB
+dist/assets/explorer-BeagogDb.js                                        8.54 kB │ gzip:     3.80 kB
+dist/assets/tabs-COlinOBJ.js                                           22.67 kB │ gzip:     8.26 kB
+dist/assets/MidnightContext-XZ0AsvHL.js                                31.34 kB │ gzip:    11.89 kB
+dist/assets/dist-BS4bdatO.js                                           37.57 kB │ gzip:    15.15 kB
+dist/assets/midnight-D46WI7Jd.js                                       45.12 kB │ gzip:    15.10 kB
+dist/assets/tooltip-lP6cwrMZ.js                                       125.40 kB │ gzip:    43.29 kB
+dist/assets/sign-bidirectional-transaction-inspection-CHIhoXV3.js     173.44 kB │ gzip:    26.51 kB
+dist/assets/dist-IbszQkbo.js                                          291.29 kB │ gzip:    80.70 kB
+dist/assets/index-CFvKl2SD.js                                         294.54 kB │ gzip:    95.46 kB
+dist/assets/explorer-BbFI0-h-.js                                      328.41 kB │ gzip:   102.01 kB
+
+✓ built in 1.48s
+Done in 2s 468ms
+➤ YN0000: · Yarn 4.18.0
+➤ YN0000: ┌ Resolution step
+➤ YN0000: └ Completed
+➤ YN0000: ┌ Post-resolution validation
+➤ YN0086: │ Some peer dependencies are incorrectly met by dependencies; run yarn explain peer-requirements for details.
+➤ YN0000: └ Completed
+➤ YN0000: ┌ Fetch step
+➤ YN0000: └ Completed in 0s 467ms
+➤ YN0000: ┌ Link step
+➤ YN0000: └ Completed
+➤ YN0000: · Done with warnings in 0s 672ms
+Done in 1s 799ms
+Checking formatting...
+
+All matched files use the correct format.
+Finished in 158ms on 168 files using 8 threads.
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/lib
+
+
+ Test Files  3 passed (3)
+      Tests  14 passed (14)
+   Start at  09:51:11
+   Duration  206ms (import 76%, transform 19%, tests 3%, worker 2%)
+
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/api
+
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  09:51:12
+   Duration  308ms (import 49%, tests 27%, transform 23%, worker 1%)
+
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/backend
+
+
+ Test Files  2 passed (2)
+      Tests  15 passed (15)
+   Start at  09:51:12
+   Duration  3.74s (tests 90%, import 7%, transform 3%)
+
+Plugin "vitest:mocks:interceptor" defines Vite-specific hooks (configureServer) in a plugin returned from applyToEnvironment. These hooks will be ignored.
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/ui
+      API started at http://localhost:63315/
+
+
+ Test Files  25 passed (25)
+      Tests  130 passed (130)
+   Start at  09:51:17
+   Duration  4.53s (worker 83%, import 9%, tests 9%)
+
+Done in 10s 207ms
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 3007 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                         1.36 kB │ gzip:     0.56 kB
+dist/assets/soehne-mono-extraleicht-DKuTsRod.woff2                     24.69 kB
+dist/assets/soehne-mono-leicht-DRGDRErV.woff2                          24.90 kB
+dist/assets/soehne-mono-kraftig-BZXYhV-w.woff2                         25.32 kB
+dist/assets/soehne-mono-buch-CZ9eD1eB.woff2                            25.38 kB
+dist/assets/midnight_onchain_runtime_wasm_bg-DR0b9GVI.wasm          1,582.91 kB │ gzip:   465.76 kB
+dist/assets/midnight_ledger_wasm_v9_bg-jd1Qr8Ws.wasm               10,777.17 kB │ gzip: 4,822.00 kB
+dist/assets/index-kEGoWwzq.css                                         76.21 kB │ gzip:    12.60 kB
+dist/assets/rolldown-runtime-hePW80VL.js                                0.71 kB │ gzip:     0.42 kB
+dist/assets/solana-BxUoMq7C.js                                          0.86 kB │ gzip:     0.51 kB
+dist/assets/contract-analyser-CxP-Os91.js                               1.49 kB │ gzip:     0.85 kB
+dist/assets/alert-Dgc6EXaW.js                                           1.86 kB │ gzip:     0.80 kB
+dist/assets/empty-CGB1gX5a.js                                           3.78 kB │ gzip:     1.17 kB
+dist/assets/midnight-DK4hPHW7.js                                        6.78 kB │ gzip:     2.72 kB
+dist/assets/explorer-BeagogDb.js                                        8.54 kB │ gzip:     3.80 kB
+dist/assets/tabs-COlinOBJ.js                                           22.67 kB │ gzip:     8.26 kB
+dist/assets/MidnightContext-XZ0AsvHL.js                                31.34 kB │ gzip:    11.89 kB
+dist/assets/dist-BS4bdatO.js                                           37.57 kB │ gzip:    15.15 kB
+dist/assets/midnight-D46WI7Jd.js                                       45.12 kB │ gzip:    15.10 kB
+dist/assets/tooltip-lP6cwrMZ.js                                       125.40 kB │ gzip:    43.29 kB
+dist/assets/sign-bidirectional-transaction-inspection-CHIhoXV3.js     173.44 kB │ gzip:    26.51 kB
+dist/assets/dist-IbszQkbo.js                                          291.29 kB │ gzip:    80.70 kB
+dist/assets/index-CFvKl2SD.js                                         294.54 kB │ gzip:    95.46 kB
+dist/assets/explorer-BbFI0-h-.js                                      328.41 kB │ gzip:   102.01 kB
+
+✓ built in 1.59s
+Done in 2s 579ms
+➤ YN0000: · Yarn 4.18.0
+➤ YN0000: ┌ Resolution step
+➤ YN0000: └ Completed
+➤ YN0000: ┌ Post-resolution validation
+➤ YN0086: │ Some peer dependencies are incorrectly met by dependencies; run yarn explain peer-requirements for details.
+➤ YN0000: └ Completed
+➤ YN0000: ┌ Fetch step
+➤ YN0000: └ Completed in 0s 472ms
+➤ YN0000: ┌ Link step
+➤ YN0000: └ Completed
+➤ YN0000: · Done with warnings in 0s 685ms
+Done in 1s 763ms
+Checking formatting...
+
+All matched files use the correct format.
+Finished in 157ms on 168 files using 8 threads.
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/lib
+
+
+ Test Files  3 passed (3)
+      Tests  14 passed (14)
+   Start at  09:51:41
+   Duration  203ms (import 76%, transform 20%, tests 3%, worker 2%)
+
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/api
+
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  09:51:41
+   Duration  308ms (import 50%, tests 26%, transform 23%, worker 1%)
+
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/backend
+
+
+ Test Files  2 passed (2)
+      Tests  15 passed (15)
+   Start at  09:51:42
+   Duration  3.73s (tests 90%, import 7%, transform 3%)
+
+Plugin "vitest:mocks:interceptor" defines Vite-specific hooks (configureServer) in a plugin returned from applyToEnvironment. These hooks will be ignored.
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol/packages/ui
+      API started at http://localhost:63315/
+
+
+ Test Files  25 passed (25)
+      Tests  130 passed (130)
+   Start at  09:51:46
+   Duration  4.46s (worker 83%, tests 9%, import 8%)
+
+Done in 10s 164ms
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 3007 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                         1.36 kB │ gzip:     0.56 kB
+dist/assets/soehne-mono-extraleicht-DKuTsRod.woff2                     24.69 kB
+dist/assets/soehne-mono-leicht-DRGDRErV.woff2                          24.90 kB
+dist/assets/soehne-mono-kraftig-BZXYhV-w.woff2                         25.32 kB
+dist/assets/soehne-mono-buch-CZ9eD1eB.woff2                            25.38 kB
+dist/assets/midnight_onchain_runtime_wasm_bg-DR0b9GVI.wasm          1,582.91 kB │ gzip:   465.76 kB
+dist/assets/midnight_ledger_wasm_v9_bg-jd1Qr8Ws.wasm               10,777.17 kB │ gzip: 4,822.00 kB
+dist/assets/index-kEGoWwzq.css                                         76.21 kB │ gzip:    12.60 kB
+dist/assets/rolldown-runtime-hePW80VL.js                                0.71 kB │ gzip:     0.42 kB
+dist/assets/solana-BxUoMq7C.js                                          0.86 kB │ gzip:     0.51 kB
+dist/assets/contract-analyser-CxP-Os91.js                               1.49 kB │ gzip:     0.85 kB
+dist/assets/alert-Dgc6EXaW.js                                           1.86 kB │ gzip:     0.80 kB
+dist/assets/empty-CGB1gX5a.js                                           3.78 kB │ gzip:     1.17 kB
+dist/assets/midnight-DK4hPHW7.js                                        6.78 kB │ gzip:     2.72 kB
+dist/assets/explorer-BeagogDb.js                                        8.54 kB │ gzip:     3.80 kB
+dist/assets/tabs-COlinOBJ.js                                           22.67 kB │ gzip:     8.26 kB
+dist/assets/MidnightContext-XZ0AsvHL.js                                31.34 kB │ gzip:    11.89 kB
+dist/assets/dist-BS4bdatO.js                                           37.57 kB │ gzip:    15.15 kB
+dist/assets/midnight-D46WI7Jd.js                                       45.12 kB │ gzip:    15.10 kB
+dist/assets/tooltip-lP6cwrMZ.js                                       125.40 kB │ gzip:    43.29 kB
+dist/assets/sign-bidirectional-transaction-inspection-CHIhoXV3.js     173.44 kB │ gzip:    26.51 kB
+dist/assets/dist-IbszQkbo.js                                          291.29 kB │ gzip:    80.70 kB
+dist/assets/index-CFvKl2SD.js                                         294.54 kB │ gzip:    95.46 kB
+dist/assets/explorer-BbFI0-h-.js                                      328.41 kB │ gzip:   102.01 kB
+
+✓ built in 1.51s
+Done in 2s 491ms

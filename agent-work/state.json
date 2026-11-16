@@ -1,6 +1,6 @@
 {
   "limit": 2,
-  "seq": 85,
+  "seq": 94,
   "stages": {
     "01-ground": {
       "check_dirty": true,
@@ -21,9 +21,13 @@
       "status": "done"
     },
     "03-contract": {
-      "checkpoint": "",
+      "check_dirty": true,
+      "check_head": "84bd834",
+      "check_passed": true,
+      "checkpoint": "84bd834",
+      "checks": 1,
       "provisional": false,
-      "status": "running"
+      "status": "done"
     },
     "04-build": {
       "checkpoint": "",
@@ -182,10 +186,13 @@
       "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-bernard-03-5"
     },
     "03.6": {
-      "checks": 0,
+      "check_dirty": true,
+      "check_head": "84bd834",
+      "check_passed": true,
+      "checks": 1,
       "redos": 0,
-      "reports": 0,
-      "status": "running",
+      "reports": 2,
+      "status": "done",
       "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol"
     }
   }
