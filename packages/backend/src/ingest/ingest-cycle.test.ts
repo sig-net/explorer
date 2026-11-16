@@ -1,4 +1,8 @@
-import type { ContractCallNode } from '@sig-net/explorer-api'
+import {
+  type ContractCallNode,
+  type RequestCellWire,
+  textWithoutUrlCredentials,
+} from '@sig-net/explorer-api'
 import { MIDNIGHT_NETWORKS, type SignetContractEvent } from '@sig-net/explorer-lib'
 import {
   indexedSignetContractEvent,
@@ -11,12 +15,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { migrateNetworkSchema, wipeNetworkSchema } from '../db/migrate.ts'
 import { networkDb, type StoredInspection } from '../db/schema.ts'
 import { createTestDatabase, seedNetworkEvents, type TestDatabase } from '../db/testing.ts'
+import { createPostgresExplorerService } from '../service/postgres-explorer-service.ts'
 import { createInMemoryMidnightSource } from '../source/in-memory.ts'
 import type { MidnightSource, SourceBlockRange } from '../source/port.ts'
 import {
   type IngestCycleOutcome,
   type IngestCycleSettings,
   type InspectTransaction,
+  recordedErrorText,
   runIngestCycle,
 } from './ingest-cycle.ts'
 import {
@@ -75,8 +81,45 @@ function attestation(id: number, requestId = REQUEST_A): SignetContractEvent {
   return responseEvent(id, SignetEventName.RespondBidirectionalEvent, requestId, 0)
 }
 
-function callNode(entryPoint: string): ContractCallNode {
-  return { entryPoint, address: 'a0'.repeat(32), fallible: false, calls: [] }
+function callNode(entryPoint: string, calls: readonly ContractCallNode[] = []): ContractCallNode {
+  return { entryPoint, address: 'a0'.repeat(32), fallible: false, calls }
+}
+
+/** A chain of `depth` calls, each made by the one before it. */
+function callChainOf(depth: number): ContractCallNode {
+  let chain = callNode('leaf')
+  for (let made = 1; made < depth; made += 1) {
+    chain = callNode('call', [chain])
+  }
+  return chain
+}
+
+function bytesCellOf(atom: string, length: number): RequestCellWire {
+  return { value: [atom], alignment: [{ tag: 'atom', value: { tag: 'bytes', length } }] }
+}
+
+/** The inspection each sign bidirectional event is served with, in emission order. */
+async function servedInspections() {
+  const service = createPostgresExplorerService(database.db, [
+    {
+      network: NETWORK,
+      config: {
+        signerContractAddress: SETTINGS.signerContractAddress,
+        responderContractAddress: SETTINGS.responderContractAddress,
+        startBlock: SETTINGS.startBlock,
+        sourceUrl: 'https://indexer.example/api/v0',
+      },
+    },
+  ])
+  const page = await service.lifecycles(NETWORK)
+  const events = []
+  for (const { requestId } of page.lifecycles) {
+    const lifecycle = await service.lifecycle(NETWORK, requestId)
+    events.push(...(lifecycle?.signBidirectionalEvents ?? []))
+  }
+  return events
+    .toSorted((a, b) => a.source.id - b.source.id)
+    .map(({ source, inspection }) => ({ id: source.id, inspection }))
 }
 
 interface InspectCall {
@@ -885,7 +928,7 @@ describe('the ingest cycle', () => {
     ])
     const inspect: InspectTransaction = (raw) => {
       if (raw === rawOf(thrown)) {
-        throw new Error(`no entry point send\u0000eposit ${'x'.repeat(1972)}\u{1f512}`)
+        throw new Error(`no entry point send\u0000eposit ${'x'.repeat(1973)}\u{1f512}`)
       }
       return { failed: 'no entry point send\u0000eposit' }
     }
@@ -896,7 +939,7 @@ describe('the ingest cycle', () => {
       {
         hash: bytes(thrown),
         raw: bytes(rawOf(thrown)),
-        inspection: { failed: `no entry point sendeposit ${'x'.repeat(1972)}` },
+        inspection: { failed: `no entry point sendeposit ${'x'.repeat(1973)}` },
       },
       {
         hash: bytes(returned),
@@ -1004,5 +1047,161 @@ describe('the ingest cycle', () => {
     expect(state.last_error).toBe(error)
     expect(state.last_error).not.toMatch(/SECRET|password|\?/)
     expect(state.cursor_height).toBe(1003)
+  })
+
+  it('an event name holding a NUL character is stored without it', async () => {
+    const event = indexedSignetContractEvent(1, 'signer', 'AnotherEvent', [1], 0)
+    const named = { ...event, source: { ...event.source, name: 'Sign\u0000Event\ud800' } }
+
+    const outcome = await cycle(chainOf(1010, [at(1002, named)]))
+
+    expect(outcome).toMatchObject({ kind: 'stored', events: 1 })
+    expect(await eventsOf()).toMatchObject([
+      { id: 1, name: 'SignEvent', request_id: null, decode_failure: null },
+    ])
+    expect(await stateOf()).toMatchObject({ cursor_height: 1008, last_error: null })
+  })
+
+  it('a stop reason holding a NUL character is recorded without it', async () => {
+    expect(await cycle(chainOf(1010, []))).toMatchObject({ kind: 'stored' })
+    const genesisHash = `${'9f'.repeat(31)}\u0000`
+
+    const outcome = await cycle(
+      createInMemoryMidnightSource(genesisHash, [blockOf(FIRST_BLOCK, [])]),
+    )
+
+    const reason = `the source's genesis hash is ${'9f'.repeat(31)} and the schema was indexed for ${GENESIS_HASH}`
+    expect(outcome).toEqual({ kind: 'stopped', reason })
+    expect(await stateOf()).toMatchObject({ state: 'stopped', last_error: reason })
+  })
+
+  it('a failure text of a million characters is recorded within 100 ms', () => {
+    const texts = [
+      'a'.repeat(1_000_000),
+      'a://'.repeat(250_000),
+      `a://b?${')'.repeat(1_000_000)}x`,
+      `a://${'b@'.repeat(500_000)}`,
+      `${'1'.repeat(1_000_000)}://user@host`,
+      'a '.repeat(500_000),
+      ' '.repeat(1_000_000),
+      '\u0000'.repeat(1_000_000),
+      '\ud800a'.repeat(500_000),
+      'https://user:password@h.example/x?k=SECRET '.repeat(25_000),
+    ]
+    for (const text of texts) {
+      expect(text.length).toBeGreaterThanOrEqual(1_000_000)
+      const started = performance.now()
+      const recorded = recordedErrorText(text)
+      const elapsed = performance.now() - started
+
+      expect(elapsed).toBeLessThan(100)
+      expect(recorded).toBe(
+        textWithoutUrlCredentials(text.replaceAll(/[\0\ud800]/g, '')).slice(0, 2000),
+      )
+    }
+  })
+
+  it('a NUL character inside a URL does not hide its credentials', async () => {
+    const text =
+      'POST ht\u0000tps:\ud800//user:pass\u0000word@indexer.example/api/v0?project_\u0000id=SECRET failed'
+    expect(recordedErrorText(text)).toBe('POST https://indexer.example/api/v0 failed')
+    const source = chainOf(1010, [at(1002, notification(1))])
+    expect(await cycle(source, { maxRange: 3 })).toMatchObject({ kind: 'stored' })
+    source.failNextCall(new Error(text))
+
+    const outcome = await cycle(source, { maxRange: 3 })
+
+    const error = 'POST https://indexer.example/api/v0 failed'
+    expect(outcome).toEqual({ kind: 'failed', error })
+    expect(await stateOf()).toMatchObject({ cursor_height: 1003, last_error: error })
+  })
+
+  it('an inspection the wire rejects is stored as a failed inspection', async () => {
+    const nonFinite = 'a4'.repeat(32)
+    const upperCase = 'a5'.repeat(32)
+    const deep = 'a6'.repeat(32)
+    const accepted = 'a7'.repeat(32)
+    const source = chainOf(1010, [
+      at(1002, notification(1, REQUEST_A), nonFinite),
+      at(1003, notification(2, REQUEST_B), upperCase),
+      at(1004, notification(3, REQUEST_C), deep),
+      at(1005, notification(4, REQUEST_C), accepted),
+    ])
+    const inspect = (raw: string): StoredInspection => {
+      if (raw === rawOf(nonFinite)) {
+        return { callChains: [], requests: { '1': { cell: bytesCellOf('ab', Number.NaN) } } }
+      }
+      if (raw === rawOf(upperCase)) {
+        return { callChains: [], requests: { '2': { cell: bytesCellOf('AB', 1) } } }
+      }
+      return raw === rawOf(deep)
+        ? { callChains: [callChainOf(1000)], requests: { '3': { cell: null } } }
+        : { callChains: [callChainOf(20)], requests: { '4': { cell: null } } }
+    }
+
+    expect(await cycle(source, {}, inspect)).toMatchObject({ kind: 'stored', events: 4 })
+
+    const rejected = { failed: expect.stringContaining('the wire rejects the inspection') }
+    const tooDeep = { failed: 'the inspection nests deeper than 64 levels' }
+    expect(await transactionsOf()).toMatchObject([
+      { hash: bytes(nonFinite), raw: bytes(rawOf(nonFinite)), inspection: rejected },
+      { hash: bytes(upperCase), raw: bytes(rawOf(upperCase)), inspection: rejected },
+      { hash: bytes(deep), raw: bytes(rawOf(deep)), inspection: tooDeep },
+      { hash: bytes(accepted), inspection: { callChains: [callChainOf(20)] } },
+    ])
+    expect(await stateOf()).toMatchObject({ cursor_height: 1008, last_error: null })
+    expect(await servedInspections()).toEqual([
+      { id: 1, inspection: rejected },
+      { id: 2, inspection: rejected },
+      { id: 3, inspection: tooDeep },
+      { id: 4, inspection: { callChains: [callChainOf(20)], request: null, requestCell: null } },
+    ])
+  })
+
+  it('an inspection that cannot be serialised is stored as a failed inspection', async () => {
+    const cyclicCalls: ContractCallNode[] = []
+    cyclicCalls.push(callNode('loop', cyclicCalls))
+    const answers: readonly (readonly [RegExp, InspectTransaction])[] = [
+      [/BigInt/, (raw, events) => Object.assign(inspectedWithoutCells(raw, events), { gas: 1n })],
+      [/circular/, () => ({ callChains: cyclicCalls, requests: {} })],
+      [/call stack/, () => ({ callChains: [callChainOf(100_000)], requests: {} })],
+      [/undefined/, () => Reflect.get({}, 'inspection')],
+      [/null/, () => JSON.parse('null')],
+      [
+        /^a thrown value that has no text$/,
+        () => {
+          throw Object.create(null)
+        },
+      ],
+      [
+        /^7$/,
+        () => {
+          throw Object.assign(new Error('replaced'), { message: 7 })
+        },
+      ],
+    ]
+    const hashes = answers.map((_, index) => (0xb0 + index).toString(16).repeat(32))
+    const source = chainOf(
+      1010,
+      hashes.map((hash, index) => at(1002, notification(index + 1, REQUEST_A), hash)),
+    )
+    const inspect: InspectTransaction = (raw, events) => {
+      const answer = answers[hashes.findIndex((hash) => rawOf(hash) === raw)]?.[1]
+      if (answer === undefined) {
+        throw new Error(`no answer for ${raw}`)
+      }
+      return answer(raw, events)
+    }
+
+    expect(await cycle(source, {}, inspect)).toMatchObject({ kind: 'stored', events: 7 })
+
+    const failed = answers.map(([reason]) => ({ failed: expect.stringMatching(reason) }))
+    expect(await transactionsOf()).toMatchObject(
+      hashes.map((hash, index) => ({ hash: bytes(hash), inspection: failed[index] })),
+    )
+    expect(await stateOf()).toMatchObject({ cursor_height: 1008, last_error: null })
+    expect(await servedInspections()).toEqual(
+      failed.map((inspection, index) => ({ id: index + 1, inspection })),
+    )
   })
 })
