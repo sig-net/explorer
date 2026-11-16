@@ -112,3 +112,6 @@ PASS, exit 0 at 0b6d0a8, output in evidence/02.4-1.txt
 
 ## 37 ACCEPT 02.4
 merged bernard-02-4 as 53ef0ad
+
+## 38 PACK
+ui.md: where the Vitest config is, waiting for a Base UI popup to unmount, the combobox input-clear reason. core.md: yarn install in a new worktree, vite beside vitest (from the reports of 02.2 and 02.4)

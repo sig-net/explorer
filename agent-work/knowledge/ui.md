@@ -27,3 +27,6 @@ Read this when your step changes the browser app. Paths are relative to the app'
 
 - Component tests are `*.test.tsx` beside the component and run in Chromium with `vitest-browser-react`. Fixtures are `src/lib/midnight/*.fixture.ts`. [read 4234222]
 - The time zone of the test browser is fixed to `Asia/Kolkata` (`vite.config.ts:82`). [read 4234222]
+- The UI's Vitest configuration is the `test` block of `packages/ui/vite.config.ts`: the UI has no `vitest.config.ts`. [run 53ef0ad]
+- A Base UI popup stays mounted for its exit animation (100 ms) after it closes, and `screen` or `page.getByText` queries resolve before it unmounts. To wait for a popup to be gone, poll `document.querySelector` for its `data-slot` (`[data-slot="combobox-content"]`), as `excluded-callers-filter.test.tsx` does. [read 53ef0ad]
+- Base UI's combobox calls `onInputValueChange` with reason `input-clear` when its popup unmounts. A handler that accepts every reason wipes what the user typed: accept `input-change` and `escape-key` alone, as `excluded-callers-filter.tsx` does. [read 53ef0ad]

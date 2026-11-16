@@ -30,3 +30,5 @@ names the rows and sections it rests on: read those, and never act against a row
 - `.github/workflows/**` is never edited in this task: this machine cannot push such a change. What a workflow needs is written into the closing report of step 05.3. [read 4234222]
 - The Blockfrost token is `MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID` in the dev secrets. It is part of a URL's query string, so any error message or log that prints a URL prints the token: strip the query string before printing, and pipe command output through `redact`. [run 4234222]
 - A container or a port you start carries a name of your own (`explorer-<step>-...`) and binds `127.0.0.1`. Remove what you started before you report. [read 4234222]
+- A new step worktree has no `node_modules`: run `yarn install --immutable` before the first test or check. [unverified]
+- A workspace that lists `vitest` in its devDependencies lists `vite` beside it, or `yarn install` warns YN0002 about the missing peer. [unverified]
