@@ -13,3 +13,15 @@ at most 3 step(s) side by side: 4764 MB available, and stage 01 says 01.1 and 01
 
 ## 4 GATE
 D26 (keep each request's raw transaction bytes in the database, about 6 GB a year per network) is still planner (unconfirmed): lint refuses every dispatch until the user confirms or rejects it
+
+## 5 DECISION
+D26 confirmed by the user in the session: raw transaction bytes are kept in the database
+
+## 6 DISPATCH 01.1
+model fable, branch bernard-01-1, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-01-1
+
+## 7 DISPATCH 01.2
+model opus, branch bernard-01-2, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-01-2
+
+## 8 DISPATCH 01.3
+model opus, branch bernard-01-3, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-01-3
