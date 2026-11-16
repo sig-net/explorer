@@ -307,3 +307,21 @@ contract.md: starting a PostgreSQL for a step, where the D47 cut applies, oxfmt'
 
 ## 102 ACCEPT 04.9
 merged bernard-04-9 as c84be07
+
+## 103 DISPATCH 04.2
+model fable, branch bernard-04-2, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-2
+
+## 104 REPORT 04.1
+DONE, kept in reports/04.1-1.md
+
+## 105 CHECK 04.1
+PASS, exit 0 at 9d09a85, output in evidence/04.1-1.txt
+
+## 106 PACK
+indexer.md: the SDK's fetch takes no AbortSignal, the adaptor's module and timeout constant. core.md: three lint rules on tests (from 04.1's report)
+
+## 107 PLAN
+from 04.1, for the configuration step and review 04.8: INDEXER_REQUEST_TIMEOUT_MS lives in indexer-source.ts while D50 puts defaults in the configuration, and the cell to RequestCellWire conversion has two copies (backend inspection, api wire.ts)
+
+## 108 ACCEPT 04.1
+merged bernard-04-1 as 06dca97

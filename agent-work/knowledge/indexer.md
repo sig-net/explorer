@@ -29,3 +29,5 @@ Read this when your step reads the Midnight indexer, or decides how events and t
 ## Running a probe
 
 - From the repository root: `IDX="https://midnight-preprod.blockfrost.io/api/v0?project_id=$(dev-secrets get MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID)" node agent-work/probes/node-runtime.mjs 2>&1 | redact`. The soak probe also takes `NODE_RPC`, which is `https://rpc.midnight-preprod.blockfrost.io?project_id=<token>` with no path: it answered `chain_getFinalizedHead`, `chain_getHeader` and `chain_getBlockHash` in a 90 second trial of the probe. [run 4234222]
+- The SDK's `signetEventSourceFromIndexer` calls `fetch` with no `AbortSignal`, so the adaptor's deadline rejects `eventsIn` while the SDK's request runs on until the server ends it. [unverified]
+- The backend's adaptor is `packages/backend/src/source/indexer-source.ts`, which exports `INDEXER_REQUEST_TIMEOUT_MS = 30_000` (D50 puts the other defaults in the backend's configuration). The conversion of a cell to `RequestCellWire` is written in the backend's inspection and in the private `inspectionToWire` of `packages/api/src/wire.ts`. [unverified]
