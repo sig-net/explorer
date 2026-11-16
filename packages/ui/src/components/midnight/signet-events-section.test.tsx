@@ -5,7 +5,7 @@ import { expect, test } from 'vitest'
 import { render } from 'vitest-browser-react'
 
 import '@/index.css'
-import type { SignetContractRole } from '@/lib/midnight/signet-events'
+import type { SignetContractRole } from '@sig-net/explorer-lib'
 
 import { SignetEventsSection } from './signet-events-section'
 

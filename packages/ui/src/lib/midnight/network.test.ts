@@ -5,13 +5,12 @@ import {
   getSignerContractAddress,
   MidnightNetwork,
 } from '@sig-net/midnight'
+import { isMidnightNetwork, MIDNIGHT_NETWORKS } from '@sig-net/explorer-lib'
 import { expect, test } from 'vitest'
 
 import {
   DEFAULT_MIDNIGHT_NETWORK,
   MIDNIGHT_NETWORK_DEFAULTS,
-  MIDNIGHT_NETWORKS,
-  isMidnightNetwork,
   parseMidnightDefaultNetworkEnv,
   parseMidnightEvmRpcEnv,
   parseMidnightNetwork,

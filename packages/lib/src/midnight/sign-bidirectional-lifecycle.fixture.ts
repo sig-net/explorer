@@ -1,14 +1,13 @@
 import { type IndexedSignetMiscEvent, SignetEventName } from '@sig-net/midnight'
-import { DateTime } from 'luxon'
 
 import {
   decodeSignetContractEvent,
   type SignetContractEvent,
   type SignetContractRole,
-} from '@/lib/midnight/signet-events'
+} from './signet-events.ts'
 
 /** The block time of event 0: later events follow it second by second. */
-export const LIFECYCLE_FIXTURE_START = DateTime.fromISO('2026-09-07T12:00:00Z')
+export const LIFECYCLE_FIXTURE_START = new Date('2026-09-07T12:00:00Z')
 
 /**
  * An event of `name` whose payload starts with `bytes`, emitted by the `role` contract and indexed
@@ -32,7 +31,7 @@ export function indexedSignetContractEvent(
     transactionHash: id.toString(16).padStart(64, '0'),
     blockHeight: 1000 + id,
     blockHash: 'c0'.repeat(32),
-    blockTimestamp: LIFECYCLE_FIXTURE_START.plus({ seconds: secondsAfterStart }).toJSDate(),
+    blockTimestamp: new Date(LIFECYCLE_FIXTURE_START.getTime() + secondsAfterStart * 1000),
   }
   return decodeSignetContractEvent(source, [role])
 }

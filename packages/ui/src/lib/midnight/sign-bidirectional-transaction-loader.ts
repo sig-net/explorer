@@ -1,8 +1,5 @@
-import type {
-  IndexedSignetMiscEvent,
-  RequestIdHex,
-  SignBidirectionalNotification,
-} from '@sig-net/midnight'
+import type { StoredSignetMiscEvent } from '@sig-net/explorer-lib'
+import type { RequestIdHex, SignBidirectionalNotification } from '@sig-net/midnight'
 
 import type { SignBidirectionalTransactionInspection } from '@/lib/midnight/sign-bidirectional-transaction-inspection'
 
@@ -51,7 +48,7 @@ async function fetchRawTransactionHex(
 export interface SignBidirectionalNotificationEvent {
   readonly requestId: RequestIdHex
   readonly record: SignBidirectionalNotification
-  readonly source: IndexedSignetMiscEvent
+  readonly source: StoredSignetMiscEvent
 }
 
 const inspections = new Map<string, Promise<SignBidirectionalTransactionInspection>>()

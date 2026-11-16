@@ -1,14 +1,12 @@
-import type { IndexedSignetMiscEvent, SignetEventSource } from '@sig-net/midnight'
-
 import {
   aggregateSignBidirectionalLifecycles,
-  type SignBidirectionalLifecycle,
-} from '@/lib/midnight/sign-bidirectional-lifecycle'
-import {
   decodeSignetContractEvent,
+  type SignBidirectionalLifecycle,
   type SignetContractEvent,
   type SignetContractRole,
-} from '@/lib/midnight/signet-events'
+} from '@sig-net/explorer-lib'
+import type { IndexedSignetMiscEvent, SignetEventSource } from '@sig-net/midnight'
+
 import { midnightBlocksIn, SIGNET_EVENTS_SLICE_DAYS } from '@/lib/midnight/signet-events-window'
 
 export type IndexedSignetEventSource = SignetEventSource<IndexedSignetMiscEvent>

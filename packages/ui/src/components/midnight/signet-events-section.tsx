@@ -1,4 +1,3 @@
-import type { IndexedSignetMiscEvent } from '@sig-net/midnight'
 import { cn } from 'cn'
 import { type ReactNode, useState } from 'react'
 
@@ -11,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsTrigger } from '@/components/ui/tabs'
 import { formatLocalTimestamp } from '@/lib/format'
-import type { SignetContractRole } from '@/lib/midnight/signet-events'
+import type { SignetContractRole, StoredSignetMiscEvent } from '@sig-net/explorer-lib'
 
 const SUCCESSFUL_TAB_CLASS_NAME =
   'bg-success-500/15 text-success-700 hover:text-success-700 data-active:border-success-500/50 data-active:bg-success-500/25 data-active:text-success-700 dark:text-success-400 dark:hover:text-success-400 dark:data-active:border-success-500/50 dark:data-active:bg-success-500/25 dark:data-active:text-success-400'
@@ -26,7 +25,7 @@ const SUCCESSFUL_TAB_CLASS_NAME =
  */
 export function SignetEventsSection<
   TEvent extends {
-    readonly source: IndexedSignetMiscEvent
+    readonly source: StoredSignetMiscEvent
     readonly roles: readonly SignetContractRole[]
   },
 >({
