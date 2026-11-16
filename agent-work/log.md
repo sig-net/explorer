@@ -622,3 +622,21 @@ For the closing report, from 05.1: stop() answers a request in flight before it 
 
 ## 207 ACCEPT 05.1
 merged bernard-05-1 as e97cdc5
+
+## 208 DISPATCH 05.7
+model opus, branch bernard-05-7, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-05-7
+
+## 209 REPORT 05.7
+DONE, kept in reports/05.7-1.md
+
+## 210 CHECK 05.7
+PASS, exit 0 at 10b91de, output in evidence/05.7-1.txt
+
+## 211 PACK
+backend.md: the pg pool's error event (from 05.7's report)
+
+## 212 PLAN
+added 05.8: the pg pool gets an error listener so that a PostgreSQL restart does not end the backend, and .claude/launch.json calls dev:ui (both from 05.7's report). 05.2's live run and review 05.4 wait on it, and the stage check runs it. For the closing report: the backend image is 591 MB on node:24.18.0-bookworm-slim, built in two stages with the test files left out, and the local database's user, password and name are all explorer
+
+## 213 ACCEPT 05.7
+merged bernard-05-7 as 88f0e9b

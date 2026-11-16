@@ -7,7 +7,7 @@ source "$AGENT_WORK/lib/checks.sh"
 with_postgres
 as_stage_check
 repo_checks
-for step in 05.5 05.1 05.7 05.2 05.3 05.6; do
+for step in 05.5 05.1 05.7 05.8 05.2 05.3 05.6; do
   bash "$AGENT_WORK/stages/05-integrate/checks/$step.sh" || { echo "the check of step $step fails on the merged branch" >&2; exit 1; }
 done
 git diff --quiet 942e473 HEAD -- .github/workflows ||
