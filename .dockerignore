@@ -1,6 +1,6 @@
 # Build context for the image. Mirrors .gitignore, then drops what the image does not build from.
 .git
-node_modules
+**/node_modules
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
@@ -8,24 +8,24 @@ node_modules
 !.yarn/sdks
 !.yarn/versions
 .pnp.*
-dist
-*.local
-coverage
-__screenshots__
-.vitest
-logs
-*.log
+**/dist
+**/*.local
+**/coverage
+**/__screenshots__
+**/.vitest
+**/logs
+**/*.log
 .vscode
 .idea
 
 # Environment files carry a machine's configuration, which the image takes from its runtime
 # environment.
-.env*
+**/.env*
 
 # Not part of the application build.
 .claude
 .github
-Dockerfile
+**/Dockerfile
 .dockerignore
 
 # The plan agents work from, never part of a build.
