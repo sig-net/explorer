@@ -658,3 +658,6 @@ backend.md and server.md: a connection ended during a query emits error on the c
 
 ## 219 ACCEPT 05.8
 merged bernard-05-8 as 305eaf8
+
+## 220 PLAN
+No step 05.9, against what entry 218's accept says: the timeout of signet-events-section.test.tsx 'each event gets a numbered tab' was not reproduced on the parent at 305eaf8, in 6 runs of the file under 12 busy processes and 4 runs of the whole UI suite under 16 (load 22.49), all 115 passed. CPU load alone is not its cause, and a fix step has no check that fails. Seen 3 times in agents' runs (04.6, 04.7, 05.8), each while another step's check or suite ran on the machine, never in a check of the orchestrator. For the closing report as an open defect of the test suite: the click on tab 2 times out at 15 s while a screenshot shows the tab selected
