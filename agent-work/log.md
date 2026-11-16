@@ -43,3 +43,27 @@ PASS, exit 0 at d7c9bef, output in evidence/01.1-1.txt
 
 ## 14 ACCEPT 01.1
 merged bernard-01-1 as 8a83e95
+
+## 15 REPORT 01.3
+DONE, kept in reports/01.3-1.md
+
+## 16 CHECK 01.3
+PASS, exit 0 at 28402a5, output in evidence/01.3-1.txt
+
+## 17 ACCEPT 01.3
+merged bernard-01-3 as 8580093
+
+## 18 DECISION
+D27 gate A7: no margin for late events (0 late, 0 vanished)
+
+## 19 DECISION
+D28 gate A8: tipMargin defaults to 6 blocks (tip ahead of finality by 1, no hash mismatch)
+
+## 20 DECISION
+D29 gate A10: 30 second poll stands (1911 calls, all 200)
+
+## 21 CHECK 01-ground
+PASS, exit 0 at 8580093, output in evidence/01-ground-1.txt
+
+## 22 CHECKPOINT 01-ground
+stage done at 8580093
