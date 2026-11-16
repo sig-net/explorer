@@ -154,3 +154,30 @@ re-planned against the stages before it, and confirmed
 
 ## 51 HANDOVER
 Stage 03 is revised and confirmed, nothing of it is dispatched. For the planner of stage 04: reconcile step 04.1's inspectionForStorage with D34 (one request cell per sign bidirectional event), and put D28 (tipMargin 6 blocks) into step 04.2. For the closing report to the user: the workflow lines 02.1's report lists (pages-deploy.yml 81 and 84, docker-publish.yml 1, 72 and 108), moving .env.local to packages/ui (D31), the daily Blockfrost quota of about 11,000 requests a network to confirm, 02.1 and 02.2 accepted with --retried for the excluded callers filter defect that 02.4 fixed in the component. Limit is 3 on a machine with 8 processors and about 4.5 GB available: measure again.
+
+## 52 PLAN
+at most 2 step(s) side by side: 8 processors, 4475 MB available of 7862, no swap: one step per 2 GB
+
+## 53 RECOVERY
+fresh orchestrator after handover: stage 03 confirmed, nothing dispatched, no step running, limit set to 2
+
+## 54 DISPATCH 03.1
+model fable, branch bernard-03-1, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-03-1
+
+## 55 REPORT 03.1
+DONE, kept in reports/03.1-1.md
+
+## 56 CHECK 03.1
+PASS, exit 0 at 8823894, output in evidence/03.1-1.txt
+
+## 57 DECISION
+D35: the domain inspection keeps requestCell beside the decoded request
+
+## 58 PACK
+backend.md: versions of zod and hono, lib exports, the api package's entries, routes prefix and error ownership, D35, redactUrlQuery (from 03.1's report)
+
+## 59 PLAN
+03.2: the path of its exit check written in full
+
+## 60 ACCEPT 03.1
+merged bernard-03-1 as 991a8d3
