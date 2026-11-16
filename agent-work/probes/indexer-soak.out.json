@@ -1,0 +1,25 @@
+{
+  "error": null,
+  "durationMinutes": 30,
+  "elapsedMinutes": 30.4,
+  "pollSeconds": 4,
+  "polls": 361,
+  "failedPolls": 0,
+  "fromBlock": 3442003,
+  "toBlock": 3442279,
+  "distinctTips": 275,
+  "eventsFirstRead": 91,
+  "eventsSecondRead": 91,
+  "lateEvents": 0,
+  "lateEventMaxBlocksBelowTip": 0,
+  "vanishedEvents": 0,
+  "lateSample": [],
+  "vanishedSample": [],
+  "tipAheadOfFinalityPolls": 4,
+  "tipAheadOfFinalityMaxBlocks": 1,
+  "tipHashMismatches": 0,
+  "calls": 1911,
+  "statuses": {
+    "200": 1911
+  }
+}
