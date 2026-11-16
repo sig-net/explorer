@@ -289,3 +289,21 @@ re-planned against the stages before it, and confirmed
 
 ## 96 PLAN
 04-build re-planned by a fresh planner and confirmed: 04.9 (contract amendments) and 04.10 (the ingest loop, split from 04.2) added, D41 to D50. For the closing report: D41, a search under 3 characters is no search
+
+## 97 DISPATCH 04.1
+model opus, branch bernard-04-1, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-1
+
+## 98 DISPATCH 04.9
+model fable, branch bernard-04-9, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-9
+
+## 99 REPORT 04.9
+DONE, kept in reports/04.9-1.md
+
+## 100 CHECK 04.9
+PASS, exit 0 at e467605, output in evidence/04.9-1.txt
+
+## 101 PACK
+contract.md: starting a PostgreSQL for a step, where the D47 cut applies, oxfmt's last line (from 04.9's report)
+
+## 102 ACCEPT 04.9
+merged bernard-04-9 as c84be07
