@@ -71,8 +71,9 @@ export function ExcludedCallersFilter({
           }}
           inputValue={inputValue}
           onInputValueChange={(value, details) => {
-            // A picked item is a chip by now, and the box stays clear for the next one.
-            if (details.reason !== 'item-press') {
+            // Base UI also clears the text once the suggestions finish closing, which would wipe a
+            // typed address and its invalid mark, so only typing and Escape on a closed box count.
+            if (details.reason === 'input-change' || details.reason === 'escape-key') {
               setInputValue(value)
               setInvalid(false)
             }

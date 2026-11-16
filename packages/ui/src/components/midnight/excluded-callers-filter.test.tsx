@@ -61,12 +61,16 @@ test('the button excludes the typed address, and marks the box when it is not on
   // While the suggestions are open, the rest of the page is hidden from the accessibility tree.
   await box.fill('not an address')
   await userEvent.keyboard('{Escape}')
+  // The typed text outlives the suggestions' closing, which ends after Escape returns.
+  await expect.poll(() => document.querySelector('[data-slot="combobox-content"]')).toBeNull()
+  await expect.element(box).toHaveValue('not an address')
   await button.click()
   await expect.element(box).toHaveAttribute('aria-invalid', 'true')
   expect(screen.getByRole('list', { name: 'Excluded callers' }).elements()).toHaveLength(0)
   await box.fill(TWO)
   await expect.element(box).not.toHaveAttribute('aria-invalid')
   await userEvent.keyboard('{Escape}')
+  await expect.poll(() => document.querySelector('[data-slot="combobox-content"]')).toBeNull()
   await button.click()
   await expect.element(screen.getByRole('button', { name: `Stop excluding ${TWO}` })).toBeVisible()
   await expect.element(screen.getByText('2222...2222')).toBeVisible()
