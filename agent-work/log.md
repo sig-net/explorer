@@ -709,3 +709,18 @@ added 05.9, and the stage check runs it. For the closing report, from review 05.
 
 ## 236 ACCEPT 05.4
 nothing to merge
+
+## 237 DISPATCH 05.9
+model fable, branch bernard-05-9, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-05-9
+
+## 238 REPORT 05.9
+DONE, kept in reports/05.9-1.md
+
+## 239 CHECK 05.9
+PASS, exit 0 at d577660, output in evidence/05.9-1.txt
+
+## 240 PLAN
+For the closing report, from 05.9: a network's row is written before the first read of the source with an empty genesis hash (the column is bytea NOT NULL), which the first answered cycle fills. The comment of IngestStateTable in schema.ts does not say the column may be empty, and a nullable column by migration would say it in the schema. Changing a network's addresses or start block before its source ever answered stops it with an identity mismatch. DECISIONS.md gives the store as 107 MB at 5,417 requests without saying what the store covered: the figure is review 05.4's. Both documents give 9 calls a poll and about 28,000 to 31,000 requests a day
+
+## 241 ACCEPT 05.9
+merged bernard-05-9 as 17fc60e
