@@ -688,3 +688,24 @@ For the closing report, from 05.3: a caught-up preprod backend at the 30 s poll 
 
 ## 229 ACCEPT 05.3
 merged bernard-05-3 as 1e08358
+
+## 230 DISPATCH 05.4
+model fable, branch none, worktree /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol
+
+## 231 REPORT 05.4
+DONE, kept in reports/05.4-1.md
+
+## 232 REPORT 05.4
+DONE, kept in reports/05.4-2.md
+
+## 233 CHECK 05.4
+PASS, exit 0 at d70e407, output in evidence/05.4-1.txt
+
+## 234 DECISION
+D62: review 05.4 found the seven outcomes met and nothing blocking, and its advisory findings on the documents, the Node version and a network whose source never answered get step 05.9
+
+## 235 PLAN
+added 05.9, and the stage check runs it. For the closing report, from review 05.4: a default backfill gets HTTP 429 from Blockfrost (2,641 calls in 70 s, up to 91 a second, raw transactions 8 at once), failed twice, waited 60 s each time and lost nothing. The store was 107 MB for 5,417 requests. The live probe's kill landed before preprod's first event at block 3389203, and the review's own kill at 3398745 with 2,742 events stored resumed to 16,284 of 16,284. Not run by anyone: the release tag push, corepack enable, test:watch, kubectl exec
+
+## 236 ACCEPT 05.4
+nothing to merge

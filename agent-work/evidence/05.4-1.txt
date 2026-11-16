@@ -1,0 +1,5 @@
+check:  stages/05-integrate/checks/05.4.sh
+ran in: /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol
+head:   d70e407 with uncommitted changes
+exit:   0
+
