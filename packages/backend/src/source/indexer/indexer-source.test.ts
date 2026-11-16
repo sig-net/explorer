@@ -23,7 +23,13 @@ const EARLIER_RESPONDER_EVENT_ROW: ContractEventRow = {
 
 const requestSchema = z.object({
   query: z.string(),
-  variables: z.object({ filter: z.object({ contractAddress: z.string() }).optional() }).optional(),
+  variables: z
+    .object({
+      filter: z.object({ contractAddress: z.string() }).optional(),
+      limit: z.number().optional(),
+      offset: z.number().optional(),
+    })
+    .optional(),
 })
 
 type IndexerRequest = z.infer<typeof requestSchema>
@@ -52,9 +58,13 @@ function eventsIndexer(rows: Readonly<Record<string, readonly ContractEventRow[]
   )
 }
 
-function source(addresses = { signer: SIGNER, responder: RESPONDER }, timeoutMs?: number) {
+function source(
+  addresses = { signer: SIGNER, responder: RESPONDER },
+  timeoutMs?: number,
+  queryUrl = QUERY_URL,
+) {
   return createIndexerSource({
-    queryUrl: QUERY_URL,
+    queryUrl,
     signerContractAddress: addresses.signer,
     responderContractAddress: addresses.responder,
     timeoutMs,
@@ -170,5 +180,58 @@ describe('createIndexerSource', () => {
       expect(reason).not.toContain(TOKEN)
       expect(reason).toContain('indexer.test')
     }
+  })
+
+  it('the source masks a token the server echoes percent encoded', async () => {
+    const token = 'pr/oj ect+id&9'
+    const encoded = encodeURIComponent(token)
+    const queryUrl = `https://indexer.test/api/v0?project_id=${encoded}`
+    const echoes = [
+      queryUrl,
+      `project_id=${encoded}`,
+      `project_id=${encoded.toLowerCase()}`,
+      `project_id=${new URLSearchParams({ token }).toString().slice('token='.length)}`,
+      `project_id=${token}`,
+    ]
+    for (const echo of echoes) {
+      stubIndexer(() =>
+        Response.json({ data: null, errors: [{ message: `no access with ${echo}` }] }),
+      )
+      const rejection = await source(undefined, undefined, queryUrl)
+        .finalisedTip()
+        .then(
+          () => 'resolved',
+          (error: unknown) => (error instanceof Error ? error.message : String(error)),
+        )
+      expect(rejection).toContain('the indexer rejected the query: no access with ')
+      expect(rejection).toContain('REDACTED')
+      for (const form of [token, encoded, encoded.toLowerCase(), 'oj ect', 'oj+ect', 'oj%20ect']) {
+        expect(rejection).not.toContain(form)
+      }
+    }
+  })
+
+  it('the source reads a range that spans several pages', async () => {
+    const rows = Array.from({ length: 250 }, (_, index): ContractEventRow => ({
+      ...PREPROD_FIRST_SIGNER_EVENT_ROW,
+      id: PREPROD_FIRST_SIGNER_EVENT_ROW.id + index * 3,
+    }))
+    const signerOffsets: (number | undefined)[] = []
+    const fetchStub = stubIndexer(({ variables }) => {
+      if (variables?.filter?.contractAddress !== SIGNER) {
+        return Response.json({ data: { contractEvents: [] } })
+      }
+      const offset = variables.offset ?? 0
+      signerOffsets.push(variables.offset)
+      return Response.json({
+        data: { contractEvents: rows.slice(offset, offset + (variables.limit ?? rows.length)) },
+      })
+    })
+
+    const events = await source().eventsIn(RANGE)
+
+    expect(signerOffsets).toEqual([0, 100, 200])
+    expect(fetchStub).toHaveBeenCalledTimes(4)
+    expect(events.map(({ source: { id } }) => id)).toEqual(rows.map(({ id }) => id))
   })
 })

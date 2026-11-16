@@ -340,9 +340,15 @@ export function urlWithoutCredentials(url: string): string {
   return url.replace(/[?#].*$/s, '').replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/\\]*@/i, '$1')
 }
 
-/** `text` with every URL it holds replaced by what {@link urlWithoutCredentials} gives for it. */
+/**
+ * `text` with every URL it holds cut as {@link urlWithoutCredentials} cuts one. A user and password
+ * run to the last `@` before the path, and a query string or fragment to the next white space,
+ * less the closing punctuation that ends it.
+ */
 export function textWithoutUrlCredentials(text: string): string {
-  return text.replace(/[a-z][a-z0-9+.-]*:\/\/[^\s"'`)\]}>]+/gi, urlWithoutCredentials)
+  return text
+    .replace(/([a-z][a-z0-9+.-]*:\/\/)[^\s/\\?#]*@/gi, '$1')
+    .replace(/([a-z][a-z0-9+.-]*:\/\/[^\s?#]*)[?#]\S*?(?=["'`)\]}>.,:;]*(?:\s|$))/gi, '$1')
 }
 
 export const callersWireSchema = z.object({ callers: z.array(hash32Schema) })

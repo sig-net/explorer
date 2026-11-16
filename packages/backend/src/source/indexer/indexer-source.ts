@@ -225,17 +225,43 @@ function withDeadline<T>(
   })
 }
 
-/** `message` with `url` and each value of its query string masked. */
+/**
+ * `message` with `url` and each value of its query string masked, in every form a server may echo
+ * a value: as `url` writes it, as a URL parser serialises it, decoded, and percent encoded.
+ */
 function withoutQueryString(url: string, message: string): string {
-  let masked = message.replaceAll(url, redactUrlQuery(url))
+  const forms = new Set<string>()
+  for (const pair of queryStringOf(url).split('&')) {
+    forms.add(pair.slice(pair.indexOf('=') + 1))
+  }
   if (URL.canParse(url)) {
-    for (const value of new URL(url).searchParams.values()) {
-      if (value !== '') {
-        masked = masked.replaceAll(value, 'REDACTED')
-      }
+    const parsed = new URL(url)
+    for (const pair of parsed.search.slice(1).split('&')) {
+      forms.add(pair.slice(pair.indexOf('=') + 1))
+    }
+    for (const value of parsed.searchParams.values()) {
+      forms.add(value)
+      forms.add(encodeURIComponent(value))
+      forms.add(new URLSearchParams({ value }).toString().slice('value='.length))
     }
   }
+  for (const form of [...forms]) {
+    forms.add(form.replaceAll(/%[0-9a-f]{2}/gi, (escape) => escape.toLowerCase()))
+    forms.add(form.replaceAll(/%[0-9a-f]{2}/gi, (escape) => escape.toUpperCase()))
+  }
+  forms.delete('')
+  let masked = message.replaceAll(url, redactUrlQuery(url))
+  // The longest form first, so that a form holding another is masked whole.
+  for (const form of [...forms].sort((a, b) => b.length - a.length)) {
+    masked = masked.replaceAll(form, 'REDACTED')
+  }
   return masked
+}
+
+/** What `url` writes between its `?` and its `#`. */
+function queryStringOf(url: string): string {
+  const start = url.indexOf('?')
+  return start === -1 ? '' : url.slice(start + 1).replace(/#.*$/s, '')
 }
 
 /** @throws {Error} When `value` does not validate as `schema`, with zod's account of why. */

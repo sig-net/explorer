@@ -20,8 +20,9 @@ import type { MidnightSource, SourceBlock, SourceBlockId } from '../source/port.
 
 /**
  * Reads the next block range of `settings.network` from the source and stores it. The cursor moves
- * in the SQL transaction that stores the range, and only from the value this cycle read, so a
- * cycle that does not return `stored` leaves the cursor and the stored events as they were. A
+ * in the SQL transaction that stores the range, and only while the row holds the cursor and the
+ * identity this cycle read, so a cycle that does not return `stored` leaves the cursor and the
+ * stored events as they were. A
  * failure is recorded as the network's last error and returned: the promise does not reject.
  */
 export async function runIngestCycle(
@@ -87,7 +88,7 @@ export type IngestCycleOutcome =
   | { readonly kind: 'caught-up' }
   /** The source or the settings differ from what the schema was indexed for. */
   | { readonly kind: 'stopped'; readonly reason: string }
-  /** Another cycle moved the cursor while this one read. */
+  /** The cursor or the identity of the schema changed while this cycle read. */
   | { readonly kind: 'superseded' }
   | { readonly kind: 'failed'; readonly error: string }
 
@@ -162,7 +163,7 @@ async function readAndStoreRange(
 
   try {
     await tables.transaction().execute(async (transaction) => {
-      await moveCursor(transaction, cursor, toBlock, cursorBlock, tip, settings)
+      await moveCursor(transaction, state, toBlock, cursorBlock, tip, settings)
       await storeRange(transaction, transactionRows, events)
     })
   } catch (error) {
@@ -314,10 +315,16 @@ function storedInspectionJson(
   if ('failed' in inspection) {
     return failed(recordedErrorText(inspection.failed))
   }
-  const json = JSON.stringify(inspection)
-  return jsonHoldsRefusedCharacter(json)
-    ? failed('the inspection holds a character PostgreSQL refuses')
-    : json
+  if (jsonHoldsRefusedCharacter(JSON.stringify(inspection))) {
+    return failed('the inspection holds a character PostgreSQL refuses')
+  }
+  const requests = Object.fromEntries(
+    Object.entries(inspection.requests).map(([eventId, request]) => [
+      eventId,
+      'failed' in request ? { failed: recordedErrorText(request.failed) } : request,
+    ]),
+  )
+  return JSON.stringify({ ...inspection, requests } satisfies StoredInspection)
 }
 
 /** Whether a string or a key of the value `json` serialises holds U+0000 or an unpaired surrogate. */
@@ -331,15 +338,15 @@ function jsonHoldsRefusedCharacter(json: string): boolean {
 }
 
 /**
- * Moves the cursor to `toBlock` when it still holds `cursor`. It is the first statement of the
- * storing transaction: the row lock it takes makes a second cycle from the same cursor wait for
- * this one's commit and then change no row.
+ * Moves the cursor to `toBlock` when the row still holds the cursor and the identity of `read`. It
+ * is the first statement of the storing transaction: the row lock it takes makes a second cycle
+ * from the same cursor wait for this one's commit and then change no row.
  *
- * @throws {CursorSuperseded} When the cursor holds another value.
+ * @throws {CursorSuperseded} When the row holds another cursor or another identity.
  */
 async function moveCursor(
   transaction: NetworkDatabase,
-  cursor: number | null,
+  read: IngestState,
   toBlock: number,
   cursorBlock: SourceBlockId,
   tip: SourceBlock,
@@ -356,7 +363,11 @@ async function moveCursor(
       last_error: null,
       state: toBlock === tip.height - settings.tipMargin ? 'synced' : 'syncing',
     })
-    .where('cursor_height', 'is not distinct from', cursor)
+    .where('cursor_height', 'is not distinct from', read.cursor_height)
+    .where('genesis_hash', '=', read.genesis_hash)
+    .where('signer_address', '=', read.signer_address)
+    .where('responder_address', '=', read.responder_address)
+    .where('start_block', '=', read.start_block)
     .executeTakeFirst()
   if (moved.numUpdatedRows === 0n) {
     throw new CursorSuperseded()
