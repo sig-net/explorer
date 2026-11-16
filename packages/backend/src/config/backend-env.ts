@@ -16,6 +16,7 @@ import { z } from 'zod'
 export function parseBackendEnv(env: BackendEnv): BackendConfig {
   const reader = new EnvReader(env)
   const databaseUrl = reader.required('EXPLORER_DATABASE_URL', databaseUrlSchema)
+  const host = reader.optional('EXPLORER_HOST', hostSchema) ?? EXPLORER_DEFAULT_HOST
   const port = reader.optional('EXPLORER_PORT', portSchema) ?? EXPLORER_DEFAULT_PORT
   const corsOrigins = reader.required('EXPLORER_CORS_ORIGINS', corsOriginsSchema)
   const pollIntervalSeconds =
@@ -46,6 +47,7 @@ export function parseBackendEnv(env: BackendEnv): BackendConfig {
   }
   return Object.freeze({
     databaseUrl,
+    host,
     port,
     corsOrigins: corsOrigins === '*' ? corsOrigins : Object.freeze(corsOrigins),
     networks: Object.freeze(served),
@@ -56,6 +58,8 @@ export type BackendEnv = Readonly<Record<string, string | undefined>>
 
 export interface BackendConfig {
   readonly databaseUrl: string
+  /** The address the server listens on. */
+  readonly host: string
   readonly port: number
   readonly corsOrigins: CorsOrigins
   /** In the order `EXPLORER_MIDNIGHT_NETWORKS` lists them. */
@@ -77,6 +81,8 @@ interface IngestTiming {
   /** The most blocks one cycle reads. */
   readonly maxRange: number
 }
+
+export const EXPLORER_DEFAULT_HOST = '0.0.0.0'
 
 export const EXPLORER_DEFAULT_PORT = 8080
 
@@ -111,6 +117,11 @@ const urlWithProtocols = (protocols: readonly string[]): z.ZodType<string, strin
 const databaseUrlSchema: EnvSchema<string> = {
   schema: urlWithProtocols(['postgres:', 'postgresql:']),
   expected: 'a postgres:// or postgresql:// connection URL',
+}
+
+const hostSchema: EnvSchema<string> = {
+  schema: z.string().regex(/^\S+$/u),
+  expected: 'a host name or an IP address without whitespace',
 }
 
 const portSchema: EnvSchema<number> = {

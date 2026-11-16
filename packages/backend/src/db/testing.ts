@@ -10,6 +10,8 @@ import { networkDb, networkSchemaName, type StoredInspection } from './schema.ts
 
 export interface TestDatabase {
   readonly db: ExplorerDatabase
+  /** The connection URL of the database `db` is open on. */
+  readonly url: string
   /** Closes `db` and drops the database. */
   drop(): Promise<void>
 }
@@ -39,6 +41,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   const db = openDatabase(databaseUrl.href)
   return {
     db,
+    url: databaseUrl.href,
     async drop(): Promise<void> {
       try {
         await db.destroy()
