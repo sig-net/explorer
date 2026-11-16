@@ -11,9 +11,11 @@ import { createExplorerApiClient } from './client.ts'
 import { explorerApiRoutes } from './routes.ts'
 import {
   ExplorerApiError,
+  type ExplorerNetwork,
   type ExplorerService,
   type InspectedSignBidirectionalLifecycle,
   type LifecyclePage,
+  LIFECYCLES_MIN_SEARCH_LENGTH,
 } from './service.ts'
 import {
   createInMemoryExplorerService,
@@ -25,10 +27,13 @@ import {
 import {
   errorWireSchema,
   lifecycleFromWire,
+  lifecyclePageWireSchema,
   lifecycleToWire,
   type LifecycleWire,
   lifecycleWireSchema,
   networksToWire,
+  resolveLifecyclesQuery,
+  textWithoutUrlCredentials,
 } from './wire.ts'
 
 const PREPROD = MidnightNetwork.Preprod
@@ -445,6 +450,91 @@ describe('the client over the routes', () => {
       ],
     })
     expect(await codeOf(clientAnswered(answered).networks())).toBe('invalid_response')
+  })
+
+  it('a search of fewer than three characters matches every lifecycle', async () => {
+    const unsearched = await client.lifecycles(PREPROD)
+    expect(unsearched.matchingRequests).toBe(6)
+    for (const search of ['ab', '0xab', ' 0XAB ', 'zz']) {
+      const page = await client.lifecycles(PREPROD, { search })
+      expect(page.matchingRequests).toBe(unsearched.matchingRequests)
+      expect(page.matchingEvents).toBe(unsearched.matchingEvents)
+      const answered = await app.request(`/v1/networks/preprod/lifecycles?search=${search}`)
+      expect(lifecyclePageWireSchema.parse(await answered.json()).matchingRequests).toBe(
+        unsearched.matchingRequests,
+      )
+    }
+    for (const search of ['abc', '0xabc']) {
+      expect((await client.lifecycles(PREPROD, { search })).matchingRequests).toBe(0)
+    }
+    expect(resolveLifecyclesQuery({ search: '0xab' }).fragment).toBe('')
+    expect(
+      resolveLifecyclesQuery({ search: 'a'.repeat(LIFECYCLES_MIN_SEARCH_LENGTH) }).fragment,
+    ).toBe('aaa')
+  })
+
+  it('a text loses the credentials of every url it holds', () => {
+    expect(
+      textWithoutUrlCredentials(
+        'fetch of "https://indexer.example/api/v4/graphql?project_id=first-token#top" failed, ' +
+          'then (wss://indexer-user:indexer-p@ss@indexer.example/ws) closed: code 1006',
+      ),
+    ).toBe(
+      'fetch of "https://indexer.example/api/v4/graphql" failed, ' +
+        'then (wss://indexer.example/ws) closed: code 1006',
+    )
+    expect(textWithoutUrlCredentials('no url here: a?b=c, d@e')).toBe('no url here: a?b=c, d@e')
+  })
+
+  it('the error of a network crosses the wire without a token', async () => {
+    const [preprod] = explorerSeed.networks
+    if (preprod === undefined) {
+      throw new Error('the seed holds no network')
+    }
+    const failing: ExplorerNetwork = {
+      ...preprod,
+      sync: {
+        ...preprod.sync,
+        error:
+          'request to https://indexer.preprod.example/api/v4/graphql?project_id=error-token failed',
+      },
+    }
+    const leaking: ExplorerService = { ...service, networks: () => Promise.resolve([failing]) }
+    expect((await clientOf(leaking).networks()).map((network) => network.sync.error)).toEqual([
+      'request to https://indexer.preprod.example/api/v4/graphql failed',
+    ])
+    const body = await (await explorerApiRoutes(leaking).request('/v1/networks')).text()
+    expect(body).not.toContain('error-token')
+    expect((await client.networks()).map((network) => network.sync.error)).toEqual([null, null])
+  })
+
+  it('a failed inspection crosses the wire without a token', async () => {
+    const failed =
+      'GET https://indexer.preprod.example/tx/7?project_id=inspection-token answered 502'
+    const lifecycle = await seedLifecycle(EXPLORER_SEED_CASES.failedInspectionRequestId)
+    const leaking: ExplorerService = {
+      ...service,
+      lifecycle: () =>
+        Promise.resolve({
+          ...lifecycle,
+          signBidirectionalEvents: lifecycle.signBidirectionalEvents.map((event) => ({
+            ...event,
+            inspection: { failed },
+          })),
+        }),
+    }
+    const requestId = parseRequestIdHex(lifecycle.requestId)
+    const received = await clientOf(leaking).lifecycle(PREPROD, requestId)
+    expect(received?.signBidirectionalEvents.map((event) => event.inspection)).toEqual([
+      { failed: 'GET https://indexer.preprod.example/tx/7 answered 502' },
+    ])
+    const body = await (
+      await explorerApiRoutes(leaking).request(
+        `/v1/networks/preprod/lifecycles/${lifecycle.requestId}`,
+      )
+    ).text()
+    expect(body).toContain('indexer.preprod.example/tx/7')
+    expect(body).not.toContain('inspection-token')
   })
 })
 

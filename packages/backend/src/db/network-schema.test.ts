@@ -17,8 +17,13 @@ import { type RawBuilder, sql } from 'kysely'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { migrateNetworkSchema, wipeNetworkSchema } from './migrate.ts'
-import { networkDb, networkSchemaName, type StoredInspection } from './schema.ts'
-import { createTestDatabase, type TestDatabase } from './testing.ts'
+import { networkDb, networkSchemaName } from './schema.ts'
+import {
+  createTestDatabase,
+  seedNetworkEvents,
+  storedInspectionsOfSeed,
+  type TestDatabase,
+} from './testing.ts'
 
 const PREPROD = MidnightNetwork.Preprod
 const PREVIEW = MidnightNetwork.Preview
@@ -66,77 +71,6 @@ async function schemaSnapshot(network: MidnightNetwork): Promise<unknown> {
   return { columns: columns.rows, indexes: indexes.rows, migrations: migrations.rows }
 }
 
-/**
- * Stores `events` with one transaction per transaction hash, inspected as `inspections` says by
- * hash, and the request rows those events add up to.
- */
-async function seedEvents(
-  network: MidnightNetwork,
-  events: readonly SignetContractEvent[],
-  inspections: ReadonlyMap<string, StoredInspection>,
-): Promise<void> {
-  const seen = new Set<string>()
-  for (const event of events) {
-    const { source } = event
-    if (!seen.has(source.transactionHash)) {
-      seen.add(source.transactionHash)
-      const inspection = inspections.get(source.transactionHash)
-      await sql`
-        INSERT INTO ${table(network, 'transactions')}
-          (hash, block_height, block_hash, block_time, inspection)
-        VALUES (
-          decode(${source.transactionHash}, 'hex'),
-          ${source.blockHeight},
-          decode(${source.blockHash}, 'hex'),
-          ${source.blockTimestamp},
-          ${inspection === undefined ? null : JSON.stringify(inspection)}::jsonb
-        )
-      `.execute(database.db)
-    }
-    await sql`
-      INSERT INTO ${table(network, 'events')}
-        (id, transaction_hash, contract_roles, name, payload, request_id, decode_failure)
-      VALUES (
-        ${source.id},
-        decode(${source.transactionHash}, 'hex'),
-        ${[...event.roles]}::text[],
-        ${source.name},
-        ${Buffer.from(source.payload)},
-        ${event.kind === 'decoded' ? event.requestId : null},
-        ${event.kind === 'undecodable' ? event.reason : null}
-      )
-    `.execute(database.db)
-  }
-  await sql`
-    INSERT INTO ${table(network, 'requests')} (
-      request_id, first_event_id, first_requested_at, first_signature_at, first_response_at,
-      sign_bidirectional_count, signature_responded_count, respond_bidirectional_count
-    )
-    SELECT
-      e.request_id,
-      min(e.id),
-      min(t.block_time) FILTER (WHERE e.name = 'SignBidirectionalEvent'),
-      min(t.block_time) FILTER (WHERE e.name = 'SignatureRespondedEvent'),
-      min(t.block_time) FILTER (WHERE e.name = 'RespondBidirectionalEvent'),
-      count(*) FILTER (WHERE e.name = 'SignBidirectionalEvent'),
-      count(*) FILTER (WHERE e.name = 'SignatureRespondedEvent'),
-      count(*) FILTER (WHERE e.name = 'RespondBidirectionalEvent')
-    FROM ${table(network, 'events')} e
-    JOIN ${table(network, 'transactions')} t ON t.hash = e.transaction_hash
-    WHERE e.request_id IS NOT NULL
-    GROUP BY e.request_id
-  `.execute(database.db)
-  for (const event of events) {
-    if (event.kind === 'decoded' && event.name === SignetEventName.SignBidirectionalEvent) {
-      await networkDb(database.db, network)
-        .insertInto('request_callers')
-        .values({ request_id: event.requestId, caller: event.record.callerAddress })
-        .onConflict((conflict) => conflict.doNothing())
-        .execute()
-    }
-  }
-}
-
 /** The same event, emitted by `transactionHash` in the block of `block`. */
 function inTransactionOf(
   event: SignetContractEvent,
@@ -168,7 +102,8 @@ describe('a network schema', () => {
       migrateNetworkSchema(database.db, PREPROD),
       migrateNetworkSchema(database.db, PREVIEW),
     ])
-    await seedEvents(
+    await seedNetworkEvents(
+      database.db,
       PREPROD,
       [responseEvent(1, SignetEventName.SignatureRespondedEvent, new Uint8Array(32).fill(1), 1)],
       new Map(),
@@ -196,8 +131,8 @@ describe('a network schema', () => {
       new Uint8Array(32).fill(1),
       1,
     )
-    await seedEvents(PREPROD, [event], new Map())
-    await seedEvents(PREVIEW, [event], new Map())
+    await seedNetworkEvents(database.db, PREPROD, [event], new Map())
+    await seedNetworkEvents(database.db, PREVIEW, [event], new Map())
     const previewBefore = await schemaSnapshot(PREVIEW)
 
     await wipeNetworkSchema(database.db, PREPROD)
@@ -250,7 +185,8 @@ describe('the callers of a request', () => {
     const firstCaller = 'c0'.repeat(32)
     const secondCaller = 'c1'.repeat(32)
     await migrateNetworkSchema(database.db, PREPROD)
-    await seedEvents(
+    await seedNetworkEvents(
+      database.db,
       PREPROD,
       [
         notificationEvent(1, Buffer.from(requestId, 'hex'), Buffer.from(firstCaller, 'hex'), 1),
@@ -383,25 +319,10 @@ describe('the lifecycle view', () => {
     if (seed === undefined) {
       throw new Error('the seed of the api package holds no preprod network')
     }
-    const inspections = new Map<string, StoredInspection>()
-    for (const { source } of seed.events) {
-      const inspection = seed.inspections.get(source.id)
-      if (inspection !== undefined) {
-        inspections.set(
-          source.transactionHash,
-          'failed' in inspection
-            ? inspection
-            : {
-                callChains: inspection.callChains,
-                requests: { [String(source.id)]: { cell: inspection.requestCell } },
-              },
-        )
-      }
-    }
     const service = createInMemoryExplorerService(explorerSeed)
     const expected = (await service.lifecycles(PREPROD)).lifecycles
     await migrateNetworkSchema(database.db, PREPROD)
-    await seedEvents(PREPROD, seed.events, inspections)
+    await seedNetworkEvents(database.db, PREPROD, seed.events, storedInspectionsOfSeed(seed))
 
     const rows = await networkDb(database.db, PREPROD)
       .selectFrom('lifecycle')
@@ -453,7 +374,8 @@ describe('the lifecycle view', () => {
       value: PREPROD_REQUEST_CELL_WIRE.value.map((atom, index) => (index === 0 ? '02' : atom)),
     }
     await migrateNetworkSchema(database.db, PREPROD)
-    await seedEvents(
+    await seedNetworkEvents(
+      database.db,
       PREPROD,
       [first, second],
       new Map([
@@ -508,7 +430,8 @@ describe('the lifecycle view', () => {
       throw new Error('two more notifications were built')
     }
     await migrateNetworkSchema(database.db, PREPROD)
-    await seedEvents(
+    await seedNetworkEvents(
+      database.db,
       PREPROD,
       [read, failed, absent],
       new Map([
@@ -554,7 +477,7 @@ describe('the lifecycle view', () => {
       7,
     )
     await migrateNetworkSchema(database.db, PREPROD)
-    await seedEvents(PREPROD, [response], new Map())
+    await seedNetworkEvents(database.db, PREPROD, [response], new Map())
 
     const rows = await networkDb(database.db, PREPROD).selectFrom('lifecycle').selectAll().execute()
 
