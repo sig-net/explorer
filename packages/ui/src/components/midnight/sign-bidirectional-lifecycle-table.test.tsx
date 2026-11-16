@@ -22,7 +22,6 @@ import { SignBidirectionalLifecycleTable } from './sign-bidirectional-lifecycle-
 const REQUEST = new Uint8Array(32).fill(0xaa)
 const CALLER = new Uint8Array(32).fill(0x11)
 
-const SPLASH_TITLE = 'Looking back through Sig Network events for this request'
 const LOADING_TITLE = 'Loading Sig Network events'
 const MISSING_NOTIFICATION =
   /No Sign Bidirectional Event on the configured Signet signer declares this request id/
@@ -52,7 +51,6 @@ function notified(): SignBidirectionalLifecycle {
 /** A row's link button builds its href through the router, so rows render inside one. */
 function renderWithRows(
   lifecycles: readonly SignBidirectionalLifecycle[],
-  searching: boolean,
   onExcludeCaller: (caller: string) => void = () => undefined,
 ) {
   const routeTree = createRootRoute({
@@ -63,11 +61,11 @@ function renderWithRows(
             lifecycles={lifecycles}
             emptyText="No requests match the search"
             expandSoleRow
-            searching={searching}
             loading={false}
             filterPanel={null}
             activeFilterCount={0}
             onExcludeCaller={onExcludeCaller}
+            onLoadMore={null}
           />
         </TooltipProvider>
       </MidnightProvider>
@@ -77,52 +75,17 @@ function renderWithRows(
   return render(<RouterProvider router={router} />)
 }
 
-test('an empty body shows the search while it runs, and the empty text once it is over', async () => {
-  const screen = await render(
-    <SignBidirectionalLifecycleTable
-      lifecycles={[]}
-      emptyText="No requests match the search"
-      expandSoleRow
-      searching
-      loading
-      filterPanel={null}
-      activeFilterCount={0}
-      onExcludeCaller={() => undefined}
-    />,
-  )
-  await expect.element(screen.getByText(SPLASH_TITLE)).toBeVisible()
-  await expect.element(screen.getByRole('status', { name: 'Searching' })).toBeVisible()
-  expect(screen.getByText(LOADING_TITLE).elements()).toHaveLength(0)
-  expect(screen.getByText('No requests match the search').elements()).toHaveLength(0)
-
-  await screen.rerender(
-    <SignBidirectionalLifecycleTable
-      lifecycles={[]}
-      emptyText="No requests match the search"
-      expandSoleRow
-      searching={false}
-      loading={false}
-      filterPanel={null}
-      activeFilterCount={0}
-      onExcludeCaller={() => undefined}
-    />,
-  )
-  await expect.element(screen.getByText('No requests match the search')).toBeVisible()
-  expect(screen.getByText(SPLASH_TITLE).elements()).toHaveLength(0)
-  expect(screen.getByRole('status', { name: 'Searching' }).elements()).toHaveLength(0)
-})
-
 test('an empty body shows the load while the events are read, and the empty text once they are', async () => {
   const screen = await render(
     <SignBidirectionalLifecycleTable
       lifecycles={[]}
       emptyText="No requests yet"
       expandSoleRow
-      searching={false}
       loading
       filterPanel={null}
       activeFilterCount={0}
       onExcludeCaller={() => undefined}
+      onLoadMore={null}
     />,
   )
   await expect.element(screen.getByText(LOADING_TITLE)).toBeVisible()
@@ -134,11 +97,11 @@ test('an empty body shows the load while the events are read, and the empty text
       lifecycles={[]}
       emptyText="No requests yet"
       expandSoleRow
-      searching={false}
       loading={false}
       filterPanel={null}
       activeFilterCount={0}
       onExcludeCaller={() => undefined}
+      onLoadMore={null}
     />,
   )
   await expect.element(screen.getByText('No requests yet')).toBeVisible()
@@ -146,26 +109,8 @@ test('an empty body shows the load while the events are read, and the empty text
   expect(screen.getByRole('status', { name: 'Loading' }).elements()).toHaveLength(0)
 })
 
-test('a lifecycle found without its notification shows as still searching while the search runs', async () => {
-  const screen = await renderWithRows([attestedOnly()], true)
-  await expect
-    .element(screen.getByRole('heading', { name: 'Signature Responded Event' }))
-    .toBeVisible()
-  const text = screen.container.textContent
-  expect(text).not.toContain('no notification')
-  expect(text).not.toContain('unknown')
-  expect(text).not.toMatch(MISSING_NOTIFICATION)
-  // The request time, caller, signature and duration cells, and the two sections.
-  expect(screen.getByRole('status', { name: 'Searching' }).elements()).toHaveLength(6)
-  expect(screen.getByText('Still searching for event data').elements()).toHaveLength(2)
-  expect(
-    screen.getByRole('button', { name: 'About the missing notification' }).elements(),
-  ).toHaveLength(0)
-  expect(screen.container.querySelector('[aria-label="Pending"]')).toBeNull()
-})
-
-test('once the search is over the missing notification is a verdict and the signature is pending', async () => {
-  const screen = await renderWithRows([attestedOnly()], false)
+test('a lifecycle without its notification shows that as a verdict and the signature as pending', async () => {
+  const screen = await renderWithRows([attestedOnly()])
   await expect
     .element(screen.getByRole('heading', { name: 'Signature Responded Event' }))
     .toBeVisible()
@@ -173,7 +118,6 @@ test('once the search is over the missing notification is a verdict and the sign
   expect(text).toContain('no notification')
   expect(text).toContain('unknown')
   expect(text).toMatch(MISSING_NOTIFICATION)
-  expect(screen.getByRole('status', { name: 'Searching' }).elements()).toHaveLength(0)
   expect(
     screen.getByRole('button', { name: 'About the missing notification' }).elements(),
   ).toHaveLength(3)
@@ -187,11 +131,11 @@ test('the filter button opens the filter panel under the header and shows as pre
       lifecycles={[]}
       emptyText="No requests yet"
       expandSoleRow={false}
-      searching={false}
       loading={false}
       filterPanel={<p>the filters</p>}
       activeFilterCount={0}
       onExcludeCaller={() => undefined}
+      onLoadMore={null}
     />,
   )
   const button = screen.getByRole('button', { name: 'Filters' })
@@ -210,7 +154,7 @@ test('the filter button opens the filter panel under the header and shows as pre
 
 test('the hide button beside a caller hands that caller over, and says what it does on hover', async () => {
   const onExcludeCaller = vi.fn<(caller: string) => void>()
-  const screen = await renderWithRows([notified()], false, onExcludeCaller)
+  const screen = await renderWithRows([notified()], onExcludeCaller)
   const button = screen.getByRole('button', { name: 'Hide all requests from this caller' })
   await button.hover()
   await expect.element(screen.getByText('Hide all requests from this caller')).toBeVisible()
@@ -224,11 +168,11 @@ test('the filter button carries the number of active filters while there are any
       lifecycles={[]}
       emptyText="No requests yet"
       expandSoleRow={false}
-      searching={false}
       loading={false}
       filterPanel={null}
       activeFilterCount={3}
       onExcludeCaller={() => undefined}
+      onLoadMore={null}
     />,
   )
   await expect.element(screen.getByText('3active filters')).toBeVisible()
@@ -240,11 +184,11 @@ test('the filter button carries the number of active filters while there are any
       lifecycles={[]}
       emptyText="No requests yet"
       expandSoleRow={false}
-      searching={false}
       loading={false}
       filterPanel={null}
       activeFilterCount={0}
       onExcludeCaller={() => undefined}
+      onLoadMore={null}
     />,
   )
   expect(screen.getByText('active filters').elements()).toHaveLength(0)

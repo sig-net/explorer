@@ -25,7 +25,7 @@ function Harness({ callers }: { callers: readonly string[] }) {
   )
 }
 
-test('a seen caller is offered as the typed fragment narrows them, and a pick excludes it', async () => {
+test('a known caller is offered as the typed fragment narrows them, and a pick excludes it', async () => {
   const screen = await render(<Harness callers={[ONE, TWO]} />)
   const box = screen.getByRole('combobox', { name: 'Exclude callers' })
   await box.fill('22')

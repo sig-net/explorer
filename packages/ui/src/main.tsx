@@ -3,12 +3,14 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import './index.css'
+import { EXPLORER_API_CLIENT } from './lib/explorer-api'
 import { routeTree } from './routeTree.gen'
 
 // The base path Vite builds for: `/` at a domain root, `/explorer/` on GitHub Pages.
 const router = createRouter({
   routeTree,
   basepath: import.meta.env.BASE_URL,
+  context: { explorerService: EXPLORER_API_CLIENT },
   // A comma is valid unencoded in a query, and it separates the entries of a list value.
   stringifySearch: (search) => defaultStringifySearch(search).replaceAll('%2C', ','),
 })

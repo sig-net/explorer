@@ -1,7 +1,13 @@
-/** The explorer's own configuration variables: the `VITE_MIDNIGHT_` keys of `ImportMetaEnv`. */
+/**
+ * The explorer's own configuration variables: the `VITE_MIDNIGHT_` keys of `ImportMetaEnv` and the
+ * explorer API's URL.
+ */
 export type ExplorerEnv = Pick<ImportMetaEnv, ExplorerEnvKey>
 
-type ExplorerEnvKey = Extract<keyof ImportMetaEnv, `VITE_MIDNIGHT_${string}`>
+type ExplorerEnvKey = Extract<
+  keyof ImportMetaEnv,
+  `VITE_MIDNIGHT_${string}` | 'VITE_EXPLORER_API_URL'
+>
 
 declare global {
   interface Window {
@@ -24,6 +30,7 @@ export function parseRuntimeExplorerEnv(runtime: unknown): Partial<ExplorerEnv> 
   }
   // Every key, so a key added to `ImportMetaEnv` without an entry here is a type error.
   const values: Record<ExplorerEnvKey, string | undefined> = {
+    VITE_EXPLORER_API_URL: read('VITE_EXPLORER_API_URL'),
     VITE_MIDNIGHT_DEFAULT_NETWORK: read('VITE_MIDNIGHT_DEFAULT_NETWORK'),
     VITE_MIDNIGHT_ETHEREUM_MAINNET_RPC_URL: read('VITE_MIDNIGHT_ETHEREUM_MAINNET_RPC_URL'),
     VITE_MIDNIGHT_ETHEREUM_SEPOLIA_RPC_URL: read('VITE_MIDNIGHT_ETHEREUM_SEPOLIA_RPC_URL'),
