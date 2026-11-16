@@ -1,6 +1,6 @@
 # Architecture
 
-Status: round 2. `decisions.md` holds what is settled. D10 to D15 wait for the user.
+Status: settled. `decisions.md` holds every decision, and no question is open.
 Marks: `[run 6763bf5]` and `[read 6763bf5]` refer to this repository at that commit.
 `[read mpc 73bb9dfe]` refers to `sig-net/mpc` on `develop`. Probes ran on 2026-11-16 against
 Blockfrost's Midnight preprod with the project token from `dev-secrets`.
@@ -56,7 +56,7 @@ a stream that dropped an event and a stream with nothing to say look the same.
 The cursor row stores the chain's genesis hash (`block(offset: { height: 0 }) { hash }`). Each
 pass compares it. A different hash, or a tip below `next_block - 1`, means the network was
 reset: the backend deletes that network's rows and its cursor in one transaction and starts
-again from the configured start block.
+again from the configured start block (D11, D18).
 
 ### Network separation (D03)
 
@@ -122,9 +122,25 @@ Yarn workspaces, as the user set out:
   URLs and the MPC output cache URL stay editable, as the browser still uses them (D05, D06).
 - The UI polls the backend for new rows (D14).
 
+### Deployment (D19 to D23)
+
+- The backend and Postgres run in Kubernetes on Google Cloud. The UI stays on GitHub Pages and
+  calls the backend on another origin, which the open CORS policy (D13) allows.
+- `ci/backend.Dockerfile` builds the backend image from the repository root as context. The
+  root `Dockerfile` stays the UI's image.
+- The backend is configured by environment variables: the Postgres URL, and per network the
+  indexer URL with its token, the two contract addresses, the MPC root public key and the start
+  block (D18). A network without an indexer URL and both addresses is not indexed (D15).
+- The UI reads the backend's URL from a `VITE_` variable, editable in the popover (D22).
+- The workflows call `yarn install --immutable`, `yarn lint`, `yarn build` with output in
+  `dist/` at the root, and build the root `Dockerfile`. All of these keep working (D21).
+- For the closing report, not for this task: the Pages workflow must set the backend URL
+  variable once the backend has an address, and a workflow must publish the backend image.
+
 ## Out of scope
 
 - The Solana and contract analyser routes.
+- Deploying anything, Kubernetes manifests, and any change under `.github/workflows/` (D20).
 - Indexing from a Midnight node by replaying transactions, as `sig-net/mpc` does (D01).
 - Moving the EVM transaction status, the MPC output cache read, or the signature and
   attestation checks to the backend (D05, D06).
@@ -178,5 +194,5 @@ Yarn workspaces, as the user set out:
 - Q5 [answered] They stay in the browser. D05.
 - Q6 [answered] They stay in the browser. D06.
 - Q7 [answered] The fields stay, read-only, for information. D07.
-- Q8 [open] Where do the backend and Postgres run, and who serves the UI: GitHub Pages as today
-  with the backend on another origin, or one deployment (a compose stack) that serves both?
+- Q8 [answered] Kubernetes on Google Cloud for the backend and Postgres, GitHub Pages for the
+  UI. D19, D20.
