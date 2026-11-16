@@ -13,7 +13,7 @@ Read this when your step reads the Midnight indexer, or decides how events and t
 
 ## Through the SDK
 
-- `signetEventSourceFromIndexer({ queryUrl })` of `@sig-net/midnight` returns a source whose `streamSignetEvents(address, { fromBlock, toBlock })` yields every event of one contract in an inclusive block range, 100 a page by offset (`node_modules/@sig-net/midnight/dist/signet-contract-events.js:108-124`). [read 4234222]
+- `signetEventSourceFromIndexer({ queryUrl })` of `@sig-net/midnight` returns a source whose `streamSignetEvents(address, { fromBlock, toBlock })` yields every event of one contract in an inclusive block range, 100 a page by offset (the query and `EVENT_PAGE_LIMIT` at `node_modules/@sig-net/midnight/dist/signet-contract-events.js:108-124`, the loop at `:221-240`, with the variables `limit` and `offset`). The loop ends on a page shorter than 100 rows or on an event id above the first row's `maxId`. [read c118373]
 - Each event is an `IndexedSignetMiscEvent`: `id`, `maxId`, `transactionId`, `transactionHash`, `blockHeight`, `blockHash`, `blockTimestamp` (a `Date`), `name`, `payload` (`dist/signet-contract-events.d.ts`). [read 4234222]
 - `id` is one counter across all contracts of the chain: ascending `id` is emission order, and the ids of the two Signet contracts interleave with gaps. Over the whole preprod history it ascended on every page. [run 4234222]
 - `tryDecodeSignetEvent(event)` gives `undefined` for a name that is not a Signet event, `{ ok: false, reason }` for a payload that does not decode, and `{ ok: true, event }` with `name`, `requestId` and `record`. The three names are `SignBidirectionalEvent`, `SignatureRespondedEvent`, `RespondBidirectionalEvent`. [read 4234222]

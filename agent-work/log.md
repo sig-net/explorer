@@ -484,3 +484,27 @@ backend.md: jsonb refuses an unpaired surrogate, run against PostgreSQL 17 (from
 
 ## 161 ACCEPT 04.11
 merged bernard-04-11 as 60d5a3a
+
+## 162 DISPATCH 04.12
+model fable, branch bernard-04-12, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-12
+
+## 163 PLAN
+at most 3 step(s) side by side: 6267 MB available of 7862 with one UI step running, 8 processors, load 1.18. 04.13 is a review with one scratch PostgreSQL
+
+## 164 DISPATCH 04.13
+model fable, branch none, worktree /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol
+
+## 165 REPORT 04.12
+DONE, kept in reports/04.12-1.md
+
+## 166 CHECK 04.12
+PASS, exit 0 at c118373, output in evidence/04.12-1.txt
+
+## 167 PACK
+indexer.md: where the SDK's paging loop is and its two stop conditions. backend.md: a stub answers data beside errors (from 04.12's report)
+
+## 168 PLAN
+For stage 5's planner, from 04.12's report: graphqlResponseSchema requires data, so a GraphQL answer with errors and no data key loses the server's messages. The fix is data optional, with a test. For the closing report: textWithoutUrlCredentials leaves a secret's own trailing punctuation, cuts text glued to a query with no white space, and does not read a password holding a raw slash, question mark or hash
+
+## 169 ACCEPT 04.12
+merged bernard-04-12 as f7753f7

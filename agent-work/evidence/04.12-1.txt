@@ -1,0 +1,88 @@
+check:  stages/04-build/checks/04.12.sh
+ran in: /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-12
+head:   c118373
+exit:   0
+
+➤ YN0000: · Yarn 4.18.0
+➤ YN0000: ┌ Resolution step
+➤ YN0000: └ Completed
+➤ YN0000: ┌ Post-resolution validation
+➤ YN0086: │ Some peer dependencies are incorrectly met by dependencies; run yarn explain peer-requirements for details.
+➤ YN0000: └ Completed
+➤ YN0000: ┌ Fetch step
+➤ YN0000: └ Completed in 0s 464ms
+➤ YN0000: ┌ Link step
+➤ YN0000: └ Completed
+➤ YN0000: · Done with warnings in 0s 686ms
+Done in 2s 292ms
+Checking formatting...
+
+All matched files use the correct format.
+Finished in 169ms on 179 files using 8 threads.
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-12/packages/lib
+
+
+ Test Files  3 passed (3)
+      Tests  14 passed (14)
+   Start at  11:37:48
+   Duration  220ms (import 82%, transform 13%, tests 3%, worker 2%)
+
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-12/packages/api
+
+
+ Test Files  1 passed (1)
+      Tests  19 passed (19)
+   Start at  11:37:48
+   Duration  338ms (import 48%, tests 28%, transform 23%, worker 1%)
+
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-12/packages/backend
+
+
+ Test Files  10 passed | 1 skipped (11)
+      Tests  85 passed | 1 skipped (86)
+   Start at  11:37:49
+   Duration  21.54s (tests 92%, import 6%, transform 2%)
+
+Plugin "vitest:mocks:interceptor" defines Vite-specific hooks (configureServer) in a plugin returned from applyToEnvironment. These hooks will be ignored.
+
+ RUN  v5.0.0 /home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-12/packages/ui
+      API started at http://localhost:63315/
+
+
+ Test Files  22 passed (22)
+      Tests  115 passed (115)
+   Start at  11:38:11
+   Duration  6.12s (worker 78%, tests 12%, import 11%)
+
+Done in 29s 802ms
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 3103 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                 1.20 kB │ gzip:   0.53 kB
+dist/assets/soehne-mono-extraleicht-DKuTsRod.woff2             24.69 kB
+dist/assets/soehne-mono-leicht-DRGDRErV.woff2                  24.90 kB
+dist/assets/soehne-mono-kraftig-BZXYhV-w.woff2                 25.32 kB
+dist/assets/soehne-mono-buch-CZ9eD1eB.woff2                    25.38 kB
+dist/assets/midnight_onchain_runtime_wasm_bg-DR0b9GVI.wasm  1,582.91 kB │ gzip: 465.76 kB
+dist/assets/index-CdH49Ice.css                                 76.21 kB │ gzip:  12.60 kB
+dist/assets/solana-CzkjdiSA.js                                  0.86 kB │ gzip:   0.51 kB
+dist/assets/contract-analyser-B5wGerUY.js                       1.49 kB │ gzip:   0.85 kB
+dist/assets/alert-CK1fYDpC.js                                   1.82 kB │ gzip:   0.77 kB
+dist/assets/empty-DKH2wNRH.js                                   3.78 kB │ gzip:   1.16 kB
+dist/assets/midnight-C0OpO96o.js                                6.64 kB │ gzip:   2.67 kB
+dist/assets/tabs-DSycaKYH.js                                   22.63 kB │ gzip:   8.24 kB
+dist/assets/dist-CwhwWTI-.js                                   38.24 kB │ gzip:  15.41 kB
+dist/assets/midnight-BAvZOV3V.js                               45.05 kB │ gzip:  15.07 kB
+dist/assets/explorer-B4Rwh25G.js                              100.96 kB │ gzip:  29.95 kB
+dist/assets/tooltip-C5xOpJ8V.js                               125.39 kB │ gzip:  43.29 kB
+dist/assets/index-CkttFzP3.js                                 294.95 kB │ gzip:  95.66 kB
+dist/assets/MidnightContext-Du6OCxWC.js                       319.72 kB │ gzip:  91.32 kB
+dist/assets/explorer-DEJvrnz3.js                              322.98 kB │ gzip: 100.28 kB
+
+✓ built in 1.57s
+Done in 2s 807ms
