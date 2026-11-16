@@ -1,6 +1,6 @@
 {
   "limit": 3,
-  "seq": 42,
+  "seq": 49,
   "stages": {
     "01-ground": {
       "check_dirty": true,
@@ -12,9 +12,13 @@
       "status": "done"
     },
     "02-workspace": {
-      "checkpoint": "",
+      "check_dirty": true,
+      "check_head": "3923d6a",
+      "check_passed": true,
+      "checkpoint": "3923d6a",
+      "checks": 1,
       "provisional": false,
-      "status": "running"
+      "status": "done"
     },
     "03-contract": {
       "checkpoint": "",
@@ -98,10 +102,13 @@
     "02.3": {
       "base": "29b4fe3",
       "branch": "bernard-02-3",
-      "checks": 0,
+      "check_dirty": false,
+      "check_head": "7160429",
+      "check_passed": true,
+      "checks": 2,
       "redos": 0,
-      "reports": 0,
-      "status": "running",
+      "reports": 1,
+      "status": "done",
       "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-3"
     },
     "02.4": {

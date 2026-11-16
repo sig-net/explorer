@@ -32,3 +32,4 @@ names the rows and sections it rests on: read those, and never act against a row
 - A container or a port you start carries a name of your own (`explorer-<step>-...`) and binds `127.0.0.1`. Remove what you started before you report. [read 4234222]
 - A new step worktree has no `node_modules`: run `yarn install --immutable` before the first test or check. [unverified]
 - A workspace that lists `vitest` in its devDependencies lists `vite` beside it, or `yarn install` warns YN0002 about the missing peer. [unverified]
+- `packages/lib` holds what both runtimes use: contract address parsing, signet event decoding, the sign bidirectional lifecycle aggregation, the network set, and a `/testing` entry with the lifecycle fixture (D32). The UI and the backend both list `@sig-net/explorer-lib` as `workspace:*`. [unverified]

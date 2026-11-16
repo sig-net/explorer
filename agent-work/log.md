@@ -127,3 +127,24 @@ merged bernard-02-2 as e924a47
 
 ## 42 DISPATCH 02.3
 model opus, branch bernard-02-3, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-3
+
+## 43 REPORT 02.3
+DONE, kept in reports/02.3-1.md
+
+## 44 CHECK 02.3
+PASS, exit 0 at d339a38, output in evidence/02.3-1.txt
+
+## 45 CHECK 02.3
+PASS, exit 0 at 7160429, output in evidence/02.3-2.txt
+
+## 46 PACK
+ui.md and core.md: what lib holds after 02.3 and the two UI types that take StoredSignetMiscEvent (from 02.3's report)
+
+## 47 ACCEPT 02.3
+merged bernard-02-3 as 3923d6a
+
+## 48 CHECK 02-workspace
+PASS, exit 0 at 3923d6a, output in evidence/02-workspace-1.txt
+
+## 49 CHECKPOINT 02-workspace
+stage done at 3923d6a
