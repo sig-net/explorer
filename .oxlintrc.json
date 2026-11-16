@@ -51,5 +51,5 @@
       "entryPoint": "src/index.css"
     }
   },
-  "ignorePatterns": ["dist", "src/routeTree.gen.ts"]
+  "ignorePatterns": ["agent-work", "dist", "src/routeTree.gen.ts"]
 }

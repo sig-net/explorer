@@ -1,0 +1,8 @@
+event {
+  id: 1871480,
+  name: 'SignBidirectionalEvent',
+  block: 3389203,
+  decodedOk: true
+}
+raw transaction bytes 12586
+inspection ms 31 callChains 1 request found true chainId 11155111

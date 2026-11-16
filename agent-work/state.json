@@ -1,5 +1,31 @@
 {
   "seq": 0,
-  "stages": {},
+  "stages": {
+    "01-ground": {
+      "checkpoint": "",
+      "provisional": false,
+      "status": "pending"
+    },
+    "02-workspace": {
+      "checkpoint": "",
+      "provisional": true,
+      "status": "pending"
+    },
+    "03-contract": {
+      "checkpoint": "",
+      "provisional": true,
+      "status": "pending"
+    },
+    "04-build": {
+      "checkpoint": "",
+      "provisional": true,
+      "status": "pending"
+    },
+    "05-integrate": {
+      "checkpoint": "",
+      "provisional": true,
+      "status": "pending"
+    }
+  },
   "steps": {}
 }

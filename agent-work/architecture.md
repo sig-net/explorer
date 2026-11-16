@@ -60,8 +60,8 @@ migrations.
   cursor height, cursor hash, last success time, last error.
 - `transactions`: hash, block height, block hash, block time, raw bytes, inspection (call chains
   and the request record) as JSON.
-- `events`: sequence in emission order, transaction hash, contract role, name, request id (null
-  when undecodable), payload bytes, decoded record as JSON, decode status.
+- `events`: the indexer's event id (emission order, D19), transaction hash, contract roles, name,
+  payload bytes, request id (null when the event did not decode), decode failure.
 - `requests` (maintained by the ingest transaction, one row per declared request id): request id,
   first event sequence, caller, first request time, first signature time, first response time,
   counts per event kind.
@@ -99,7 +99,7 @@ lifecycle by request id, the distinct callers, and each network's configuration 
 - Moving EVM transaction status, EVM tracing and the MPC output cache behind the backend (D10).
 - Kubernetes manifests and any GitHub Actions workflow for the backend (D09, D14). The Pages build needs the backend's public URL as a build variable, which is a workflow change for the workstation.
 - A node adaptor for the ingest source (D08).
-- Push from backend to browser (websocket, server-sent events): the UI polls.
+- Push from backend to browser (websocket, server-sent events), and automatic refresh: the UI reads on load and on Refresh, as today.
 - Changes to `.github/workflows/**`: this machine's tokens cannot push them. What the workflows
   need is listed in the closing report of the build.
 
@@ -114,9 +114,11 @@ and an unverified one names the gate of the first stage that tests it.
 - A4 Reading that whole history through the indexer took 9.3 s for the signer and 26.8 s for the responder, 153 pages of 100. The indexer's event id ascended across every page. [run 942e473]
 - A5 At 4.5 million events and 1.5 million requests in PostgreSQL 17, a plain view that groups events by request id took 1.4 s for the newest 50 and 3.1 s with a caller exclusion. A maintained `requests` table with a lateral join to the events took 0.8 ms and 0.2 ms, a fragment search over request id or caller with trigram indexes 3.9 ms, a count 31 ms. Synthetic rows, one run, on this dev box. [run 942e473]
 - A6 The MPC indexer reads a node alone over HTTP JSON-RPC, walks finalised blocks one at a time by number, and leaves the checkpoint to a consumer that saves it after it has consumed the block's events. With no checkpoint it starts at the current finalised head. It extracts events by decoding `Midnight.send_mn_transaction` extrinsics and replaying each call's transcripts in the ledger VM. (`chain-signatures/chain-midnight/src/indexer.rs:647-732`, `rpc.rs:457-539`, `emissions.rs:80-192` at mpc 73bb9dfe, read by a subagent.) [read 942e473]
-- A7 The indexer never adds an event to a block at or below the tip it has reported. [unverified] Gate of stage 1: index a range, re-read it an hour later and compare. A difference means the indexer adaptor must trail the tip by a margin, or that the node adaptor is the only safe one.
-- A8 The indexer's tip is a finalised block, so no block at or below it is replaced. [unverified] Gate of stage 1: compare the indexer's tip hash with the node's hash at that height over a run of polls. (One sample on 2026-11-16: the indexer's tip hash equalled the node's finalised head.)
-- A10 Blockfrost's request quota for the project token covers the ingest. Polling the indexer every 12 s costs 3 calls a poll (the tip and one read per contract), 21,600 a day per network. The plan and its quota are not known. [unverified] Gate of stage 1: read the quota from Blockfrost's response headers or its dashboard, and set the default poll interval to fit inside it.
+- A7 The indexer never adds an event to a block at or below the tip it has reported. A 90 second trial found none. [unverified] Gate A7 of stage 1 (step 01.3): a 30 minute soak reads each range as its tip is reported and again at the end. Late events give the ingest a margin behind the tip.
+- A8 The indexer's tip is a finalised block, so no block at or below it is replaced. [unverified] Gate A8 of stage 1 (step 01.3): the soak compares each tip with the node's finalised height and hash. (One sample on 2026-11-16: the indexer's tip hash equalled the node's finalised head.)
+- A10 Blockfrost's request quota for the project token covers the ingest. Polling the indexer every 12 s costs 3 calls a poll (the tip and one read per contract), 21,600 a day per network. The plan and its quota are not known. Its responses carry no rate limit header. [unverified] Gate A10 of stage 1 (step 01.3): the soak polls about seven times faster than the ingest will and counts refusals. The daily quota itself is confirmed by the user, as the closing report asks.
+- A11 The SDK's indexer source, the ledger WebAssembly and the explorer's transaction inspection run under plain Node with no bundler, and Node 24 and 26 run TypeScript sources across a workspace link. `agent-work/probes/node-runtime.mjs` inspected a preprod transaction in 31 ms. [run 4234222]
+- A12 A request's raw transaction is about 12.6 KB (one sample), so storing it costs about 6 GB a year per network at preprod's rate. [run 4234222]
 
 ## Open questions
 
