@@ -22,8 +22,8 @@ function normaliseHexQuery(query: string): string {
 
 /**
  * The callers whose requests are left out of the table. A caller is excluded by typing its address
- * and pressing Enter or the button beside the box, or by picking it from `callers`, the ones seen so
- * far, which the typed fragment narrows. Each excluded caller is a chip whose button lets it back in.
+ * and pressing Enter or the button beside the box, or by picking it from `callers`, which the typed
+ * fragment narrows. Each excluded caller is a chip whose button lets it back in.
  */
 export function ExcludedCallersFilter({
   callers,
@@ -88,7 +88,7 @@ export function ExcludedCallersFilter({
             showTrigger={false}
           />
           <ComboboxContent>
-            <ComboboxEmpty>No seen caller matches</ComboboxEmpty>
+            <ComboboxEmpty>No known caller matches</ComboboxEmpty>
             <ComboboxList>
               {(caller: string) => (
                 <ComboboxItem key={caller} value={caller} className="font-mono">

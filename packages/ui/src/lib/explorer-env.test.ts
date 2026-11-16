@@ -8,12 +8,15 @@ test('the runtime env keeps string values under known keys and nothing else', ()
       VITE_MIDNIGHT_DEFAULT_NETWORK: 'undeployed',
       VITE_MIDNIGHT_PREPROD_SIGNET_EVENTS_FROM_BLOCK: '3386746',
       VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY: 42,
+      VITE_EXPLORER_API_URL: 'https://explorer.example/api',
+      VITE_EXPLORER_VERSION: 'not-runtime',
       VITE_SOMETHING_ELSE: 'ignored',
       BASE_URL: '/elsewhere/',
     }),
   ).toEqual({
     VITE_MIDNIGHT_DEFAULT_NETWORK: 'undeployed',
     VITE_MIDNIGHT_PREPROD_SIGNET_EVENTS_FROM_BLOCK: '3386746',
+    VITE_EXPLORER_API_URL: 'https://explorer.example/api',
   })
 })
 

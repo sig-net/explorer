@@ -1,29 +1,29 @@
-import { MidnightNetwork, parseRequestIdHex, type RequestIdHex } from '@sig-net/midnight'
+import {
+  ExplorerApiError,
+  LIFECYCLES_MIN_SEARCH_LENGTH,
+  resolveLifecyclesQuery,
+} from '@sig-net/explorer-api'
+import { parseRequestIdHex, type RequestIdHex } from '@sig-net/midnight'
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { RefreshCw, Unplug, X } from 'lucide-react'
+import { CircleAlert, RefreshCw, Unplug, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import {
-  type MidnightSignetEventsContextValue,
-  useMidnightSignetEvents,
-} from '@/components/contexts/MidnightSignetEventsContext'
+import { useExplorerApi } from '@/components/contexts/ExplorerApiContext'
 import { useMidnight } from '@/components/contexts/MidnightContext'
+import {
+  type MidnightLifecyclesContextValue,
+  useMidnightLifecycles,
+} from '@/components/contexts/MidnightLifecyclesContext'
 import { ExcludedCallersFilter } from '@/components/midnight/excluded-callers-filter'
 import { SignBidirectionalLifecycleTable } from '@/components/midnight/sign-bidirectional-lifecycle-table'
-import { SignetEventsStartingBlock } from '@/components/midnight/signet-events-starting-block'
+import { useLinkedLifecycle } from '@/components/midnight/use-linked-lifecycle'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { parseContractAddressesHex, type SignBidirectionalLifecycle } from '@sig-net/explorer-lib'
-import {
-  signBidirectionalLifecycleCalledBy,
-  signBidirectionalLifecycleCallers,
-  signBidirectionalLifecycleEventCount,
-  signBidirectionalLifecycleMatches,
-} from '@/lib/midnight/sign-bidirectional-lifecycle'
+import { parseContractAddressesHex } from '@sig-net/explorer-lib'
 
 interface ExplorerSearch {
-  /** The request a link points at. It seeds the search box, and editing the box drops it. */
+  /** The request a link points at, shown alone. It fills the search box, and editing the box drops it. */
   requestId?: RequestIdHex | undefined
   /**
    * The excluded callers, as a comma-separated list of canonical contract addresses. The filter
@@ -85,81 +85,67 @@ export const Route = createFileRoute('/midnight/explorer')({
   component: ExplorerPage,
 })
 
-/**
- * The load status, counting the search's matches out of everything loaded. The events total
- * includes events that joined no request, which no search matches.
- */
-function loadStatusText(
-  events: MidnightSignetEventsContextValue,
-  matching: readonly SignBidirectionalLifecycle[],
-): string {
-  if (events.status === 'unconfigured') {
-    switch (events.startingBlock.status) {
-      case 'no-indexer':
-        return 'No indexer configured'
-      case 'resolving':
-        return 'Reading the chain tip for the starting block'
-      case 'unavailable':
-        return `Could not read the chain tip for the starting block: ${events.startingBlock.error}`
-      case 'invalid':
-        return 'The starting block is not a block height'
-      case 'resolved':
-        return 'No valid Signet signer and responder addresses configured'
-      default: {
-        const exhaustive: never = events.startingBlock
-        throw new Error(`unhandled starting block ${String(exhaustive)}`)
-      }
-    }
+/** The counts of the newest answer, then how the latest read went. */
+function loadStatusText(lifecycles: MidnightLifecyclesContextValue): string {
+  const { counts, status } = lifecycles
+  if (counts === null) {
+    return status === 'loading' ? 'Loading' : ''
   }
-  const matchingEvents = matching.reduce(
-    (count, lifecycle) => count + signBidirectionalLifecycleEventCount(lifecycle),
-    0,
-  )
-  const counts =
-    `${String(matchingEvents)}/${String(events.events.length)} events, ` +
-    `${String(matching.length)}/${String(events.lifecycles.length)} requests`
-  switch (events.status) {
-    case 'loading':
-      return `${counts}, reading back from block ${String(events.read.toBlock)}, at ${String(events.read.fromBlock)} of ${String(events.targetFromBlock)}`
-    case 'loaded':
-      return counts
-    case 'error':
-      return `${counts}, then: ${events.error}`
-    default: {
-      const exhaustive: never = events
-      throw new Error(`unhandled status ${String(exhaustive)}`)
+  const text =
+    `${String(counts.matchingEvents)}/${String(counts.totalEvents)} events, ` +
+    `${String(counts.matchingRequests)}/${String(counts.totalRequests)} requests`
+  return status === 'loading' ? `${text}, loading` : text
+}
+
+/** Whether `search` is typed but too short to search by, so it matches every lifecycle. */
+function isShortSearch(search: string): boolean {
+  if (search.trim() === '') {
+    return false
+  }
+  try {
+    return resolveLifecyclesQuery({ search }).fragment === ''
+  } catch (error) {
+    // A search the query refuses is no short search: the service answers it with its error.
+    if (error instanceof ExplorerApiError) {
+      return false
     }
+    throw error
   }
 }
 
-/** Why no events are read while no indexer URL is configured, and how to configure one. */
-function NoIndexerAlert({ network }: { network: MidnightNetwork }) {
+/** Why nothing is listed while the build names no explorer backend, and how to name one. */
+function NoBackendAlert() {
   return (
     <Alert>
       <Unplug />
-      <AlertTitle>No indexer configured</AlertTitle>
+      <AlertTitle>No explorer backend configured</AlertTitle>
       <AlertDescription>
-        {network === MidnightNetwork.Preprod ? (
-          <p>
-            Preprod's indexer is served by Blockfrost and needs a Blockfrost project token for
-            Midnight preprod. Build the explorer with the token in{' '}
-            <code>VITE_MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID</code>, or enter an indexer URL that
-            carries it in the Midnight configuration.
-          </p>
-        ) : (
-          <p>Enter an indexer URL in the Midnight configuration to read the events.</p>
-        )}
+        <p>
+          The explorer lists requests from its backend. Build or start it with{' '}
+          <code>VITE_EXPLORER_API_URL</code> set to the http or https URL of the explorer API.
+        </p>
       </AlertDescription>
     </Alert>
   )
 }
 
 function ExplorerPage() {
-  const events = useMidnightSignetEvents()
-  const { network, setConfig } = useMidnight()
+  const service = useExplorerApi()
+  if (service === null) {
+    return <NoBackendAlert />
+  }
+  return <ExplorerList />
+}
+
+function ExplorerList() {
+  const service = useExplorerApi()
+  const lifecycles = useMidnightLifecycles()
+  const { network } = useMidnight()
   const { requestId, excludeCallers } = Route.useSearch()
   const navigate = Route.useNavigate()
-  const [search, setSearch] = useState<string>(requestId ?? '')
+  const [linkedReads, setLinkedReads] = useState(0)
+  const linked = useLinkedLifecycle(service, network, requestId, linkedReads)
+  const { search, setSearch, setExcludeCallers } = lifecycles
   // An edited box no longer shows the linked request, so the address bar stops naming it.
   const editSearch = (value: string) => {
     setSearch(value)
@@ -170,6 +156,9 @@ function ExplorerPage() {
   // The address bar holds the excluded callers, so the filter is read from it and written to it.
   const excludedCallers: readonly string[] =
     excludeCallers === undefined ? [] : excludeCallers.split(',')
+  useEffect(() => {
+    setExcludeCallers(excludeCallers === undefined ? [] : excludeCallers.split(','))
+  }, [excludeCallers, setExcludeCallers])
   const setExcludedCallers = (next: readonly string[]) => {
     void navigate({
       search: ({ excludeCallers: _previous, ...rest }) =>
@@ -185,98 +174,102 @@ function ExplorerPage() {
   const restoreCaller = (caller: string) => {
     setExcludedCallers(excludedCallers.filter((other) => other !== caller))
   }
-  const lifecycles = events.status === 'unconfigured' ? [] : events.lifecycles
-  const matching = lifecycles.filter(
-    (lifecycle) =>
-      signBidirectionalLifecycleMatches(lifecycle, search) &&
-      !signBidirectionalLifecycleCalledBy(lifecycle, excludedCallers),
+  const refresh = () => {
+    lifecycles.refresh()
+    setLinkedReads((reads) => reads + 1)
+  }
+  const boxValue = requestId ?? search
+  const filterPanel = (
+    <ExcludedCallersFilter
+      callers={lifecycles.callers}
+      excluded={excludedCallers}
+      onExclude={excludeCaller}
+      onRestore={restoreCaller}
+    />
   )
-  const { status, canStepStartingBlockBack, stepStartingBlockBack } = events
-  // A linked request may be older than the window. Once the window is read without the request's
-  // notification, the starting block steps back until the notification is found or the floor is
-  // reached, so a link to any request resolves.
-  const linkedRequestNotified =
-    requestId === undefined ||
-    lifecycles.some(
-      (lifecycle) =>
-        lifecycle.requestId === requestId && lifecycle.signBidirectionalEvents.length > 0,
-    )
-  useEffect(() => {
-    if (status === 'loaded' && !linkedRequestNotified) {
-      stepStartingBlockBack()
-    }
-  }, [status, linkedRequestNotified, stepStartingBlockBack])
-  // The search for the linked request runs from the tip read until the window is read with no step
-  // back left, or the load fails.
-  const loading = events.startingBlock.status === 'resolving' || status === 'loading'
-  const searchingLinkedRequest =
-    !linkedRequestNotified && (loading || (status === 'loaded' && canStepStartingBlockBack))
+  const error =
+    linked?.status === 'error'
+      ? linked.error
+      : lifecycles.status === 'error'
+        ? lifecycles.error
+        : null
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex w-full max-w-xl items-center gap-2">
-          <Input
-            // The dark variant is spelled out so it beats the input's own `dark:bg-input/30`.
-            className="bg-card dark:bg-card"
-            aria-label="Search by request id or caller contract"
-            placeholder="Search by request id or caller contract"
-            value={search}
-            onChange={(event) => editSearch(event.target.value)}
-          />
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Clear search"
-            disabled={search === ''}
-            onClick={() => editSearch('')}
-          >
-            <X />
-          </Button>
+      <div className="flex flex-wrap items-start gap-2">
+        <div className="flex w-full max-w-xl flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Input
+              // The dark variant is spelled out so it beats the input's own `dark:bg-input/30`.
+              className="bg-card dark:bg-card"
+              aria-label="Search by request id or caller contract"
+              placeholder="Search by request id or caller contract"
+              value={boxValue}
+              onChange={(event) => editSearch(event.target.value)}
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Clear search"
+              disabled={boxValue === ''}
+              onClick={() => editSearch('')}
+            >
+              <X />
+            </Button>
+          </div>
+          {requestId === undefined && isShortSearch(search) && (
+            <p className="text-muted-foreground text-sm">
+              Type at least {LIFECYCLES_MIN_SEARCH_LENGTH} characters to search
+            </p>
+          )}
         </div>
-        <p className="text-muted-foreground ml-auto text-sm">{loadStatusText(events, matching)}</p>
-        <SignetEventsStartingBlock
-          startingBlock={events.startingBlock}
-          canStepBack={canStepStartingBlockBack}
-          onChange={(signetEventsFromBlock) => setConfig({ signetEventsFromBlock })}
-          onStepBack={stepStartingBlockBack}
-        />
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Refresh"
-          disabled={events.status === 'unconfigured'}
-          onClick={events.refresh}
-        >
+        <p className="text-muted-foreground ml-auto self-center text-sm">
+          {loadStatusText(lifecycles)}
+        </p>
+        <Button variant="outline" size="icon" aria-label="Refresh" onClick={refresh}>
           <RefreshCw />
         </Button>
       </div>
-      {events.startingBlock.status === 'no-indexer' && <NoIndexerAlert network={network} />}
-      <SignBidirectionalLifecycleTable
-        lifecycles={matching}
-        emptyText={
-          lifecycles.length === 0
-            ? 'No requests yet'
-            : excludedCallers.length === 0
-              ? 'No requests match the search'
-              : 'No requests match the search and filters'
-        }
-        searching={searchingLinkedRequest}
-        loading={loading}
-        filterPanel={
-          <ExcludedCallersFilter
-            callers={signBidirectionalLifecycleCallers(lifecycles)}
-            excluded={excludedCallers}
-            onExclude={excludeCaller}
-            onRestore={restoreCaller}
-          />
-        }
-        activeFilterCount={excludedCallers.length}
-        onExcludeCaller={excludeCaller}
-        // Only a search singles a request out: while the page loads, the first request to arrive
-        // is briefly the only row.
-        expandSoleRow={search.trim() !== ''}
-      />
+      {error !== null && (
+        <Alert variant="destructive">
+          <CircleAlert />
+          <AlertTitle>The explorer backend could not answer</AlertTitle>
+          <AlertDescription>
+            <p>{error}</p>
+          </AlertDescription>
+        </Alert>
+      )}
+      {linked === null ? (
+        <SignBidirectionalLifecycleTable
+          lifecycles={lifecycles.lifecycles}
+          emptyText={
+            lifecycles.counts?.totalRequests === 0
+              ? 'No requests yet'
+              : excludedCallers.length === 0
+                ? 'No requests match the search'
+                : 'No requests match the search and filters'
+          }
+          loading={lifecycles.status === 'loading'}
+          filterPanel={filterPanel}
+          activeFilterCount={excludedCallers.length}
+          onExcludeCaller={excludeCaller}
+          onLoadMore={lifecycles.hasMore ? lifecycles.loadMore : null}
+          // Only a search singles a request out: while the page loads, the first request to arrive
+          // is briefly the only row.
+          expandSoleRow={search.trim() !== ''}
+        />
+      ) : (
+        <SignBidirectionalLifecycleTable
+          lifecycles={linked.status === 'found' ? [linked.lifecycle] : []}
+          emptyText="Request not found"
+          loading={linked.status === 'loading'}
+          filterPanel={filterPanel}
+          activeFilterCount={excludedCallers.length}
+          onExcludeCaller={excludeCaller}
+          onLoadMore={null}
+          expandSoleRow
+        />
+      )}
     </div>
   )
 }

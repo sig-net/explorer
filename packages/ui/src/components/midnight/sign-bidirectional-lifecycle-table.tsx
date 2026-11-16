@@ -74,24 +74,8 @@ function Timestamps({ dates, since }: { dates: readonly Date[]; since?: Date }) 
 const MISSING_NOTIFICATION_EXPLANATION =
   "No Sign Bidirectional Event on the configured Signet signer declares this request id, so the request's time, caller and record are unknown. The responses answer a request the MPC saw elsewhere: notified on another Signet signer, or never notified at all."
 
-/** The cell content of an event kind the search for the request may still find. */
-function SearchingCell() {
-  return (
-    <span className="text-muted-foreground inline-flex items-center gap-1">
-      <Spinner aria-label="Searching" />
-      searching
-    </span>
-  )
-}
-
-/**
- * The cell content of a lifecycle that holds responses and no request notification: still
- * searching, or `children` as the verdict with its explanation.
- */
-function WithoutNotification({ searching, children }: { searching: boolean; children: ReactNode }) {
-  if (searching) {
-    return <SearchingCell />
-  }
+/** The cell content of a lifecycle that holds responses and no request notification. */
+function WithoutNotification({ children }: { children: ReactNode }) {
   return (
     <span className="text-muted-foreground inline-flex items-center gap-1">
       {children}
@@ -103,13 +87,7 @@ function WithoutNotification({ searching, children }: { searching: boolean; chil
 }
 
 /** Mounted only while its row is expanded, as it inspects the lifecycle's transactions. */
-function LifecycleDetails({
-  lifecycle,
-  searching,
-}: {
-  lifecycle: SignBidirectionalLifecycle
-  searching: boolean
-}) {
+function LifecycleDetails({ lifecycle }: { lifecycle: SignBidirectionalLifecycle }) {
   const { signBidirectionalEvents, signatureRespondedEvents, respondBidirectionalEvents } =
     lifecycle
   const { validSignatureResponseIds, attestationChecks } = useLifecycleVerification(lifecycle)
@@ -121,21 +99,12 @@ function LifecycleDetails({
             .map(([id]) => id),
         )
       : undefined
-  // The notification and the signature precede the response, so the search back may still find
-  // them. The response is the latest event, so it is never still to come from older blocks.
-  const stillSearching = searching ? (
-    <SpinnerSplash spinnerLabel="Searching" title="Still searching for event data" />
-  ) : undefined
   return (
     <div className="grid grid-cols-3 divide-x">
       <SignetEventsSection
         heading="Sign Bidirectional Notification"
         events={signBidirectionalEvents}
-        empty={
-          stillSearching ?? (
-            <p className="text-muted-foreground">{MISSING_NOTIFICATION_EXPLANATION}</p>
-          )
-        }
+        empty={<p className="text-muted-foreground">{MISSING_NOTIFICATION_EXPLANATION}</p>}
         renderRecord={(event) => (
           <>
             <SignBidirectionalNotificationDetails record={event.record} />
@@ -148,7 +117,6 @@ function LifecycleDetails({
         heading="Signature Responded Event"
         events={signatureRespondedEvents}
         successfulEventIds={validSignatureResponseIds}
-        empty={stillSearching}
         renderRecord={(event) => (
           <>
             <SignatureRespondedEventDetails record={event.record} />
@@ -205,12 +173,10 @@ const HIDE_CALLER_TEXT = 'Hide all requests from this caller'
 function LifecycleRow({
   lifecycle,
   expandedByDefault,
-  searching,
   onExcludeCaller,
 }: {
   lifecycle: SignBidirectionalLifecycle
   expandedByDefault: boolean
-  searching: boolean
   onExcludeCaller: (caller: string) => void
 }) {
   const { signBidirectionalEvents, signatureRespondedEvents, respondBidirectionalEvents } =
@@ -249,7 +215,7 @@ function LifecycleRow({
         </TableCell>
         <TableCell>
           {signBidirectionalEvents.length === 0 ? (
-            <WithoutNotification searching={searching}>no notification</WithoutNotification>
+            <WithoutNotification>no notification</WithoutNotification>
           ) : (
             <Timestamps
               dates={signBidirectionalEvents.map((event) => event.source.blockTimestamp)}
@@ -270,7 +236,7 @@ function LifecycleRow({
         </TableCell>
         <TableCell>
           {signBidirectionalEvents.length === 0 ? (
-            <WithoutNotification searching={searching}>unknown</WithoutNotification>
+            <WithoutNotification>unknown</WithoutNotification>
           ) : (
             <Stacked>
               {signBidirectionalEvents.map((event) => (
@@ -285,11 +251,7 @@ function LifecycleRow({
         <TableCell>Bidirectional</TableCell>
         <TableCell>
           {signatureRespondedEvents.length === 0 ? (
-            searching ? (
-              <SearchingCell />
-            ) : (
-              <PendingIcon tooltip="Waiting for the MPC to provide the signature" />
-            )
+            <PendingIcon tooltip="Waiting for the MPC to provide the signature" />
           ) : (
             <Timestamps
               dates={signatureRespondedEvents.map((event) => event.source.blockTimestamp)}
@@ -308,7 +270,7 @@ function LifecycleRow({
         </TableCell>
         <TableCell>
           {signBidirectionalEvents.length === 0 ? (
-            <WithoutNotification searching={searching}>unknown</WithoutNotification>
+            <WithoutNotification>unknown</WithoutNotification>
           ) : durationMs === null ? (
             <PendingIcon />
           ) : (
@@ -320,7 +282,7 @@ function LifecycleRow({
       {expanded && (
         <TableRow id={detailsId} className="hover:bg-transparent">
           <TableCell colSpan={COLUMN_COUNT} className="p-0 whitespace-normal">
-            <LifecycleDetails lifecycle={lifecycle} searching={searching} />
+            <LifecycleDetails lifecycle={lifecycle} />
           </TableCell>
         </TableRow>
       )}
@@ -355,30 +317,27 @@ function activeFiltersText(count: number): string {
  * header from the button at its end, which carries `activeFilterCount` in a bubble while it is above
  * zero, and `onExcludeCaller` receives the caller whose hide button in a row is pressed.
  *
- * `searching` is true while the request the rows are filtered to is still being searched for in
- * older blocks: an empty body shows the search in place of `emptyText`, and a row's missing
- * notification and signature show as searching rather than missing. `loading` is true while the
- * events are still being read: an empty body that is not searching shows the load in place of
- * `emptyText`.
+ * `loading` is true while the lifecycles are being read: an empty body shows the load in place of
+ * `emptyText`, and the "Load more" row, shown while `onLoadMore` is given, is disabled.
  */
 export function SignBidirectionalLifecycleTable({
   lifecycles,
   emptyText,
   expandSoleRow,
-  searching,
   loading,
   filterPanel,
   activeFilterCount,
   onExcludeCaller,
+  onLoadMore,
 }: {
   lifecycles: readonly SignBidirectionalLifecycle[]
   emptyText: string
   expandSoleRow: boolean
-  searching: boolean
   loading: boolean
   filterPanel: ReactNode
   activeFilterCount: number
   onExcludeCaller: (caller: string) => void
+  onLoadMore: (() => void) | null
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false)
   // This wrapper fills the height the page has left. The table component scrolls inside its own
@@ -445,26 +404,24 @@ export function SignBidirectionalLifecycleTable({
               key={lifecycle.requestId}
               lifecycle={lifecycle}
               expandedByDefault={expandSoleRow && lifecycles.length === 1}
-              searching={searching}
               onExcludeCaller={onExcludeCaller}
             />
           ))}
+          {onLoadMore !== null && lifecycles.length > 0 && (
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={COLUMN_COUNT} className="text-center">
+                <Button variant="outline" size="sm" disabled={loading} onClick={onLoadMore}>
+                  {loading && <Spinner />}
+                  Load more
+                </Button>
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
       {lifecycles.length === 0 &&
-        (searching ? (
-          <SpinnerSplash
-            spinnerLabel="Searching"
-            title="Looking back through Sig Network events for this request"
-          >
-            Responses are posted some time after a request, so a request's own events sit in older
-            blocks than its responses. The starting block steps back until the request is found or
-            the contract's earliest block is reached.
-          </SpinnerSplash>
-        ) : loading ? (
-          <SpinnerSplash spinnerLabel="Loading" title="Loading Sig Network events">
-            Requests appear as their blocks are read, newest first.
-          </SpinnerSplash>
+        (loading ? (
+          <SpinnerSplash spinnerLabel="Loading" title="Loading Sig Network events" />
         ) : (
           <Empty>
             <EmptyDescription>{emptyText}</EmptyDescription>
