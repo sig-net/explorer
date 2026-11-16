@@ -1,28 +1,15 @@
-import { calculateRequestId, hexToBytes, type SignatureRespondedEvent } from '@sig-net/midnight'
+import { hexToBytes, type SignatureRespondedEvent } from '@sig-net/midnight'
 import { expect, test } from 'vitest'
 
 import {
   SIGNED_REQUEST as REQUEST,
+  SIGNED_REQUEST_ID as REQUEST_ID,
+  SIGNED_REQUEST_MPC_RESPONSE as MPC_RESPONSE,
   SIGNED_REQUEST_MPC_ROOT_KEY as REQUEST_ROOT_KEY,
 } from './sign-bidirectional-event.fixture'
 import { checkSignature } from './signature-check'
 
-const REQUEST_ID = calculateRequestId(REQUEST)
-
-// Two of the signatures posted for the request: the first is the MPC's, the second
-// declares the same request id but is by another key.
-const MPC_RESPONSE: SignatureRespondedEvent = {
-  requestId: REQUEST_ID,
-  signature: {
-    bigR: {
-      x: hexToBytes('5399e44261c553b474396726a12b361a1ceec85988dfae3fbfc9935f8b3e20ce'),
-      y: hexToBytes('07298cddfd3f24215700abd074ae1b5e1a6fc795dbedd75f78952218e26fcc9e'),
-    },
-    s: hexToBytes('77cf5968439ef22a5b9528b8e6c1e2a4725281847e2d7d908eaf8fe2020fb132'),
-    recoveryId: 1n,
-  },
-}
-
+// A signature posted for the request that declares its request id but is by another key.
 const FOREIGN_RESPONSE: SignatureRespondedEvent = {
   requestId: REQUEST_ID,
   signature: {

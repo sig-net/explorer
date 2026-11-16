@@ -45,11 +45,10 @@ Keep setup instructions and application reference material in README.md and docs
   (about 20MB) and Apollo Client into the importing chunk, even when only constructed. Never import
   it, or anything that reaches `@midnight-ntwrk/midnight-js-types` at runtime, from shared or
   root-mounted code. A feature that needs it loads it with a dynamic `import()` inside its own
-  route. The Midnight ledger WebAssembly (`@midnightntwrk/ledger-v9`, about 10MB) follows the
-  same rule: only `packages/ui/src/lib/midnight/sign-bidirectional-transaction-inspection.ts` imports it as
-  values, and that module is reached by dynamic `import()` alone. After adding any Midnight
+  route. The UI imports no Midnight ledger WebAssembly (`@midnightntwrk/ledger-v9`, about 10MB):
+  the backend inspects transactions and serves what it read. After adding any Midnight
   dependency, run `yarn build` and check the emitted `.wasm` files: the expected set is the
-  onchain runtime, plus one ledger build referenced only by the lazy inspection chunk.
+  onchain runtime alone.
 - The app is served under a base path: `/` by the dev server, `/explorer/` on GitHub Pages. Never write
   a root-absolute URL to the app's own files or routes. A file in `packages/ui/public` goes through
   `publicAssetUrl` (`packages/ui/src/lib/public-asset-url.ts`), a route through the router (`Link`, `navigate`,

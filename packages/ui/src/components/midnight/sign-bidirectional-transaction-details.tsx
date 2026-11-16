@@ -1,3 +1,4 @@
+import type { ContractCallNode, InspectedSignBidirectionalEvent } from '@sig-net/explorer-api'
 import { Fragment } from 'react'
 
 import { useMidnight } from '@/components/contexts/MidnightContext'
@@ -5,13 +6,9 @@ import { CopyableHex } from '@/components/copyable-hex'
 import { DetailLine, DetailList } from '@/components/detail-list'
 import { ExternalLinkButton } from '@/components/external-link-button'
 import { SignBidirectionalRequestJson } from '@/components/midnight/sign-bidirectional-request-json'
-import { useSignBidirectionalTransactionInspection } from '@/components/midnight/use-sign-bidirectional-transaction-inspection'
-import { PendingIcon } from '@/components/pending-icon'
 import { Separator } from '@/components/ui/separator'
 import { etherscanAddressUrl } from '@/lib/midnight/evm-block-explorer'
 import { deriveRequestSigningKey } from '@/lib/midnight/request-signing-key'
-import type { ContractCallNode } from '@/lib/midnight/sign-bidirectional-transaction-inspection'
-import type { SignBidirectionalNotificationEvent } from '@/lib/midnight/sign-bidirectional-transaction-loader'
 
 function CallChain({ calls }: { calls: readonly ContractCallNode[] }) {
   return (
@@ -37,18 +34,17 @@ function CallChain({ calls }: { calls: readonly ContractCallNode[] }) {
 export function SignBidirectionalTransactionDetails({
   event,
 }: {
-  event: SignBidirectionalNotificationEvent
+  event: InspectedSignBidirectionalEvent
 }) {
-  const state = useSignBidirectionalTransactionInspection(event)
   const { network, config } = useMidnight()
+  const { inspection } = event
 
-  if (state.status === 'loading') {
-    return <PendingIcon />
+  if ('failed' in inspection) {
+    return (
+      <p className="text-destructive">Could not inspect the transaction: {inspection.failed}</p>
+    )
   }
-  if (state.status === 'error') {
-    return <p className="text-destructive">Could not inspect the transaction: {state.error}</p>
-  }
-  const { callChains, request } = state.inspection
+  const { callChains, request } = inspection
   const signingKey =
     request === null ? null : deriveRequestSigningKey(config.mpcRootPublicKey, request)
   return (

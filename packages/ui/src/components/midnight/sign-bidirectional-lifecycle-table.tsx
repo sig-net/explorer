@@ -1,4 +1,4 @@
-import type { SignBidirectionalLifecycle } from '@sig-net/explorer-lib'
+import type { InspectedSignBidirectionalLifecycle } from '@sig-net/explorer-api'
 import { useRouter } from '@tanstack/react-router'
 import { ChevronDown, ChevronUp, EyeOff, Link, ListFilter } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
@@ -86,8 +86,8 @@ function WithoutNotification({ children }: { children: ReactNode }) {
   )
 }
 
-/** Mounted only while its row is expanded, as it inspects the lifecycle's transactions. */
-function LifecycleDetails({ lifecycle }: { lifecycle: SignBidirectionalLifecycle }) {
+/** Mounted only while its row is expanded, as its checks read the MPC cache and EVM nodes. */
+function LifecycleDetails({ lifecycle }: { lifecycle: InspectedSignBidirectionalLifecycle }) {
   const { signBidirectionalEvents, signatureRespondedEvents, respondBidirectionalEvents } =
     lifecycle
   const { validSignatureResponseIds, attestationChecks } = useLifecycleVerification(lifecycle)
@@ -175,7 +175,7 @@ function LifecycleRow({
   expandedByDefault,
   onExcludeCaller,
 }: {
-  lifecycle: SignBidirectionalLifecycle
+  lifecycle: InspectedSignBidirectionalLifecycle
   expandedByDefault: boolean
   onExcludeCaller: (caller: string) => void
 }) {
@@ -330,7 +330,7 @@ export function SignBidirectionalLifecycleTable({
   onExcludeCaller,
   onLoadMore,
 }: {
-  lifecycles: readonly SignBidirectionalLifecycle[]
+  lifecycles: readonly InspectedSignBidirectionalLifecycle[]
   emptyText: string
   expandSoleRow: boolean
   loading: boolean
