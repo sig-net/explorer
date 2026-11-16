@@ -1,6 +1,6 @@
 {
   "limit": 2,
-  "seq": 133,
+  "seq": 139,
   "stages": {
     "01-ground": {
       "check_dirty": true,
@@ -258,11 +258,21 @@
     "04.5": {
       "base": "47400ff",
       "branch": "bernard-04-5",
+      "check_dirty": false,
+      "check_head": "af013c4",
+      "check_passed": true,
+      "checks": 1,
+      "redos": 0,
+      "reports": 1,
+      "status": "done",
+      "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-5"
+    },
+    "04.8": {
       "checks": 0,
       "redos": 0,
       "reports": 0,
       "status": "running",
-      "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-bernard-04-5"
+      "worktree": "/home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol"
     },
     "04.9": {
       "base": "084f383",

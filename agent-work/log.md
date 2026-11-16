@@ -400,3 +400,21 @@ for the planner of stage 05, from 04.10: pass startIngestLoop a synchronous logg
 
 ## 133 ACCEPT 04.10
 merged bernard-04-10 as 3295751
+
+## 134 DISPATCH 04.8
+model fable, branch none, worktree /home/brbussy/Projects/github.com/sig-net/explorer-upgrade-protocol
+
+## 135 REPORT 04.5
+DONE, kept in reports/04.5-1.md
+
+## 136 CHECK 04.5
+PASS, exit 0 at af013c4, output in evidence/04.5-1.txt
+
+## 137 PACK
+ui.md: two lint rules, router.load in tests, where the page's tests and the api client are (from 04.5's report)
+
+## 138 PLAN
+04.7 gains the docker env script: it must forward VITE_EXPLORER_API_URL (from 04.5's report). For 05.3: the README lines 321, 325, 344, 383, 397 and 443 name things 04.5 deleted. For the closing report: a failed callers() read leaves the filter's list empty with no error shown, and the filter's empty text is No known caller matches
+
+## 139 ACCEPT 04.5
+merged bernard-04-5 as 8d493d7
