@@ -33,7 +33,7 @@
     "@midnightntwrk/onchain-runtime-v4": "4.0.1"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24"
   },
   "packageManager": "yarn@4.18.0"
 }

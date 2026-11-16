@@ -140,6 +140,10 @@ from the container's environment at start. The backend's image runs the backend 
 is meant for a Kubernetes deployment of one replica. Each package's README says how to run its
 image.
 
+Both release workflows described below fail as committed. What follows says what each does once
+the changes listed under [Corrections the workflows need](#corrections-the-workflows-need) are
+made.
+
 The `docker-publish` workflow publishes the UI's image to GitHub Packages on a release tag:
 
 ```bash
@@ -152,6 +156,8 @@ come from any branch. The workflow builds linux/amd64 and linux/arm64 on native 
 combines them into one multi-architecture manifest, passing the tag to the build as
 `EXPLORER_VERSION` for the footer. The arm64 build runs without credentials and hands its image
 over as a run artifact, which only the publishing job pushes.
+
+No workflow publishes the backend's image.
 
 ## GitHub Pages
 
@@ -170,3 +176,22 @@ the app. [packages/ui/README.md](packages/ui/README.md) explains both. The deplo
 Vite inlines `VITE_` values at build time, and the site reaches its backend only when the build
 sets `VITE_EXPLORER_API_URL`. The backend must then list `https://sig-net.github.io` in its
 `EXPLORER_CORS_ORIGINS`.
+
+## Corrections the workflows need
+
+The UI builds into `packages/ui/dist` and its image is built from `packages/ui/Dockerfile`. The
+two workflows read `dist` and a `Dockerfile` at the repository root, where neither exists.
+
+In `.github/workflows/pages-deploy.yml`:
+
+- Line 81: `cp dist/index.html dist/404.html` becomes
+  `cp packages/ui/dist/index.html packages/ui/dist/404.html`.
+- Line 84: `path: dist` becomes `path: packages/ui/dist`.
+- Lines 74 to 78, the `env` of the build step: add `VITE_EXPLORER_API_URL`, set to the public URL
+  of the backend. A build without it produces a site that reaches no backend.
+
+In `.github/workflows/docker-publish.yml`:
+
+- Lines 72 and 108: each `context: .` gains the line `file: packages/ui/Dockerfile` beside it. The
+  context stays the repository root.
+- Line 1: the comment's "root Dockerfile" becomes `packages/ui/Dockerfile`.

@@ -57,7 +57,8 @@ Each network has one `ingest_state` row whose cursor says that every event up to
 stored, with the hash of block N. A cycle reads a range of blocks, then stores it in one SQL
 transaction whose first statement moves the cursor:
 `UPDATE ingest_state ... WHERE cursor_height IS NOT DISTINCT FROM <the height the cycle read>`,
-together with the identity the cycle read (genesis hash and contract addresses). When that
+together with the identity the cycle read (the genesis hash, the signer and responder contract
+addresses and the start block). When that
 statement changes no row, the transaction rolls back before anything is inserted. The cursor
 starts null, and the first range starts at the configured start block.
 
@@ -82,8 +83,9 @@ Why: `request_callers` does not record which event named a caller, and its forei
 with no event would fail the whole page, so the ingest's test that rebuilds `requests` from
 `events` is what keeps one from existing.
 
-This would change if the source could retract an event it had served. The indexer serves finalised
-blocks only (see the source section), so it cannot.
+This would change if the source could retract an event the ingest had stored. The ingest stays 6
+blocks below the indexer's tip by default, and that tip was measured at most 1 block ahead of
+finality (see the source section), so the blocks it stores are final.
 
 ## The backend inspects each transaction and keeps its raw bytes
 
@@ -96,7 +98,9 @@ bidirectional event is stored with neither. The browser loads no Midnight ledger
 Why inspect on the server: the raw transaction comes from the indexer, which no browser can reach,
 and the inspection of a finalised transaction never changes. Why keep the raw bytes: every stored
 transaction can be inspected again after a fix to the decoder, without the indexer. A request's raw
-transaction was about 12.6 KB (one sample), about 6 GB a year per network at preprod's rate.
+transaction was about 12.6 KB (one sample), about 6 GB a year per network at preprod's rate of
+about 500,000 requests a year. The whole store of a preprod network measured 107 MB at 5,417
+requests, about 20 KB a request, which is about 10 GB a year at the same rate.
 
 A failure is stored rather than raised, because a transaction the decoder cannot read must not stop
 a network for ever:
@@ -162,12 +166,19 @@ replay each call's transcripts in the ledger VM, walking finalised blocks one at
 JSON-RPC, as the MPC indexer does. That is a second port adaptor, worth building if the indexer
 became unreliable or a self-run node became the requirement.
 
-The daily quota of the Blockfrost plan is not known. If it proves smaller than about 3 calls a
-poll per network at the configured interval, the interval goes up.
+A poll of a caught-up network sends 9 requests to the indexer when the new blocks hold no sign
+bidirectional event. The cycle that stores them sends 6: the genesis block, the block at the
+cursor, the tip, the block the cursor moves to, and one page of events for each of the two
+contracts. The cycle that follows at once sends the first 3 again and finds nothing to read. Each
+transaction that emitted a sign bidirectional event adds one request for its raw bytes. Measured on
+preprod at the default interval of 30 seconds, that was 63 requests in 7 polls over 195 seconds,
+and in a second run 114 requests in 320 seconds: about 28,000 to 31,000 requests a day. The daily
+quota of the Blockfrost plan is not known. If it proves smaller than that, the interval goes up.
 
 ## A network stops on a mismatch and is wiped only by an operator
 
-When a network's genesis hash or contract addresses differ from what its schema was indexed for,
+When a network's genesis hash, its signer or responder contract address or its start block differs
+from what its schema was indexed for,
 or the source's hash at the cursor differs from the stored one, the backend stops that network and
 reports it unhealthy. It never wipes on its own. A stopped network is checked again every cycle and
 resumes when its stored identity matches its configuration again: after a wipe, or after the

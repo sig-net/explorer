@@ -97,6 +97,8 @@ export type IngestCycleOutcome =
   | { readonly kind: 'superseded' }
   | { readonly kind: 'failed'; readonly error: string }
 
+/** The genesis hash of a state row whose network's source has not answered yet. */
+const GENESIS_HASH_NOT_READ = Buffer.alloc(0)
 const RAW_TRANSACTION_FETCHES_AT_ONCE = 8
 const RECORDED_ERROR_MAX_LENGTH = 2000
 /** U+0000, which `text` and `jsonb` refuse, and unpaired surrogates, which `jsonb` refuses. */
@@ -144,8 +146,9 @@ async function readAndStoreRange(
   { source, inspect }: IngestCycleDependencies,
   settings: IngestCycleSettings,
 ): Promise<IngestCycleOutcome> {
+  await insertStartingState(tables, settings)
   const sourceGenesisHash = await source.genesisHash()
-  const state = await ingestStateOf(tables, sourceGenesisHash, settings)
+  const state = await ingestStateOf(tables, sourceGenesisHash)
   const mismatch =
     identityMismatch(state, sourceGenesisHash, settings) ?? (await cursorMismatch(state, source))
   if (mismatch !== null) {
@@ -194,22 +197,37 @@ async function readAndStoreRange(
   return { kind: 'stored', fromBlock, toBlock, events: events.length }
 }
 
-/** The network's state row, inserted with a null cursor when the schema holds none. */
-async function ingestStateOf(
+/**
+ * Inserts the network's state row, with a null cursor and {@link GENESIS_HASH_NOT_READ}, when the
+ * schema holds none. It runs before the first read of the source, so a cycle that fails there has
+ * a row to record its error in.
+ */
+async function insertStartingState(
   tables: NetworkDatabase,
-  sourceGenesisHash: string,
   settings: IngestCycleSettings,
-): Promise<IngestState> {
+): Promise<void> {
   await tables
     .insertInto('ingest_state')
     .values({
-      genesis_hash: bytesOfHex(sourceGenesisHash),
+      genesis_hash: GENESIS_HASH_NOT_READ,
       signer_address: bytesOfHex(settings.signerContractAddress),
       responder_address: bytesOfHex(settings.responderContractAddress),
       start_block: settings.startBlock,
-      state: 'syncing',
+      state: 'starting',
     })
     .onConflict((conflict) => conflict.doNothing())
+    .execute()
+}
+
+/** The network's state row, which takes the source's genesis hash when it holds none. */
+async function ingestStateOf(
+  tables: NetworkDatabase,
+  sourceGenesisHash: string,
+): Promise<IngestState> {
+  await tables
+    .updateTable('ingest_state')
+    .set({ genesis_hash: bytesOfHex(sourceGenesisHash), state: 'syncing' })
+    .where('genesis_hash', '=', GENESIS_HASH_NOT_READ)
     .execute()
   return tables.selectFrom('ingest_state').selectAll().executeTakeFirstOrThrow()
 }
