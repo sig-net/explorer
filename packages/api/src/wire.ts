@@ -54,11 +54,14 @@ const alignmentSchema: z.ZodType<RequestCell['alignment']> = z.lazy(() =>
 )
 
 /** A request cell: each atom as hex, an empty atom as the empty string, the alignment as it is. */
-const requestCellWireSchema = z.object({ value: z.array(hexSchema), alignment: alignmentSchema })
+export const requestCellWireSchema = z.object({
+  value: z.array(hexSchema),
+  alignment: alignmentSchema,
+})
 
 export type RequestCellWire = z.infer<typeof requestCellWireSchema>
 
-const contractCallNodeSchema: z.ZodType<ContractCallNode> = z.lazy(() =>
+export const contractCallNodeSchema: z.ZodType<ContractCallNode> = z.lazy(() =>
   z.object({
     entryPoint: z.string(),
     address: z.string(),
@@ -341,14 +344,72 @@ export function urlWithoutCredentials(url: string): string {
 }
 
 /**
- * `text` with every URL it holds cut as {@link urlWithoutCredentials} cuts one. A user and password
- * run to the last `@` before the path, and a query string or fragment to the next white space,
- * less the closing punctuation that ends it.
+ * `text` with every URL it holds cut as {@link urlWithoutCredentials} cuts one, in time linear in
+ * the length of `text`. A user and password run to the last `@` before the path, and a query
+ * string or fragment to the next white space, less the closing punctuation that ends it.
  */
 export function textWithoutUrlCredentials(text: string): string {
-  return text
-    .replace(/([a-z][a-z0-9+.-]*:\/\/)[^\s/\\?#]*@/gi, '$1')
-    .replace(/([a-z][a-z0-9+.-]*:\/\/[^\s?#]*)[?#]\S*?(?=["'`)\]}>.,:;]*(?:\s|$))/gi, '$1')
+  return text.replace(/\S+/g, wordWithoutUrlCredentials)
+}
+
+const URL_SCHEME_LETTER = /[a-z]/i
+const URL_SCHEME_SYMBOL = /[0-9+.-]/
+const URL_USER_INFO_CHARACTERS = /[^/\\?#]*/y
+const URL_QUERY_START = /[?#]/g
+const URL_CLOSING_PUNCTUATION = new Set('"\'`)]}>.,:;')
+
+/** `word`, which holds no white space, with its URLs cut. */
+function wordWithoutUrlCredentials(word: string): string {
+  if (!word.includes('://')) {
+    return word
+  }
+  let withoutUserInfo = ''
+  let copied = 0
+  let authority = urlAuthorityStart(word, 0)
+  while (authority !== -1) {
+    URL_USER_INFO_CHARACTERS.lastIndex = authority
+    const userInfoEnd = (URL_USER_INFO_CHARACTERS.exec(word)?.[0] ?? '').lastIndexOf('@')
+    if (userInfoEnd !== -1) {
+      withoutUserInfo += word.slice(copied, authority)
+      copied = authority + userInfoEnd + 1
+    }
+    authority = urlAuthorityStart(word, Math.max(authority, copied))
+  }
+  withoutUserInfo += word.slice(copied)
+
+  const firstAuthority = urlAuthorityStart(withoutUserInfo, 0)
+  if (firstAuthority === -1) {
+    return withoutUserInfo
+  }
+  URL_QUERY_START.lastIndex = firstAuthority
+  const queryStart = URL_QUERY_START.exec(withoutUserInfo)?.index
+  if (queryStart === undefined) {
+    return withoutUserInfo
+  }
+  let closingStart = withoutUserInfo.length
+  while (
+    closingStart > queryStart + 1 &&
+    URL_CLOSING_PUNCTUATION.has(withoutUserInfo.charAt(closingStart - 1))
+  ) {
+    closingStart -= 1
+  }
+  return withoutUserInfo.slice(0, queryStart) + withoutUserInfo.slice(closingStart)
+}
+
+/** The index after the first `://` at or after `from` that a scheme precedes, or -1. */
+function urlAuthorityStart(text: string, from: number): number {
+  for (let at = text.indexOf('://', from); at !== -1; at = text.indexOf('://', at + 3)) {
+    for (let before = at - 1; before >= 0; before -= 1) {
+      const character = text.charAt(before)
+      if (URL_SCHEME_LETTER.test(character)) {
+        return at + 3
+      }
+      if (!URL_SCHEME_SYMBOL.test(character)) {
+        break
+      }
+    }
+  }
+  return -1
 }
 
 export const callersWireSchema = z.object({ callers: z.array(hash32Schema) })

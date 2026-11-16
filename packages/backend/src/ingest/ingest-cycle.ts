@@ -1,4 +1,8 @@
-import { textWithoutUrlCredentials } from '@sig-net/explorer-api'
+import {
+  contractCallNodeSchema,
+  requestCellWireSchema,
+  textWithoutUrlCredentials,
+} from '@sig-net/explorer-api'
 import {
   decodeSignetContractEvent,
   type SignBidirectionalLifecycle,
@@ -6,6 +10,7 @@ import {
 } from '@sig-net/explorer-lib'
 import { type MidnightNetwork, SignetEventName } from '@sig-net/midnight'
 import type { Insertable, Selectable } from 'kysely'
+import { z } from 'zod'
 
 import type { ExplorerDatabase } from '../db/database.ts'
 import {
@@ -101,6 +106,22 @@ const REFUSED_CHARACTERS = /[\0\p{Surrogate}]/gu
  * reads as the start of the next one. Group 1 is set for an escape of a refused character.
  */
 const JSON_ESCAPES = /\\(?:u(0000|d[89a-f][0-9a-f]{2})|[^])/g
+/** A stored inspection nests at most this deep, so no reader's recursion depends on its stack. */
+const STORED_INSPECTION_MAX_DEPTH = 64
+/** A stored inspection whose call chains and cells the wire's schemas accept. */
+const storedInspectionSchema: z.ZodType<StoredInspection> = z.union([
+  z.object({ failed: z.string() }),
+  z.object({
+    callChains: z.array(contractCallNodeSchema),
+    requests: z.record(
+      z.string(),
+      z.union([
+        z.object({ failed: z.string() }),
+        z.object({ cell: requestCellWireSchema.nullable() }),
+      ]),
+    ),
+  }),
+])
 /** Keeps a multi-row statement under PostgreSQL's 65,535 bind parameters. */
 const ROWS_PER_STATEMENT = 1000
 
@@ -128,11 +149,9 @@ async function readAndStoreRange(
   const mismatch =
     identityMismatch(state, sourceGenesisHash, settings) ?? (await cursorMismatch(state, source))
   if (mismatch !== null) {
-    await tables
-      .updateTable('ingest_state')
-      .set({ state: 'stopped', last_error: mismatch })
-      .execute()
-    return { kind: 'stopped', reason: mismatch }
+    const reason = recordedErrorText(mismatch)
+    await tables.updateTable('ingest_state').set({ state: 'stopped', last_error: reason }).execute()
+    return { kind: 'stopped', reason }
   }
 
   const tip = await source.finalisedTip()
@@ -296,35 +315,48 @@ async function inspectedTransactionRows(
 }
 
 /**
- * The inspection of a transaction as the JSON its row holds. A throw, and a result holding a
- * character PostgreSQL refuses, are the failed inspection of the whole transaction.
+ * The inspection of a transaction as the JSON its row holds. A throw, a result that does not
+ * serialise, one holding a character PostgreSQL refuses and one the wire's schemas reject are each
+ * the failed inspection of the whole transaction.
  */
 function storedInspectionJson(
   inspect: InspectTransaction,
   rawTransactionHex: string,
   notifications: readonly SignBidirectionalNotificationEvent[],
 ): string {
-  const failed = (reason: string): string =>
-    JSON.stringify({ failed: reason } satisfies StoredInspection)
-  let inspection: StoredInspection
+  const failed = (reason: unknown): string =>
+    JSON.stringify({ failed: recordedErrorText(reason) } satisfies StoredInspection)
   try {
-    inspection = inspect(rawTransactionHex, notifications)
+    const inspection = inspect(rawTransactionHex, notifications)
+    if ('failed' in inspection) {
+      return failed(inspection.failed)
+    }
+    const json = JSON.stringify(inspection)
+    if (jsonHoldsRefusedCharacter(json)) {
+      return failed('the inspection holds a character PostgreSQL refuses')
+    }
+    if (jsonNestingDepth(json) > STORED_INSPECTION_MAX_DEPTH) {
+      return failed(
+        `the inspection nests deeper than ${String(STORED_INSPECTION_MAX_DEPTH)} levels`,
+      )
+    }
+    const stored = storedInspectionSchema.safeParse(JSON.parse(json))
+    if (!stored.success) {
+      return failed(`the wire rejects the inspection: ${z.prettifyError(stored.error)}`)
+    }
+    if ('failed' in stored.data) {
+      return failed(stored.data.failed)
+    }
+    const requests = Object.fromEntries(
+      Object.entries(stored.data.requests).map(([eventId, request]) => [
+        eventId,
+        'failed' in request ? { failed: recordedErrorText(request.failed) } : request,
+      ]),
+    )
+    return JSON.stringify({ ...stored.data, requests } satisfies StoredInspection)
   } catch (error) {
-    return failed(recordedErrorText(error))
+    return failed(error)
   }
-  if ('failed' in inspection) {
-    return failed(recordedErrorText(inspection.failed))
-  }
-  if (jsonHoldsRefusedCharacter(JSON.stringify(inspection))) {
-    return failed('the inspection holds a character PostgreSQL refuses')
-  }
-  const requests = Object.fromEntries(
-    Object.entries(inspection.requests).map(([eventId, request]) => [
-      eventId,
-      'failed' in request ? { failed: recordedErrorText(request.failed) } : request,
-    ]),
-  )
-  return JSON.stringify({ ...inspection, requests } satisfies StoredInspection)
 }
 
 /** Whether a string or a key of the value `json` serialises holds U+0000 or an unpaired surrogate. */
@@ -335,6 +367,31 @@ function jsonHoldsRefusedCharacter(json: string): boolean {
     }
   }
   return false
+}
+
+/** How deep the arrays and objects of the value `json` serialises nest. */
+function jsonNestingDepth(json: string): number {
+  let depth = 0
+  let deepest = 0
+  let inString = false
+  for (let index = 0; index < json.length; index += 1) {
+    const character = json.charAt(index)
+    if (inString) {
+      if (character === '\\') {
+        index += 1
+      } else if (character === '"') {
+        inString = false
+      }
+    } else if (character === '"') {
+      inString = true
+    } else if (character === '{' || character === '[') {
+      depth += 1
+      deepest = Math.max(deepest, depth)
+    } else if (character === '}' || character === ']') {
+      depth -= 1
+    }
+  }
+  return deepest
 }
 
 /**
@@ -420,7 +477,7 @@ function eventRowOf(event: SignetContractEvent): EventRow {
     id: source.id,
     transaction_hash: bytesOfHex(source.transactionHash),
     contract_roles: [...event.roles],
-    name: source.name,
+    name: storableText(source.name),
     payload: Buffer.from(source.payload),
     request_id: event.kind === 'decoded' ? event.requestId : null,
     decode_failure: event.kind === 'undecodable' ? recordedErrorText(event.reason) : null,
@@ -520,12 +577,33 @@ function bytesOfHex(hex: string): Buffer {
 }
 
 /**
- * The text of a caught error or of a failure reason as the database may hold it: with no URL
- * credential, bounded, and with no character PostgreSQL refuses.
+ * The text of a caught error or of a failure reason as the database may hold it: with no character
+ * PostgreSQL refuses, with no URL credential, and bounded. URLs are cut from no more of the text
+ * than fills the bound.
  */
 export function recordedErrorText(error: unknown): string {
-  const text = error instanceof Error ? error.message : String(error)
-  return textWithoutUrlCredentials(text)
-    .slice(0, RECORDED_ERROR_MAX_LENGTH)
-    .replace(REFUSED_CHARACTERS, '')
+  let recorded = ''
+  // A URL holds no white space, so cutting run by run gives the text that cutting the whole gives.
+  for (const [run] of storableText(textOf(error)).matchAll(/\s+|\S+/g)) {
+    recorded += textWithoutUrlCredentials(run)
+    if (recorded.length >= RECORDED_ERROR_MAX_LENGTH) {
+      break
+    }
+  }
+  // The bound may split a surrogate pair, which leaves an unpaired surrogate.
+  return storableText(recorded.slice(0, RECORDED_ERROR_MAX_LENGTH))
+}
+
+function textOf(error: unknown): string {
+  try {
+    const text: unknown = error instanceof Error ? error.message : error
+    return typeof text === 'string' ? text : String(text)
+  } catch {
+    return 'a thrown value that has no text'
+  }
+}
+
+/** `text` without the characters PostgreSQL refuses. */
+function storableText(text: string): string {
+  return text.replace(REFUSED_CHARACTERS, '')
 }
