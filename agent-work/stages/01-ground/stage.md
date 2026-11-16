@@ -19,7 +19,7 @@ After the three steps are merged, the orchestrator reads `probes/indexer-soak.ou
 
 - **gate A7: does the indexer add events at or below a tip it reported?** Read `lateEvents` and `vanishedEvents`.
   - Both 0: the ingest reads up to the tip. `tipMargin` defaults to 0 blocks.
-  - `lateEvents` above 0: `tipMargin` defaults to twice the largest distance between a late event's block and the tip at which its range was first read, at least 10 blocks. Say so in step 04.2 when stage 4 is revised.
+  - `lateEvents` above 0: `tipMargin` defaults to twice `lateEventMaxBlocksBelowTip`, at least 10 blocks. Say so in step 04.2 when stage 4 is revised.
   - `vanishedEvents` above 0: the indexer served events that later disappeared, which no margin of ours explains. Stop and bring it to the user with the sample.
 - **gate A8: is the indexer's tip finalised?** Read `tipAheadOfFinalityMaxBlocks` and `tipHashMismatches`.
   - Both 0: no change.

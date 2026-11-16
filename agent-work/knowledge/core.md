@@ -5,8 +5,8 @@
 The explorer is a browser app that read Signet request data straight from a Midnight indexer.
 No indexer serves a browser any more, so the explorer gets a Node backend that reads the indexer
 with a server-side token, stores what it reads in PostgreSQL, and serves it to the UI over HTTP.
-The design is `../architecture.md` and every decision is a row of `../decisions.md`: read both
-before you start, and never act against a row.
+The design is `../architecture.md` and every decision is a row of `../decisions.md`. Your step
+names the rows and sections it rests on: read those, and never act against a row.
 
 ## Where things are
 

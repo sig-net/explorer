@@ -10,6 +10,7 @@ Every part of the product, each built against the contracts of stage 3 and teste
 - The default `tipMargin` and poll interval are the ones stage 1's gates recorded in `decisions.md` (`gate A7`, `gate A8`, `gate A10`). A fresh planner writes those values into step 04.2 and 04.4 when it confirms this stage.
 - If stage 3's gate chose a field by field codec for the request record, steps 04.1 and 04.6 use it.
 - D06, D07, D10 to D13, D21 to D24 of `decisions.md`.
+- Step 04.2 has had no cold read on its own model: three attempts on fable ended in a server overload while the plan was written. The planner who confirms this stage does that cold read first and repairs the step from it.
 
 ## Shape
 

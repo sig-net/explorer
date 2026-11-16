@@ -28,4 +28,4 @@ Read this when your step reads the Midnight indexer, or decides how events and t
 
 ## Running a probe
 
-- From the repository root: `IDX="https://midnight-preprod.blockfrost.io/api/v0?project_id=$(dev-secrets get MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID)" node agent-work/probes/node-runtime.mjs 2>&1 | redact`. The soak probe also takes `NODE_RPC`, the same token on `https://rpc.midnight-preprod.blockfrost.io`. [run 4234222]
+- From the repository root: `IDX="https://midnight-preprod.blockfrost.io/api/v0?project_id=$(dev-secrets get MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID)" node agent-work/probes/node-runtime.mjs 2>&1 | redact`. The soak probe also takes `NODE_RPC`, which is `https://rpc.midnight-preprod.blockfrost.io?project_id=<token>` with no path: it answered `chain_getFinalizedHead`, `chain_getHeader` and `chain_getBlockHash` in a 90 second trial of the probe. [run 4234222]

@@ -60,6 +60,8 @@ async function eventsIn(fromBlock, toBlock) {
 }
 
 const firstRead = new Map() // event id -> block height, as first read at or below a reported tip
+const rangeTips = [] // { fromBlock, toBlock }: each range as it was first read, toBlock being the tip then
+const startedAt = Date.now()
 const tips = [] // every distinct tip the indexer reported
 let aheadOfFinalityMax = 0, aheadOfFinalityPolls = 0, polls = 0, failedPolls = 0
 const start = await indexerTip()
@@ -75,6 +77,7 @@ while (Date.now() < deadline) {
     if (tip.height > cursor) {
       for (const [id, height] of await eventsIn(cursor + 1, tip.height)) firstRead.set(id, height)
       tips.push(tip)
+      rangeTips.push({ fromBlock: cursor + 1, toBlock: tip.height })
       cursor = tip.height
     }
   } catch (error) {
@@ -84,18 +87,26 @@ while (Date.now() < deadline) {
 }
 
 // The second read, of the whole range at once, after every block in it has been below the tip.
-const secondRead = cursor > start.height ? await eventsIn(start.height + 1, cursor) : new Map()
-const late = [...secondRead].filter(([id]) => !firstRead.has(id)).map(([id, height]) => ({ id, height }))
-const vanished = [...firstRead].filter(([id]) => !secondRead.has(id)).map(([id, height]) => ({ id, height }))
-let tipHashMismatches = 0
-for (const tip of tips) {
-  if (strip(await rpc('chain_getBlockHash', [tip.height])) !== strip(tip.hash)) tipHashMismatches++
+// A failure here still writes the summary, with `error` set.
+let secondRead = new Map(), tipHashMismatches = 0, error = null
+try {
+  if (cursor > start.height) secondRead = await eventsIn(start.height + 1, cursor)
+  for (const tip of tips) {
+    if (strip(await rpc('chain_getBlockHash', [tip.height])) !== strip(tip.hash)) tipHashMismatches++
+  }
+} catch (caught) {
+  error = caught instanceof Error ? caught.message.replace(/project_id=[^&\s"]+/g, 'project_id=***') : 'unknown'
 }
+// How far below the tip of its first read a late event's block was.
+const tipWhenRead = (height) => rangeTips.find((r) => height >= r.fromBlock && height <= r.toBlock)?.toBlock ?? null
+const late = [...secondRead].filter(([id]) => !firstRead.has(id)).map(([id, height]) => ({ id, height, blocksBelowTip: tipWhenRead(height) === null ? null : tipWhenRead(height) - height }))
+const vanished = error === null ? [...firstRead].filter(([id]) => !secondRead.has(id)).map(([id, height]) => ({ id, height })) : []
 const summary = {
-  durationMinutes: DURATION_MIN, pollSeconds: POLL_S, polls, failedPolls,
+  error, durationMinutes: DURATION_MIN, elapsedMinutes: Math.round((Date.now() - startedAt) / 6000) / 10, pollSeconds: POLL_S, polls, failedPolls,
   fromBlock: start.height + 1, toBlock: cursor, distinctTips: tips.length,
   eventsFirstRead: firstRead.size, eventsSecondRead: secondRead.size,
-  lateEvents: late.length, vanishedEvents: vanished.length, lateSample: late.slice(0, 5), vanishedSample: vanished.slice(0, 5),
+  lateEvents: late.length, lateEventMaxBlocksBelowTip: late.reduce((max, e) => Math.max(max, e.blocksBelowTip ?? 0), 0),
+  vanishedEvents: vanished.length, lateSample: late.slice(0, 5), vanishedSample: vanished.slice(0, 5),
   tipAheadOfFinalityPolls: aheadOfFinalityPolls, tipAheadOfFinalityMaxBlocks: aheadOfFinalityMax,
   tipHashMismatches, calls, statuses,
 }

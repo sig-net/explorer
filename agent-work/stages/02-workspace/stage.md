@@ -15,4 +15,4 @@ A chain: 02.1, then 02.2, then 02.3. Every later step in the task builds on the 
 
 ## Gates
 
-- **Does anything outside the repository's own files name a path that moves?** Step 02.1 lists every reference it could not update (the two workflows name `dist` and the root `Dockerfile`). The orchestrator carries that list into step 05.3, which writes it into the closing report for the user. No fallback is needed: the workflows run on a release tag alone.
+- **Does anything outside the repository's own files name a path that moves?** Step 02.1 lists every reference it could not update (the two workflows name `dist` and the root `Dockerfile`). The orchestrator carries that list into step 05.3, which writes it into the closing report for the user. No fallback is needed: the workflows run on a release tag alone, so they fail only if the user tags a release of this branch before changing them. The orchestrator says so to the user when it closes this stage.

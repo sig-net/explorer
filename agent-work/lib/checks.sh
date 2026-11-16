@@ -72,3 +72,19 @@ review_check() {
   unmarked="$(grep -vE '^(blocking: |advisory: |none[[:space:]]*$|[[:space:]]|$)' <<< "$findings" || true)"
   test -z "$unmarked" || { echo "these lines of FINDINGS carry no mark:" >&2; echo "$unmarked" >&2; exit 1; }
 }
+
+# The number of tests that pass over every workspace that has a test script.
+passed_tests() {
+  local total=0 out workspace
+  for workspace in $(yarn workspaces list --json | node -e "
+    const fs = require('node:fs')
+    for (const line of fs.readFileSync(0, 'utf8').trim().split('\n')) {
+      const w = JSON.parse(line)
+      if (w.location !== '.' && require(process.cwd() + '/' + w.location + '/package.json').scripts?.test) console.log(w.name)
+    }"); do
+    out="$(mktemp)"
+    yarn workspace "$workspace" vitest run --reporter=json --outputFile="$out" >/dev/null 2>&1 || true
+    total=$((total + $(node -e "try{console.log(JSON.parse(require('node:fs').readFileSync('$out','utf8')).numPassedTests)}catch{console.log(0)}")))
+  done
+  echo "$total"
+}
