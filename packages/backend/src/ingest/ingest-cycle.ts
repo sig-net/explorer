@@ -478,7 +478,7 @@ function bytesOfHex(hex: string): Buffer {
 }
 
 /** The text of a caught error as the database may hold it: with no URL credential, and bounded. */
-function recordedErrorText(error: unknown): string {
+export function recordedErrorText(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error)
   return textWithoutUrlCredentials(text).slice(0, RECORDED_ERROR_MAX_LENGTH)
 }
