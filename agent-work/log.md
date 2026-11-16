@@ -640,3 +640,21 @@ added 05.8: the pg pool gets an error listener so that a PostgreSQL restart does
 
 ## 213 ACCEPT 05.7
 merged bernard-05-7 as 88f0e9b
+
+## 214 DISPATCH 05.3
+model opus, branch bernard-05-3, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-05-3
+
+## 215 DISPATCH 05.8
+model fable, branch bernard-05-8, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-05-8
+
+## 216 REPORT 05.8
+DONE, kept in reports/05.8-1.md
+
+## 217 CHECK 05.8
+PASS, exit 0 at d624c13, output in evidence/05.8-1.txt
+
+## 218 PACK
+backend.md and server.md: a connection ended during a query emits error on the client, and the two signatures that take onConnectionError (from 05.8's report)
+
+## 219 ACCEPT 05.8
+merged bernard-05-8 as 305eaf8
