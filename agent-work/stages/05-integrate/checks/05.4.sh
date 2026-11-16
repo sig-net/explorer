@@ -13,3 +13,6 @@ for outcome in $outcomes; do
 done
 unmarked="$(grep -vE '^(O[0-9]+: (met|not met) |blocking: |advisory: |none[[:space:]]*$|[[:space:]]|$)' <<< "$findings" || true)"
 test -z "$unmarked" || { echo "these lines of FINDINGS are neither an outcome's verdict nor a finding marked blocking: or advisory:" >&2; echo "$unmarked" >&2; exit 1; }
+for heading in 'step 04.14' 'the documentation'; do
+  grep -qF "covered: $heading" "$report" || { echo "the report has no line \`covered: $heading\`" >&2; exit 1; }
+done

@@ -571,3 +571,6 @@ PASS, exit 0 at 0177f15, output in evidence/04-build-1.txt
 
 ## 190 CHECKPOINT 04-build
 stage done at 0177f15
+
+## 191 PLAN 05-integrate
+re-planned against the stages before it, and confirmed

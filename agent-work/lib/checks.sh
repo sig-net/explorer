@@ -8,7 +8,7 @@ with_postgres() {
   local name="explorer-check-pg-$$-$RANDOM" tries=0 port
   docker run -d --rm --name "$name" -e POSTGRES_PASSWORD=check -p 127.0.0.1::5432 postgres:17 >/dev/null
   # shellcheck disable=SC2064
-  trap "docker rm -f $name >/dev/null 2>&1 || true" EXIT
+  trap "docker rm -f -v $name >/dev/null 2>&1 || true" EXIT
   # The image's first start runs a server on the socket alone, so only a TCP answer means ready.
   until docker exec "$name" psql -U postgres -h 127.0.0.1 -c 'select 1' >/dev/null 2>&1; do
     tries=$((tries + 1))
@@ -36,6 +36,26 @@ repo_checks() {
   yarn check
   yarn build
   export EXPLORER_REPO_CHECKED=1
+}
+
+# What a step that changes documentation alone needs of the repository's checks: no test suite
+# and no build.
+light_checks() {
+  if test "${EXPLORER_STAGE_CHECK:-}" = 1 && test -n "${EXPLORER_REPO_CHECKED:-}"; then return 0; fi
+  yarn install --immutable
+  yarn lint
+  yarn format:check
+}
+
+# No tracked source file under packages/ cites a row of decisions.md or the plan's folder, which
+# is removed when the pull request opens.
+no_plan_references() {
+  local files hits
+  files="$(git ls-files packages | grep -E '\.(ts|tsx|sql|sh|json|yaml|yml|conf|md)$|Dockerfile$' || true)"
+  test -n "$files" || { echo "no source file is tracked under packages/" >&2; exit 1; }
+  # shellcheck disable=SC2086
+  hits="$(grep -nE '\bD[0-9]{2}\b|agent-work' $files || true)"
+  test -z "$hits" || { echo "these lines cite a decision number or agent-work, which go with the folder:" >&2; echo "$hits" >&2; exit 1; }
 }
 
 # For a stage check: every step check it runs after this shares its PostgreSQL, its repository

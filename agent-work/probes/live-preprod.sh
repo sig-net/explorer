@@ -11,14 +11,14 @@ ui_port=$((20000 + RANDOM % 10000))
 preview_pid=''
 cleanup() {
   test -z "$preview_pid" || kill "$preview_pid" 2>/dev/null || true
-  docker rm -f "$run-backend" "$run-pg" >/dev/null 2>&1 || true
+  docker rm -f -v "$run-backend" "$run-pg" >/dev/null 2>&1 || true
   docker network rm "$run" >/dev/null 2>&1 || true
   docker rmi "$run-image" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
 docker network create "$run" >/dev/null
-docker run -d --name "$run-pg" --network "$run" -e POSTGRES_PASSWORD=live postgres:17 >/dev/null
+docker run -d --name "$run-pg" --network "$run" --tmpfs /var/lib/postgresql/data:size=2g -e POSTGRES_PASSWORD=live postgres:17 >/dev/null
 until docker exec "$run-pg" psql -U postgres -h 127.0.0.1 -c 'select 1' >/dev/null 2>&1; do sleep 0.5; done
 docker build -q -f packages/backend/Dockerfile -t "$run-image" . >/dev/null
 sql() { docker exec "$run-pg" psql -U postgres -h 127.0.0.1 -At -c "$1"; }
@@ -26,7 +26,7 @@ start_backend() {
   docker run -d --name "$run-backend" --network "$run" -p 127.0.0.1::8080 \
     -e EXPLORER_DATABASE_URL="postgres://postgres:live@$run-pg:5432/postgres" \
     -e EXPLORER_CORS_ORIGINS="http://127.0.0.1:$ui_port" -e EXPLORER_MIDNIGHT_NETWORKS=preprod \
-    -e EXPLORER_MIDNIGHT_PREPROD_INDEXER_URL="$IDX" -e EXPLORER_POLL_INTERVAL_SECONDS=5 "$run-image" >/dev/null
+    -e EXPLORER_MIDNIGHT_PREPROD_INDEXER_URL="$IDX" -e EXPLORER_POLL_INTERVAL_SECONDS=5 -e EXPLORER_MAX_RANGE_BLOCKS=500 "$run-image" >/dev/null
   api="http://127.0.0.1:$(docker port "$run-backend" 8080/tcp | head -1 | sed 's/.*://')"
 }
 sync_field() { curl -s "$api/v1/networks" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).networks.find(n=>n.network==='preprod').sync.$1 ?? '')}catch{console.log('')}})"; }
@@ -40,6 +40,7 @@ docker kill -s KILL "$run-backend" >/dev/null
 killed_at="$(sql 'select cursor_height from midnight_preprod.ingest_state')"
 killed_before_synced=false
 test "$(sql "select coalesce(tip_height, 0) - cursor_height > 1000 from midnight_preprod.ingest_state")" = t && killed_before_synced=true
+leaked_before_kill="$(docker logs "$run-backend" 2>&1 | grep -c project_id || true)"
 docker rm "$run-backend" >/dev/null
 start_backend
 for _ in $(seq 500); do test "$(sync_field state)" = synced && break; sleep 5; done
@@ -57,7 +58,7 @@ processed="$(sql 'select cursor_height from midnight_preprod.ingest_state')"
 stored="$(sql 'select count(*) from midnight_preprod.events')"
 requests="$(sql 'select count(*) from midnight_preprod.requests')"
 indexer="$(IDX="$IDX" FROM="$start_block" TO="$processed" node "$here/count-events.mjs")"
-leaked="$(docker logs "$run-backend" 2>&1 | grep -c project_id || true)"
+leaked=$(( leaked_before_kill + $(docker logs "$run-backend" 2>&1 | grep -c project_id || true) ))
 
 node -e "
 const ui = JSON.parse(process.argv[1])
