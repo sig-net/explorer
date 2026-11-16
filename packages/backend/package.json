@@ -1,0 +1,30 @@
+{
+  "name": "@sig-net/explorer-backend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "start": "node src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.8",
+    "@midnightntwrk/ledger-v9": "1.0.1",
+    "@sig-net/explorer-api": "workspace:*",
+    "@sig-net/explorer-lib": "workspace:*",
+    "@sig-net/midnight": "0.26.0-rc.15",
+    "hono": "^4.13.18",
+    "kysely": "^0.29.9",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.1",
+    "@types/pg": "^8.23.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.0"
+  }
+}
