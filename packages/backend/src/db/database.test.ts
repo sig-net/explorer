@@ -81,14 +81,15 @@ describe('openDatabase', () => {
       const observed = openObservedDatabase('explorer_connection_in_use')
       try {
         const sleeping = sql`SELECT pg_sleep(30)`.execute(observed.db)
-        const failure = expect(sleeping).rejects.toThrow(
-          'terminating connection due to administrator command',
-        )
+        // The query fails while the termination is awaited, before the assertion below listens.
+        sleeping.catch(() => {})
         await vi.waitFor(async () => {
           expect(await observed.endConnections()).toBe(1)
         })
 
-        await failure
+        await expect(sleeping).rejects.toThrow(
+          'terminating connection due to administrator command',
+        )
         await vi.waitFor(() => {
           expect(observed.errors).toHaveLength(1)
         })
