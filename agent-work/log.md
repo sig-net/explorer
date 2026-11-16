@@ -70,3 +70,6 @@ stage done at 8580093
 
 ## 23 PLAN 02-workspace
 re-planned against the stages before it, and confirmed
+
+## 24 DISPATCH 02.1
+model opus, branch bernard-02-1, worktree /home/brbussy/Projects/github.com/sig-net/explorer-bernard-02-1
