@@ -1,0 +1,13 @@
+{
+  "title": "Explorer backend: index Midnight contract data into SQL and serve the UI from it",
+  "parent_branch": "upgrade-protocol",
+  "baseline": "6763bf5",
+  "step_branches": "step/upgrade-protocol",
+  "models": [
+    "fable",
+    "opus"
+  ],
+  "pack_budget": 8000,
+  "step_budget": 6000,
+  "report_budget": 6000
+}
