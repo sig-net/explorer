@@ -8,7 +8,7 @@ import {
   parseMidnightDefaultNetworkEnv,
   parseMidnightEvmRpcEnv,
   parseMidnightNetwork,
-  parseMidnightPreprodEnv,
+  parseMidnightMpcEnv,
   parseMidnightUndeployedEnv,
   parseMpcRootPublicKey,
 } from './network'
@@ -81,35 +81,60 @@ test('the undeployed env reads its MPC root public key, empty while unset', () =
   ).toThrow('Invalid VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY')
 })
 
-test('preprod env values replace the published ones, which stand while unset', () => {
-  const published = {
-    mpcRootPublicKey: getMpcRootPublicKey(MidnightNetwork.Preprod),
-    mpcOutputCacheUrl: getMpcOutputCacheUrl(MidnightNetwork.Preprod),
-  }
-  expect(parseMidnightPreprodEnv({})).toEqual(published)
+test.each([
+  [MidnightNetwork.Preview, 'PREVIEW'],
+  [MidnightNetwork.Preprod, 'PREPROD'],
+] as const)(
+  '%s env values replace the published ones, which stand while unset',
+  (network, infix) => {
+    const published = {
+      mpcRootPublicKey: getMpcRootPublicKey(network),
+      mpcOutputCacheUrl: getMpcOutputCacheUrl(network),
+    }
+    expect(parseMidnightMpcEnv({}, network)).toEqual(published)
+    expect(
+      parseMidnightMpcEnv(
+        {
+          [`VITE_MIDNIGHT_${infix}_MPC_ROOT_PUBLIC_KEY`]: ' ',
+          [`VITE_MIDNIGHT_${infix}_MPC_OUTPUT_CACHE_URL`]: ' https://cache.example/v1/ ',
+        },
+        network,
+      ),
+    ).toEqual({
+      mpcRootPublicKey: published.mpcRootPublicKey,
+      mpcOutputCacheUrl: 'https://cache.example/v1/',
+    })
+    expect(
+      parseMidnightMpcEnv(
+        { [`VITE_MIDNIGHT_${infix}_MPC_ROOT_PUBLIC_KEY`]: LOCAL_MPC_ROOT_PUBLIC_KEY },
+        network,
+      ).mpcRootPublicKey,
+    ).toBe(LOCAL_MPC_ROOT_PUBLIC_KEY)
+  },
+)
+
+test("a network's env values leave the other network's published ones standing", () => {
   expect(
-    parseMidnightPreprodEnv({
-      VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY: ' ',
-      VITE_MIDNIGHT_PREPROD_MPC_OUTPUT_CACHE_URL: ' https://cache.example/v1/ ',
-    }),
-  ).toEqual({
-    mpcRootPublicKey: published.mpcRootPublicKey,
-    mpcOutputCacheUrl: 'https://cache.example/v1/',
-  })
-  expect(
-    parseMidnightPreprodEnv({
-      VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY: LOCAL_MPC_ROOT_PUBLIC_KEY,
-    }).mpcRootPublicKey,
-  ).toBe(LOCAL_MPC_ROOT_PUBLIC_KEY)
+    parseMidnightMpcEnv(
+      { VITE_MIDNIGHT_PREPROD_MPC_OUTPUT_CACHE_URL: 'https://cache.example/v1/' },
+      MidnightNetwork.Preview,
+    ).mpcOutputCacheUrl,
+  ).toBe(getMpcOutputCacheUrl(MidnightNetwork.Preview))
 })
 
-test('an invalid preprod env value names its variable', () => {
+test('an invalid MPC env value names its variable', () => {
   expect(() =>
-    parseMidnightPreprodEnv({ VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY: '0x04abc' }),
+    parseMidnightMpcEnv(
+      { VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY: '0x04abc' },
+      MidnightNetwork.Preprod,
+    ),
   ).toThrow('Invalid VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY')
   expect(() =>
-    parseMidnightPreprodEnv({ VITE_MIDNIGHT_PREPROD_MPC_OUTPUT_CACHE_URL: 'gs://bucket' }),
-  ).toThrow('Invalid VITE_MIDNIGHT_PREPROD_MPC_OUTPUT_CACHE_URL')
+    parseMidnightMpcEnv(
+      { VITE_MIDNIGHT_PREVIEW_MPC_OUTPUT_CACHE_URL: 'gs://bucket' },
+      MidnightNetwork.Preview,
+    ),
+  ).toThrow('Invalid VITE_MIDNIGHT_PREVIEW_MPC_OUTPUT_CACHE_URL')
 })
 
 test('a typed MPC root public key parses to its canonical form or to null', () => {

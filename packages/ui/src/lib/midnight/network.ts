@@ -120,30 +120,46 @@ export function parseMidnightUndeployedEnv(
   }
 }
 
-export type MidnightPreprodEnv = Pick<
+/** The networks the SDK publishes an MPC root public key and an MPC output cache for. */
+export type MpcPublishedNetwork = MidnightNetwork.Preview | MidnightNetwork.Preprod
+
+const MPC_ENV_NAMES = {
+  [MidnightNetwork.Preview]: {
+    mpcRootPublicKey: 'VITE_MIDNIGHT_PREVIEW_MPC_ROOT_PUBLIC_KEY',
+    mpcOutputCacheUrl: 'VITE_MIDNIGHT_PREVIEW_MPC_OUTPUT_CACHE_URL',
+  },
+  [MidnightNetwork.Preprod]: {
+    mpcRootPublicKey: 'VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY',
+    mpcOutputCacheUrl: 'VITE_MIDNIGHT_PREPROD_MPC_OUTPUT_CACHE_URL',
+  },
+} as const satisfies Record<
+  MpcPublishedNetwork,
+  Record<'mpcRootPublicKey' | 'mpcOutputCacheUrl', keyof ImportMetaEnv>
+>
+
+export type MidnightMpcEnv = Pick<
   ImportMetaEnv,
-  'VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY' | 'VITE_MIDNIGHT_PREPROD_MPC_OUTPUT_CACHE_URL'
+  (typeof MPC_ENV_NAMES)[MpcPublishedNetwork]['mpcRootPublicKey' | 'mpcOutputCacheUrl']
 >
 
 /**
- * Reads preprod's MPC root public key and MPC output cache URL. An unset or empty variable yields
- * the value the SDK publishes for preprod.
+ * Reads a network's MPC root public key and MPC output cache URL. An unset or empty variable
+ * yields the value the SDK publishes for the network.
  *
  * @throws {Error} When a set variable is not a valid key or http URL.
  */
-export function parseMidnightPreprodEnv(
-  env: MidnightPreprodEnv,
+export function parseMidnightMpcEnv(
+  env: MidnightMpcEnv,
+  network: MpcPublishedNetwork,
 ): Pick<MidnightNetworkConfig, 'mpcRootPublicKey' | 'mpcOutputCacheUrl'> {
+  const names = MPC_ENV_NAMES[network]
   return {
     mpcRootPublicKey:
-      readOptionalEnv(
-        env,
-        'VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY',
-        normaliseSecp256k1PublicKey,
-      ) || getMpcRootPublicKey(MidnightNetwork.Preprod),
+      readOptionalEnv(env, names.mpcRootPublicKey, normaliseSecp256k1PublicKey) ||
+      getMpcRootPublicKey(network),
     mpcOutputCacheUrl:
-      readOptionalEnv(env, 'VITE_MIDNIGHT_PREPROD_MPC_OUTPUT_CACHE_URL', normaliseHttpUrl) ||
-      getMpcOutputCacheUrl(MidnightNetwork.Preprod),
+      readOptionalEnv(env, names.mpcOutputCacheUrl, normaliseHttpUrl) ||
+      getMpcOutputCacheUrl(network),
   }
 }
 
@@ -153,17 +169,15 @@ export const MIDNIGHT_NETWORK_DEFAULTS: Record<MidnightNetwork, MidnightNetworkC
     ...EVM_RPC_DEFAULTS,
     mpcOutputCacheUrl: '',
   },
-  // TODO: populate for this network once released to these networks
   [MidnightNetwork.Preview]: {
-    mpcRootPublicKey: '',
+    ...parseMidnightMpcEnv(EXPLORER_ENV, MidnightNetwork.Preview),
     ...EVM_RPC_DEFAULTS,
-    mpcOutputCacheUrl: '',
   },
   [MidnightNetwork.Preprod]: {
-    ...parseMidnightPreprodEnv(EXPLORER_ENV),
+    ...parseMidnightMpcEnv(EXPLORER_ENV, MidnightNetwork.Preprod),
     ...EVM_RPC_DEFAULTS,
   },
-  // TODO: populate for this network once released to these networks
+  // TODO: populate for this network once released to it
   [MidnightNetwork.Mainnet]: {
     mpcRootPublicKey: '',
     ...EVM_RPC_DEFAULTS,

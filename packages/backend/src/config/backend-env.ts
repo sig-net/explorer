@@ -92,11 +92,17 @@ export const EXPLORER_DEFAULT_TIP_MARGIN_BLOCKS = 6
 
 export const EXPLORER_DEFAULT_MAX_RANGE_BLOCKS = 2_000
 
-/** Preprod's Blockfrost indexer, which takes a project id as `?project_id=<id>`. */
-const PREPROD_BLOCKFROST_INDEXER_URL = 'https://midnight-preprod.blockfrost.io/api/v0'
+/** Each network's Blockfrost indexer, which takes a project id as `?project_id=<id>`. */
+const BLOCKFROST_INDEXER_URLS: Partial<Record<MidnightNetwork, string>> = {
+  [MidnightNetwork.Preview]: 'https://midnight-preview.blockfrost.io/api/v0',
+  [MidnightNetwork.Preprod]: 'https://midnight-preprod.blockfrost.io/api/v0',
+}
 
-/** The lower deployment block of the signer and the responder the SDK publishes for preprod. */
-const PREPROD_PUBLISHED_CONTRACTS_START_BLOCK = 3_386_746
+/** The lower deployment block of the signer and the responder the SDK publishes for a network. */
+const PUBLISHED_CONTRACTS_START_BLOCKS: Partial<Record<DeployedNetwork, number>> = {
+  [MidnightNetwork.Preview]: 44_831,
+  [MidnightNetwork.Preprod]: 3_386_746,
+}
 
 /** A schema of one variable, and what it expects, which is all an error says about the value. */
 interface EnvSchema<T> {
@@ -287,7 +293,8 @@ function readSourceUrl(
   prefix: string,
 ): string | undefined {
   const indexerUrlName = `${prefix}_INDEXER_URL`
-  if (network !== MidnightNetwork.Preprod) {
+  const blockfrostIndexerUrl = BLOCKFROST_INDEXER_URLS[network]
+  if (blockfrostIndexerUrl === undefined) {
     return reader.required(indexerUrlName, indexerUrlSchema)
   }
   const projectIdName = `${prefix}_BLOCKFROST_PROJECT_ID`
@@ -298,7 +305,7 @@ function readSourceUrl(
   const projectId = reader.optional(projectIdName, blockfrostProjectIdSchema)
   return projectId === undefined
     ? reader.optional(indexerUrlName, indexerUrlSchema)
-    : `${PREPROD_BLOCKFROST_INDEXER_URL}?project_id=${encodeURIComponent(projectId)}`
+    : `${blockfrostIndexerUrl}?project_id=${encodeURIComponent(projectId)}`
 }
 
 function readContractAddress(
@@ -328,9 +335,13 @@ function publishedStartBlock(
   signerContractAddress: string,
   responderContractAddress: string,
 ): number | undefined {
-  return network === MidnightNetwork.Preprod &&
-    signerContractAddress === getSignerContractAddress(MidnightNetwork.Preprod) &&
-    responderContractAddress === getResponderContractAddress(MidnightNetwork.Preprod)
-    ? PREPROD_PUBLISHED_CONTRACTS_START_BLOCK
+  if (network === MidnightNetwork.Undeployed) {
+    return undefined
+  }
+  const startBlock = PUBLISHED_CONTRACTS_START_BLOCKS[network]
+  return startBlock !== undefined &&
+    signerContractAddress === getSignerContractAddress(network) &&
+    responderContractAddress === getResponderContractAddress(network)
+    ? startBlock
     : undefined
 }

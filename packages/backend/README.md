@@ -40,18 +40,21 @@ Each network named in `EXPLORER_MIDNIGHT_NETWORKS` reads the variables below, wh
 the network id in capitals (`EXPLORER_MIDNIGHT_PREPROD_START_BLOCK`). A network that is not named
 reads none of them.
 
-| Variable                                                 | Default                                                      | Value                                                                                              |
-| -------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| `EXPLORER_MIDNIGHT_<NETWORK>_INDEXER_URL`                | required, except on preprod (below)                          | The `http://` or `https://` URL of the indexer's GraphQL endpoint                                  |
-| `EXPLORER_MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID`        | preprod only (below)                                         | A Blockfrost project id for Midnight preprod, without whitespace                                   |
-| `EXPLORER_MIDNIGHT_<NETWORK>_SIGNER_CONTRACT_ADDRESS`    | the address the SDK publishes for the network, if it has one | The Signet signer's contract address: 32 bytes of hex, with or without `0x`                        |
-| `EXPLORER_MIDNIGHT_<NETWORK>_RESPONDER_CONTRACT_ADDRESS` | the address the SDK publishes for the network, if it has one | The Signet responder's contract address, in the same form                                          |
-| `EXPLORER_MIDNIGHT_<NETWORK>_START_BLOCK`                | `3386746` on preprod with the SDK's published addresses      | The lowest block height to read events from, a whole number. Required wherever there is no default |
+| Variable                                                 | Default                                                                         | Value                                                                                              |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `EXPLORER_MIDNIGHT_<NETWORK>_INDEXER_URL`                | required, except on preview and preprod (below)                                 | The `http://` or `https://` URL of the indexer's GraphQL endpoint                                  |
+| `EXPLORER_MIDNIGHT_<NETWORK>_BLOCKFROST_PROJECT_ID`      | preview and preprod only (below)                                                | A Blockfrost project id for that Midnight network, without whitespace                              |
+| `EXPLORER_MIDNIGHT_<NETWORK>_SIGNER_CONTRACT_ADDRESS`    | the address the SDK publishes for the network, if it has one                    | The Signet signer's contract address: 32 bytes of hex, with or without `0x`                        |
+| `EXPLORER_MIDNIGHT_<NETWORK>_RESPONDER_CONTRACT_ADDRESS` | the address the SDK publishes for the network, if it has one                    | The Signet responder's contract address, in the same form                                          |
+| `EXPLORER_MIDNIGHT_<NETWORK>_START_BLOCK`                | `44831` on preview and `3386746` on preprod, with the SDK's published addresses | The lowest block height to read events from, a whole number. Required wherever there is no default |
 
-Preprod takes exactly one of `EXPLORER_MIDNIGHT_PREPROD_INDEXER_URL` and
-`EXPLORER_MIDNIGHT_PREPROD_BLOCKFROST_PROJECT_ID`. The project id names Blockfrost's preprod
-indexer, `https://midnight-preprod.blockfrost.io/api/v0`, with the id in its `project_id` query
-parameter. To get one, create a project for Midnight Preprod at <https://blockfrost.io>. The id is
+Preview and preprod each take exactly one of `EXPLORER_MIDNIGHT_<NETWORK>_INDEXER_URL` and
+`EXPLORER_MIDNIGHT_<NETWORK>_BLOCKFROST_PROJECT_ID`. The project id names Blockfrost's indexer of
+that network, `https://midnight-preview.blockfrost.io/api/v0` or
+`https://midnight-preprod.blockfrost.io/api/v0`, with the id in its `project_id` query parameter.
+To get one, create a project for that Midnight network at <https://blockfrost.io>. Preview also has
+a public indexer that takes no token, `https://indexer.preview.midnight.network/api/v4/graphql`,
+which `EXPLORER_MIDNIGHT_PREVIEW_INDEXER_URL` can name. A project id is
 a secret: the backend cuts the query string and any user and password from every URL it logs or
 serves, so the UI shows the indexer's URL without it.
 

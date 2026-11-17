@@ -29,6 +29,8 @@ build. Restart `yarn dev:ui` after editing it, or let it restart on its own when
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `VITE_EXPLORER_API_URL`                        | The backend's http or https URL, without the `/v1` of its routes (`http://127.0.0.1:8080`)             |
 | `VITE_MIDNIGHT_DEFAULT_NETWORK`                | The network the app opens on: `undeployed`, `preview`, `preprod` or `mainnet`. `preprod` when unset    |
+| `VITE_MIDNIGHT_PREVIEW_MPC_ROOT_PUBLIC_KEY`    | Preview's MPC root public key. The key the SDK publishes when unset                                    |
+| `VITE_MIDNIGHT_PREVIEW_MPC_OUTPUT_CACHE_URL`   | Preview's MPC output cache. The URL the SDK publishes when unset                                       |
 | `VITE_MIDNIGHT_PREPROD_MPC_ROOT_PUBLIC_KEY`    | Preprod's MPC root public key. The key the SDK publishes when unset                                    |
 | `VITE_MIDNIGHT_PREPROD_MPC_OUTPUT_CACHE_URL`   | Preprod's MPC output cache. The URL the SDK publishes when unset                                       |
 | `VITE_MIDNIGHT_UNDEPLOYED_MPC_ROOT_PUBLIC_KEY` | A local `undeployed` stack's MPC root public key, which every stack generates afresh. Empty when unset |

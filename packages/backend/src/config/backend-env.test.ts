@@ -127,10 +127,17 @@ describe('parseBackendEnv', () => {
     }
   })
 
-  it("builds preprod's source from a Blockfrost project id", () => {
-    const [preprod] = parseBackendEnv(MINIMAL_PREPROD_ENV).networks
+  it("builds preview's and preprod's sources from a Blockfrost project id", () => {
+    const [preprod, preview] = parseBackendEnv({
+      ...MINIMAL_PREPROD_ENV,
+      EXPLORER_MIDNIGHT_NETWORKS: 'preprod,preview',
+      EXPLORER_MIDNIGHT_PREVIEW_BLOCKFROST_PROJECT_ID: 'previewAb+1/',
+    }).networks
     expect(preprod?.config.sourceUrl).toBe(
       'https://midnight-preprod.blockfrost.io/api/v0?project_id=preprodAb%2B1%2F',
+    )
+    expect(preview?.config.sourceUrl).toBe(
+      'https://midnight-preview.blockfrost.io/api/v0?project_id=previewAb%2B1%2F',
     )
     expect(
       failureOf({
@@ -142,12 +149,11 @@ describe('parseBackendEnv', () => {
     )
   })
 
-  it("takes the SDK's addresses and preprod's start block by default", () => {
+  it("takes the SDK's addresses and their deployment block by default", () => {
     const config = parseBackendEnv({
       ...MINIMAL_PREPROD_ENV,
       EXPLORER_MIDNIGHT_NETWORKS: 'preprod,preview',
       EXPLORER_MIDNIGHT_PREVIEW_INDEXER_URL: 'https://indexer.preview.test/graphql',
-      EXPLORER_MIDNIGHT_PREVIEW_START_BLOCK: '7',
     })
     const [preprod, preview] = config.networks
     expect(preprod?.config).toMatchObject({
@@ -158,8 +164,16 @@ describe('parseBackendEnv', () => {
     expect(preview?.config).toMatchObject({
       signerContractAddress: getSignerContractAddress(MidnightNetwork.Preview),
       responderContractAddress: getResponderContractAddress(MidnightNetwork.Preview),
-      startBlock: 7,
+      startBlock: 44_831,
     })
+    expect(
+      failureOf({
+        ...MINIMAL_PREPROD_ENV,
+        EXPLORER_MIDNIGHT_NETWORKS: 'preview',
+        EXPLORER_MIDNIGHT_PREVIEW_INDEXER_URL: 'https://indexer.preview.test/graphql',
+        EXPLORER_MIDNIGHT_PREVIEW_RESPONDER_CONTRACT_ADDRESS: RESPONDER,
+      }),
+    ).toContain('EXPLORER_MIDNIGHT_PREVIEW_START_BLOCK is required')
     expect(
       failureOf({
         ...MINIMAL_PREPROD_ENV,
@@ -206,8 +220,14 @@ describe('parseBackendEnv', () => {
       failureOf({
         ...MINIMAL_PREPROD_ENV,
         EXPLORER_MIDNIGHT_NETWORKS: 'preview',
-        EXPLORER_MIDNIGHT_PREVIEW_START_BLOCK: '1',
       }),
-    ).toContain('EXPLORER_MIDNIGHT_PREVIEW_INDEXER_URL is required')
+    ).toContain('set exactly one of EXPLORER_MIDNIGHT_PREVIEW_INDEXER_URL and')
+    expect(
+      failureOf({
+        ...MINIMAL_PREPROD_ENV,
+        EXPLORER_MIDNIGHT_NETWORKS: 'undeployed',
+        EXPLORER_MIDNIGHT_UNDEPLOYED_START_BLOCK: '1',
+      }),
+    ).toContain('EXPLORER_MIDNIGHT_UNDEPLOYED_INDEXER_URL is required')
   })
 })
