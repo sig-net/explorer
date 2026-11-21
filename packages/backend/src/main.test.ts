@@ -2,6 +2,7 @@ import { type ChildProcess, spawn } from 'node:child_process'
 import { createServer } from 'node:net'
 import { fileURLToPath } from 'node:url'
 
+import { sql } from 'kysely'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { createTestDatabase, type TestDatabase } from './db/testing.ts'
@@ -31,13 +32,19 @@ interface RunningMain {
   readonly child: ChildProcess
   /** What the child has written to stdout. */
   stdout(): string
+  /** What the child has written to stderr. */
+  stderr(): string
   /** The exit code, or the signal that ended the child. */
   readonly exit: Promise<number | NodeJS.Signals | null>
 }
 
-/** Starts the backend serving `undeployed` on `port`, with the rest of `env`. */
-function runMain(port: number, env: Readonly<Record<string, string>>): RunningMain {
-  const child = spawn(process.execPath, [MAIN], {
+/** Starts the backend configured for `undeployed` on `port`, with the rest of `env` and `args`. */
+function runMain(
+  port: number,
+  env: Readonly<Record<string, string>>,
+  args: readonly string[] = [],
+): RunningMain {
+  const child = spawn(process.execPath, [MAIN, ...args], {
     env: {
       PATH: process.env['PATH'],
       EXPLORER_HOST: '127.0.0.1',
@@ -49,7 +56,7 @@ function runMain(port: number, env: Readonly<Record<string, string>>): RunningMa
       EXPLORER_MIDNIGHT_UNDEPLOYED_START_BLOCK: '0',
       ...env,
     },
-    stdio: ['ignore', 'pipe', 'inherit'],
+    stdio: ['ignore', 'pipe', 'pipe'],
   })
   children.push(child)
   let stdout = ''
@@ -57,13 +64,18 @@ function runMain(port: number, env: Readonly<Record<string, string>>): RunningMa
   child.stdout?.on('data', (chunk: string) => {
     stdout += chunk
   })
+  let stderr = ''
+  child.stderr?.setEncoding('utf8')
+  child.stderr?.on('data', (chunk: string) => {
+    stderr += chunk
+  })
   const exit = new Promise<number | NodeJS.Signals | null>((resolve, reject) => {
     child.once('error', reject)
     child.once('close', (code, signal) => {
       resolve(code ?? signal)
     })
   })
-  return { child, stdout: () => stdout, exit }
+  return { child, stdout: () => stdout, stderr: () => stderr, exit }
 }
 
 /** A port of 127.0.0.1 that nothing listened on a moment ago. */
@@ -163,6 +175,61 @@ describe('main', () => {
       expect(await main.exit).toBe(1)
       expect(messagesOf(main.stdout())).toContain('the migration failed')
       expect(main.stdout()).not.toContain('secret')
+    },
+    TEST_TIMEOUT_MS,
+  )
+
+  it(
+    'migrate migrates every configured schema and exits 0 without serving',
+    async () => {
+      const port = await freePort()
+      const env = {
+        EXPLORER_DATABASE_URL: database.url,
+        EXPLORER_MIDNIGHT_UNDEPLOYED_INDEXER_URL: 'http://127.0.0.1:1/api/v4/graphql?key=secret',
+      }
+
+      for (let run = 0; run < 2; run += 1) {
+        const main = runMain(port, env, ['migrate'])
+        expect(await main.exit).toBe(0)
+        expect(main.stdout()).toBe('migrated the schemas midnight_undeployed\n')
+        expect(await isReady(port)).toBe(false)
+      }
+      const { rows } = await sql<{ name: string }>`
+        SELECT table_name AS name FROM information_schema.tables
+        WHERE table_schema = 'midnight_undeployed' ORDER BY table_name
+      `.execute(database.db)
+      expect(rows.map(({ name }) => name)).toContain('ingest_state')
+    },
+    TEST_TIMEOUT_MS,
+  )
+
+  it(
+    'migrate against a database that does not answer exits 1 without its password',
+    async () => {
+      const databasePort = await freePort()
+      const main = runMain(
+        await freePort(),
+        {
+          EXPLORER_DATABASE_URL: `postgres://explorer:secret@127.0.0.1:${String(databasePort)}/explorer`,
+          EXPLORER_MIDNIGHT_UNDEPLOYED_INDEXER_URL: 'http://127.0.0.1:1/api/v4/graphql',
+        },
+        ['migrate'],
+      )
+
+      expect(await main.exit).toBe(1)
+      expect(main.stderr()).not.toBe('')
+      expect(main.stdout() + main.stderr()).not.toContain('secret')
+    },
+    TEST_TIMEOUT_MS,
+  )
+
+  it(
+    'an unknown command prints the usage and exits 1',
+    async () => {
+      const main = runMain(await freePort(), {}, ['migrate', 'undeployed'])
+
+      expect(await main.exit).toBe(1)
+      expect(main.stderr()).toContain('main.ts migrate ')
     },
     TEST_TIMEOUT_MS,
   )

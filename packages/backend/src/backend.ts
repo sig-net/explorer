@@ -187,6 +187,28 @@ export interface RunningBackend {
 }
 
 /**
+ * Migrates the schema of every configured network, which `startBackend` also does before it
+ * reports ready.
+ *
+ * @param onConnectionError Receives the error of each connection the server ends meanwhile.
+ * @returns The names of the schemas, in the order of `config.networks`.
+ */
+export async function migrateNetworks(
+  config: BackendConfig,
+  onConnectionError: (error: Error) => void,
+): Promise<string[]> {
+  const db = openDatabase(config.databaseUrl, onConnectionError)
+  try {
+    for (const { network } of config.networks) {
+      await migrateNetworkSchema(db, network)
+    }
+  } finally {
+    await db.destroy()
+  }
+  return config.networks.map(({ network }) => networkSchemaName(network))
+}
+
+/**
  * Drops the schema of the configured network `networkArgument` names and migrates it again, so
  * that a running backend indexes the network from its start block.
  *

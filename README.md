@@ -140,28 +140,29 @@ from the container's environment at start. The backend's image runs the backend 
 is meant for a Kubernetes deployment of one replica. Each package's README says how to run its
 image.
 
-Both release workflows described below fail as committed. What follows says what each does once
-the changes listed under [Corrections the workflows need](#corrections-the-workflows-need) are
-made.
+The `docker-build` workflow builds both images for linux/amd64 and linux/arm64 on every push that
+touches them, each on a runner of that architecture, and runs each one: the backend's migration
+and server against a PostgreSQL, and the UI's page. It pushes nothing.
 
-The `docker-publish` workflow publishes the UI's image to GitHub Packages on a release tag:
+The `docker-publish` workflow publishes both images to GitHub Packages on a release tag:
 
 ```bash
 git tag v1.2.0-rc.1 && git push origin v1.2.0-rc.1
 ```
 
-gives `ghcr.io/sig-net/explorer:v1.2.0-rc.1`, also tagged with the commit hash and, for every
-publish, `latest`. A stable tag (`v1.2.0`) must point at a commit on `main`, while `-rc` tags may
-come from any branch. The workflow builds linux/amd64 and linux/arm64 on native runners and
-combines them into one multi-architecture manifest, passing the tag to the build as
-`EXPLORER_VERSION` for the footer. The arm64 build runs without credentials and hands its image
-over as a run artifact, which only the publishing job pushes.
-
-No workflow publishes the backend's image.
+gives `ghcr.io/sig-net/explorer:v1.2.0-rc.1` (the UI) and
+`ghcr.io/sig-net/explorer-backend:v1.2.0-rc.1` (the backend), each also tagged with the commit
+hash and, for every publish, `latest`. A stable tag (`v1.2.0`) must point at a commit on `main`,
+while `-rc` tags may come from any branch. The workflow builds linux/amd64 and linux/arm64 on
+native runners and combines them into one multi-architecture manifest, passing the tag to the UI's
+build as `EXPLORER_VERSION` for the footer. The arm64 builds run without credentials and hand
+their images over as run artifacts, which only the publishing jobs push.
 
 ## GitHub Pages
 
-The `pages-deploy` workflow builds the UI and deploys it to GitHub Pages, at
+The `pages-deploy` workflow fails as committed. This section says what it does once the changes
+under [Corrections the pages-deploy workflow needs](#corrections-the-pages-deploy-workflow-needs)
+are made. It builds the UI and deploys it to GitHub Pages, at
 <https://sig-net.github.io/explorer/>. There is one environment, so the release flow is short:
 merge `dev` into `main`, tag the commit on `main` as `vX.Y.Z`, and push the tag. The workflow runs
 for that tag form alone, and it fails before building anything when the tagged commit is not on
@@ -177,10 +178,10 @@ Vite inlines `VITE_` values at build time, and the site reaches its backend only
 sets `VITE_EXPLORER_API_URL`. The backend must then list `https://sig-net.github.io` in its
 `EXPLORER_CORS_ORIGINS`.
 
-## Corrections the workflows need
+## Corrections the pages-deploy workflow needs
 
-The UI builds into `packages/ui/dist` and its image is built from `packages/ui/Dockerfile`. The
-two workflows read `dist` and a `Dockerfile` at the repository root, where neither exists.
+The UI builds into `packages/ui/dist`. The `pages-deploy` workflow reads `dist` at the repository
+root, where none exists.
 
 In `.github/workflows/pages-deploy.yml`:
 
@@ -189,9 +190,3 @@ In `.github/workflows/pages-deploy.yml`:
 - Line 84: `path: dist` becomes `path: packages/ui/dist`.
 - Lines 74 to 78, the `env` of the build step: add `VITE_EXPLORER_API_URL`, set to the public URL
   of the backend. A build without it produces a site that reaches no backend.
-
-In `.github/workflows/docker-publish.yml`:
-
-- Lines 72 and 108: each `context: .` gains the line `file: packages/ui/Dockerfile` beside it. The
-  context stays the repository root.
-- Line 1: the comment's "root Dockerfile" becomes `packages/ui/Dockerfile`.

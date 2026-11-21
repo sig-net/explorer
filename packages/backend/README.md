@@ -243,9 +243,27 @@ PostgreSQL of `yarn db:up`, which listens on the host's `127.0.0.1`, share the h
 docker run --rm --network host --env-file packages/backend/.env.local explorer-backend
 ```
 
+## Migrating
+
+The backend migrates every configured network's schema when it starts, before it reports ready.
+The same migration runs alone, for a step that must finish before the server starts (an init
+container):
+
+```bash
+node packages/backend/src/main.ts migrate
+```
+
+It reads the same configuration as the server, prints `migrated the schemas midnight_preprod` with
+every schema it migrated, and exits 0. A migration that fails exits 1 with the reason. Running it
+again changes nothing.
+
 ## Deploying to Kubernetes
 
-The repository delivers the image and no manifests. A deployment provides:
+The repository delivers the image, `ghcr.io/sig-net/explorer-backend`, and no manifests. A
+deployment provides:
+
+- Optionally an init container that runs `node packages/backend/src/main.ts migrate` in the same
+  image with the same variables, so that a failed migration shows as a failed init container.
 
 - One replica. Readiness does not follow the database, so a second pod would gain nothing when the
   database is down, and every pod would run its own ingest loops.

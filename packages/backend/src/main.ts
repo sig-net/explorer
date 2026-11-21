@@ -1,20 +1,22 @@
 import { textWithoutUrlCredentials } from '@sig-net/explorer-api'
 
-import { type BackendLogEntry, startBackend, wipeNetwork } from './backend.ts'
+import { type BackendLogEntry, migrateNetworks, startBackend, wipeNetwork } from './backend.ts'
 import { type BackendConfig, parseBackendEnv } from './config/backend-env.ts'
 import { inspectTransactionForStorage } from './inspection/sign-bidirectional-transaction-inspection.ts'
 import { createIndexerSource } from './source/indexer/indexer-source.ts'
 
 const USAGE = `usage:
   node packages/backend/src/main.ts                         serve the API and index every configured network
+  node packages/backend/src/main.ts migrate                 migrate every configured network's schema and exit
   node packages/backend/src/main.ts wipe-network <network>  drop one network's schema and migrate it again`
 
 await main(process.argv.slice(2))
 
 async function main(args: readonly string[]): Promise<void> {
   const [command, network] = args
+  const isMigrate = command === 'migrate' && args.length === 1
   const isWipe = command === 'wipe-network' && network !== undefined && args.length === 2
-  if (args.length > 0 && !isWipe) {
+  if (args.length > 0 && !isMigrate && !isWipe) {
     console.error(USAGE)
     process.exit(1)
   }
@@ -24,6 +26,18 @@ async function main(args: readonly string[]): Promise<void> {
   } catch (error) {
     console.error(errorMessage(error))
     process.exit(1)
+  }
+  if (isMigrate) {
+    try {
+      const schemas = await migrateNetworks(config, (error) => {
+        console.error(errorMessage(error))
+      })
+      console.log(`migrated the schemas ${schemas.join(', ')}`)
+      process.exit(0)
+    } catch (error) {
+      console.error(errorMessage(error))
+      process.exit(1)
+    }
   }
   if (isWipe) {
     try {
