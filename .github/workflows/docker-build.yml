@@ -107,7 +107,7 @@ jobs:
           done
           curl --fail --silent --show-error http://127.0.0.1:8080/readyz
           curl --fail --silent --show-error http://127.0.0.1:8080/v1/networks | grep --quiet '"network":"undeployed"'
-          docker stop --time 20 backend
+          docker stop --timeout 20 backend
           docker logs backend
           test "$(docker inspect backend --format '{{.State.ExitCode}}')" = 0
 
