@@ -1,0 +1,157 @@
+# Builds the explorer's two images for linux/amd64 and linux/arm64, each on its native runner,
+# and runs each one: the backend's migration and server against a PostgreSQL, the UI's page.
+# Nothing is pushed, so the jobs hold no credentials. docker-publish publishes on release tags.
+
+name: docker-build
+
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - 'packages/**'
+      - 'package.json'
+      - 'yarn.lock'
+      - '.yarnrc.yml'
+      - '.dockerignore'
+      - '.github/workflows/docker-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      - name: Build the image for ${{ matrix.platform }}
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: packages/backend/Dockerfile
+          platforms: ${{ matrix.platform }}
+          tags: explorer-backend:build
+          load: true
+          provenance: false
+      - name: The image is built for the runner's own architecture
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          built="$(docker image inspect explorer-backend:build --format '{{.Os}}/{{.Architecture}}')"
+          echo "built $built on $(uname -m)"
+          test "$built" = "$PLATFORM"
+      - name: Write the configuration of a backend that indexes a local network
+        run: |
+          cat > "$RUNNER_TEMP/backend.env" <<'END_OF_ENV'
+          EXPLORER_DATABASE_URL=postgres://explorer:explorer@127.0.0.1:5432/explorer
+          EXPLORER_HOST=127.0.0.1
+          EXPLORER_CORS_ORIGINS=*
+          EXPLORER_MIDNIGHT_NETWORKS=undeployed
+          EXPLORER_MIDNIGHT_UNDEPLOYED_INDEXER_URL=http://127.0.0.1:1/api/v4/graphql
+          EXPLORER_MIDNIGHT_UNDEPLOYED_SIGNER_CONTRACT_ADDRESS=a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0
+          EXPLORER_MIDNIGHT_UNDEPLOYED_RESPONDER_CONTRACT_ADDRESS=b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0
+          EXPLORER_MIDNIGHT_UNDEPLOYED_START_BLOCK=0
+          END_OF_ENV
+      - name: Start PostgreSQL
+        run: |
+          docker run --detach --name postgres --network host \
+            --env POSTGRES_USER=explorer --env POSTGRES_PASSWORD=explorer --env POSTGRES_DB=explorer \
+            postgres:17
+          for _ in $(seq 60); do
+            docker exec postgres pg_isready --username explorer --dbname explorer && exit 0
+            sleep 1
+          done
+          docker logs postgres
+          exit 1
+      - name: The migration fails without a database and creates the schema with one
+        run: |
+          if docker run --rm --network host --env-file "$RUNNER_TEMP/backend.env" \
+            --env EXPLORER_DATABASE_URL=postgres://explorer:explorer@127.0.0.1:1/explorer \
+            explorer-backend:build node packages/backend/src/main.ts migrate; then
+            echo "::error::migrate exited 0 with no database to migrate"
+            exit 1
+          fi
+          docker run --rm --network host --env-file "$RUNNER_TEMP/backend.env" \
+            explorer-backend:build node packages/backend/src/main.ts migrate
+          tables="$(docker exec postgres psql --username explorer --dbname explorer --tuples-only --no-align \
+            --command "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'midnight_undeployed'")"
+          echo "midnight_undeployed holds $tables tables"
+          test "$tables" -gt 0
+      - name: The server reports ready, serves its networks and stops on SIGTERM
+        run: |
+          docker run --detach --name backend --network host --env-file "$RUNNER_TEMP/backend.env" \
+            explorer-backend:build
+          for _ in $(seq 60); do
+            if [ "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/readyz)" = 200 ]; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent --show-error http://127.0.0.1:8080/readyz
+          curl --fail --silent --show-error http://127.0.0.1:8080/v1/networks | grep --quiet '"network":"undeployed"'
+          docker stop --time 20 backend
+          docker logs backend
+          test "$(docker inspect backend --format '{{.State.ExitCode}}')" = 0
+
+  ui:
+    name: ui (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      - name: Build the image for ${{ matrix.platform }}
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: packages/ui/Dockerfile
+          platforms: ${{ matrix.platform }}
+          tags: explorer-ui:build
+          load: true
+          provenance: false
+      - name: The image is built for the runner's own architecture
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          built="$(docker image inspect explorer-ui:build --format '{{.Os}}/{{.Architecture}}')"
+          echo "built $built on $(uname -m)"
+          test "$built" = "$PLATFORM"
+      - name: The server answers with the app's page
+        run: |
+          docker run --detach --name ui --publish 127.0.0.1:8081:8080 explorer-ui:build
+          for _ in $(seq 30); do
+            if curl --fail --silent --output /tmp/index.html http://127.0.0.1:8081/; then
+              break
+            fi
+            sleep 1
+          done
+          grep --quiet '<div id="root">' /tmp/index.html
+          docker logs ui

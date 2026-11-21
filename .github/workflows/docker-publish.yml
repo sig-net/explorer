@@ -1,14 +1,16 @@
-# Publishes the explorer image (root Dockerfile) to GitHub Packages on release tags:
+# Publishes the explorer's two images to GitHub Packages on release tags:
 #   git tag v1.2.0-rc.1 && git push origin v1.2.0-rc.1
-#   -> ghcr.io/sig-net/explorer:v1.2.0-rc.1
+#   -> ghcr.io/sig-net/explorer:v1.2.0-rc.1          the UI (packages/ui/Dockerfile)
+#   -> ghcr.io/sig-net/explorer-backend:v1.2.0-rc.1  the backend (packages/backend/Dockerfile)
 # Stable tags (v1.2.0) must point at a commit on main, while -rc tags may come from any branch.
+# The UI's image keeps the name its consumers pull, which carries no `-ui`.
 #
-# `publish` builds linux/amd64 natively and pushes with this run's token, while `build-arm64`
-# builds linux/arm64 on its native runner in parallel without credentials and hands the image
-# over as a run artifact. `publish` then pushes both architectures under `<tag>-linux-<arch>`
-# and combines them into the multi-architecture manifest `<tag>`, also tagged `latest` and with
-# the tagged commit's full hash. The image reads its configuration from its runtime environment,
-# so it carries none.
+# Each image is published by its own pair of jobs. `publish` builds linux/amd64 natively and
+# pushes with this run's token, while `build-arm64` builds linux/arm64 on its native runner in
+# parallel without credentials and hands the image over as a run artifact. `publish` then pushes
+# both architectures under `<tag>-linux-<arch>` and combines them into the multi-architecture
+# manifest `<tag>`, also tagged `latest` and with the tagged commit's full hash. Both images read
+# their configuration from their runtime environment, so they carry none.
 # Layers are not cached between runs: a publish job must not consume a poisonable cache.
 
 name: docker-publish
@@ -29,7 +31,6 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
   verify-tag:
@@ -58,9 +59,24 @@ jobs:
 
   # Builds without credentials. Its output is an image tarball that only `publish` can push.
   build-arm64:
+    name: build-arm64 (${{ matrix.image }})
     needs: verify-tag
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ui
+            name: ghcr.io/${{ github.repository }}
+            dockerfile: packages/ui/Dockerfile
+            build-args: EXPLORER_VERSION=${{ github.ref_name }}
+          - image: backend
+            name: ghcr.io/${{ github.repository }}-backend
+            dockerfile: packages/backend/Dockerfile
+            build-args: ''
+    env:
+      IMAGE: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -70,22 +86,38 @@ jobs:
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
+          file: ${{ matrix.dockerfile }}
           platforms: linux/arm64
-          build-args: EXPLORER_VERSION=${{ github.ref_name }}
+          build-args: ${{ matrix.build-args }}
           tags: ${{ env.IMAGE }}:${{ github.ref_name }}-linux-arm64
           outputs: type=docker,dest=/tmp/image-linux-arm64.tar
           provenance: false
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: image-linux-arm64
+          name: image-${{ matrix.image }}-linux-arm64
           path: /tmp/image-linux-arm64.tar
           if-no-files-found: error
           retention-days: 1
 
   publish:
+    name: publish (${{ matrix.image }})
     needs: verify-tag
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ui
+            name: ghcr.io/${{ github.repository }}
+            dockerfile: packages/ui/Dockerfile
+            build-args: EXPLORER_VERSION=${{ github.ref_name }}
+          - image: backend
+            name: ghcr.io/${{ github.repository }}-backend
+            dockerfile: packages/backend/Dockerfile
+            build-args: ''
+    env:
+      IMAGE: ${{ matrix.name }}
     permissions:
       contents: read
       # Pushes the image to this repository's packages.
@@ -106,35 +138,37 @@ jobs:
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
-          build-args: EXPLORER_VERSION=${{ github.ref_name }}
+          build-args: ${{ matrix.build-args }}
           tags: ${{ env.IMAGE }}:${{ github.ref_name }}-linux-amd64
           push: true
           provenance: false
       - name: Wait for the arm64 build
         env:
           GH_TOKEN: ${{ github.token }}
+          ARM64_JOB: build-arm64 (${{ matrix.image }})
         run: |
           deadline=$(( $(date +%s) + 1800 ))
           while :; do
             state="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
-              --jq '.jobs[] | select(.name == "build-arm64") | "\(.status) \(.conclusion)"')"
+              --jq ".jobs[] | select(.name == \"$ARM64_JOB\") | \"\(.status) \(.conclusion)\"")"
             case "$state" in
               "completed success") break ;;
               completed*)
-                echo "::error::build-arm64 ended with ${state#completed }"
+                echo "::error::$ARM64_JOB ended with ${state#completed }"
                 exit 1
                 ;;
             esac
             if [ "$(date +%s)" -ge "$deadline" ]; then
-              echo "::error::build-arm64 did not finish within 30 minutes (state: ${state:-not started})"
+              echo "::error::$ARM64_JOB did not finish within 30 minutes (state: ${state:-not started})"
               exit 1
             fi
             sleep 30
           done
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: image-linux-arm64
+          name: image-${{ matrix.image }}-linux-arm64
           path: /tmp
       - name: Push the linux/arm64 image
         run: |
